@@ -1,3 +1,9 @@
+# v0.2.28
+
+Docker storage repair, familiar commands and d/dc aliases, guided overlay recovery,
+separate API and tested-container readiness, and a short Docker guide.
+See docs/RELEASE-0.2.28.md.
+
 # v0.2.27
 
 Publish the optional Docker/Compose support already merged into main, so the stable

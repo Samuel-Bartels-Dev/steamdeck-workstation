@@ -5,6 +5,8 @@ optional integration after the established workstation/guided setup; declining
 is remembered and does not affect other modules. No new top-level module or
 change to the existing Podman/Distrobox/Codex path is required.
 
+For everyday commands, see the [short Docker guide](../../../docs/DOCKER.md).
+
 ## Quick start for beacon and RLCS/dashboard projects
 
 ```bash
@@ -112,6 +114,14 @@ deckctl containers install --storage-driver fuse-overlayfs
 deckctl containers status
 ```
 
+The interactive installer now recognizes this failure and offers the repair
+directly, explaining the storage change before asking. It checks that the
+managed engine has no existing containers, stops it only after you accept,
+selects fuse-overlayfs and reruns the actual container test. A missing helper,
+declined prompt, noninteractive session, or existing containers leaves the
+engine unchanged and returns actionable CONFIG_REQUIRED guidance. Other errors
+do not trigger this repair; remote/context engines are never switched.
+
 This explicitly selects the classic `fuse-overlayfs` driver and disables the
 containerd snapshotter for this managed engine. It runs the Compose HTTP test
 and remembers the choice for future installation retries. The default backend
@@ -147,6 +157,7 @@ and update the pins, rerun CI, and test the supported SteamOS builds.
   `~/.local/share/deckctl/containers/` (normally internal NVMe).
 - Selected mode/opt-in state: `~/.config/deckctl/containers.json`, following
   DECKCTL_CONFIG when set. Remote endpoint names are private operational metadata.
+- Last launch/HTTP/cleanup result: `~/.config/deckctl/containers-test.json`.
 - Local user service: `~/.config/systemd/user/deckctl-docker.service`.
 - Local socket: `$XDG_RUNTIME_DIR/deckctl-docker.sock`.
 
@@ -167,7 +178,14 @@ an installer-cleanup operation.
 ## Verification and limitations
 
 `status` only queries engine/Compose state; it never pulls images or starts a
-service. `test` launches [compose-smoke.yaml](compose-smoke.yaml), waits for health,
+service or writes test evidence. `API_READY` means that API checks pass but a
+matching container test has not passed; `READY` includes a timestamped previous
+successful launch/HTTP/cleanup test. Failed or interrupted tests show
+`TEST_FAILED` or `TEST_REQUIRED`. A different engine, version, endpoint, driver
+or fixture invalidates the old result. `last_test_at` is historical evidence,
+not a claim that an application is healthy now. Run `test` for a fresh check.
+
+`test` launches [compose-smoke.yaml](compose-smoke.yaml), waits for health,
 checks an actual HTTP response, and tears down only its unique test project. It
 publishes no ports, mounts no host directory and creates no persistent volume.
 The digest-pinned image remains cached for repeat tests. This checks basic Docker

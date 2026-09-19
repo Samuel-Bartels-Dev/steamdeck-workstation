@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.27
+# Steam Deck Workstation — v0.2.28
 
 ## Copy/paste quick fixes
 
@@ -57,8 +57,8 @@ If you copied the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.27.tar.gz
-cd steamdeck-workstation-0.2.27
+tar -xzf steamdeck-workstation-v0.2.28.tar.gz
+cd steamdeck-workstation-0.2.28
 chmod +x install.sh
 ./install.sh
 ```
@@ -101,8 +101,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.27.tar.gz
-cd steamdeck-workstation-0.2.27
+tar -xzf steamdeck-workstation-v0.2.28.tar.gz
+cd steamdeck-workstation-0.2.28
 chmod +x install.sh
 ./install.sh
 ```
@@ -811,7 +811,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.27.md).
+See [the latest release notes](docs/RELEASE-0.2.28.md).
 
 ## Online releases and recovery
 

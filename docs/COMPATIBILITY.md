@@ -5,6 +5,7 @@ Record exact versions and evidence; never turn an untested cell into PASS.
 
 | Project revision | Environment | Evidence | Result and limit |
 | --- | --- | --- | --- |
+| v0.2.28 candidate | Steam Deck OLED, SteamOS 3.8.16 / build 20260716.1, rootless Docker 29.8.1, fuse-overlayfs | [Docker hardware report](DOCKER-HARDWARE-0.2.28.md) | PASS for API/test distinction and isolated Compose/Buildx/HTTP behavior on an existing installation; guided failure branches simulated, fresh/LCD/OS-update paths untested. |
 | v0.2.26; source commit `cb426679f1009fd39a835f3cb034c8d5c3dc9ae1` | GitHub Ubuntu runners, Python 3.12 and 3.13 | [Release regression run](https://github.com/Samuel-Bartels-Dev/steamdeck-workstation/actions/runs/35409442993) | Automated regression and package verification passed; no Deck hardware or live vendor-install certification. |
 | PR #1; source commit `f05804e4636167a6259ae10ee0795ae9cb373a94` | GitHub Ubuntu runners, Python 3.12 and 3.13 | [Regression/package run](https://github.com/Samuel-Bartels-Dev/steamdeck-workstation/actions/runs/35410835003), [lint run](https://github.com/Samuel-Bartels-Dev/steamdeck-workstation/actions/runs/35410835043) | CI passed; runtime files unchanged by the PR. |
 | v0.2.26 | Steam Deck LCD/OLED, SteamOS exact build not recorded | No release-scoped hardware report committed yet | NOT TESTED here. User troubleshooting successes are not a complete release certification. |
