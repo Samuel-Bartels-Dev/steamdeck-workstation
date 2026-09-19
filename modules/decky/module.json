@@ -1,0 +1,27 @@
+{
+  "api_version": 1,
+  "id": "decky",
+  "name": "Decky",
+  "depends_on": [
+    "base",
+    "hardware"
+  ],
+  "capabilities": [
+    "decky",
+    "game-mode-customization"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh",
+    "install_theme": "install-theme.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

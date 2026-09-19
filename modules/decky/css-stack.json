@@ -1,0 +1,260 @@
+{
+  "schema_version": 3,
+  "preset": "Bubble Gum Rave - Base",
+  "description": "Palette settings applied to real CSS Loader Theme Store components through the installed plugin API.",
+  "required": [
+    {
+      "name": "Chromahon (Steam Menu)",
+      "source": "css-loader-store",
+      "reason": "Structural customization for the STEAM button side menu.",
+      "configure_palette": true
+    },
+    {
+      "name": "Chromahon (Input Controls)",
+      "source": "css-loader-store",
+      "reason": "Structural customization for controller/footer input hints.",
+      "configure_palette": true
+    },
+    {
+      "name": "Chromahon (Context Menus)",
+      "source": "css-loader-store",
+      "reason": "Structural customization for right-click/Options/context popups.",
+      "configure_palette": true
+    },
+    {
+      "name": "Chromahon (QAM)",
+      "source": "css-loader-store",
+      "reason": "Structural customization for the ... Quick Access Menu.",
+      "configure_palette": true
+    }
+  ],
+  "recommended": [
+    {
+      "name": "Round",
+      "source": "css-loader-store",
+      "reason": "Softens cards, panels and controls so the neon UI feels cohesive rather than boxy.",
+      "settings": "Start moderate (roughly 6-12px equivalent). Avoid extreme rounding until the stack is stable.",
+      "configure_palette": false
+    },
+    {
+      "name": "Full Screen Menus",
+      "source": "css-loader-store",
+      "reason": "Makes Steam Menu/QAM taller and cleaner while preserving the Chromahon structure.",
+      "settings": "Start full-height with Steam Menu around 50-75% width and QAM around 50%, then tune to taste.",
+      "configure_palette": false
+    },
+    {
+      "name": "Colored Keyboard",
+      "source": "css-loader-store",
+      "reason": "Extends the Bubble Gum Rave color language to Steam's on-screen keyboard.",
+      "settings": "Use the closest magenta/cyan/purple preset; Bubble Gum Rave does not replace keyboard layout.",
+      "configure_palette": true
+    },
+    {
+      "name": "Centered Game Text",
+      "source": "css-loader-store",
+      "reason": "Centers the selected-game title for a cleaner console-style home screen.",
+      "settings": "Default is a good starting point; keep text visible with Art Hero before hiding other home labels.",
+      "configure_palette": false
+    },
+    {
+      "name": "DellyVolume",
+      "source": "css-loader-store",
+      "reason": "Cleans up the volume overlay and fits the polished console-like presentation.",
+      "settings": "Start with its default/compact presentation; verify it still reads well over Better Blur.",
+      "configure_palette": true
+    },
+    {
+      "name": "Better Game Icons",
+      "source": "css-loader-store",
+      "reason": "Cleans up small library/game icons and makes non-Steam entries feel less out of place.",
+      "settings": "Prefer transparent background; keep icon radius low if Round is already handling global rounding.",
+      "configure_palette": false
+    },
+    {
+      "name": "Better Game Badges",
+      "source": "css-loader-store",
+      "reason": "Improves badge treatment so compatibility/status badges look intentional rather than bolted on.",
+      "settings": "Start at defaults; verify ProtonDB/Deck Verified/non-Steam badges remain legible.",
+      "configure_palette": false
+    },
+    {
+      "name": "Top Bar Transparency",
+      "source": "css-loader-store",
+      "reason": "Removes the heavy stock top bar so art and neon accents breathe more naturally.",
+      "settings": "Use transparent or mostly transparent; keep enough contrast for clock/network/battery readability.",
+      "configure_palette": false
+    },
+    {
+      "name": "Better Blur",
+      "source": "css-loader-store",
+      "reason": "Adds controlled glass-like blur behind UI panels and pairs well with OLED black plus neon accents.",
+      "settings": "Start around blur strength 4 and opacity about 0.3 if those options are present; reduce before increasing.",
+      "configure_palette": false
+    },
+    {
+      "name": "Better Achievements",
+      "source": "css-loader-store",
+      "reason": "Polishes achievement presentation on game pages without changing core navigation.",
+      "settings": "Defaults first; treat this as cosmetic and disable early if a Steam update breaks game-detail pages.",
+      "configure_palette": false
+    },
+    {
+      "name": "Game Cover Reflections",
+      "source": "css-loader-store",
+      "reason": "Adds a subtle reflection under recent-game covers for a more finished console-style carousel.",
+      "settings": "Keep reflection strength subtle so OLED blacks and cover art remain the focus.",
+      "configure_palette": false
+    },
+    {
+      "name": "Percentages",
+      "source": "css-loader-store",
+      "reason": "Adds useful numeric volume/brightness readouts to QAM/settings without adding another plugin.",
+      "settings": "Enable the readouts you care about; volume + brightness are the useful defaults.",
+      "configure_palette": false
+    },
+    {
+      "name": "No Game Count",
+      "source": "css-loader-store",
+      "reason": "Removes collection/library game-count clutter for a cleaner home/library presentation.",
+      "settings": "Enable as-is if you prefer minimalism; no tuning needed.",
+      "configure_palette": false
+    },
+    {
+      "name": "Art Hero",
+      "source": "css-loader-store",
+      "reason": "Makes the home screen art-forward with a larger hero. Great fit for the OLED but a meaningful layout change.",
+      "settings": "Good starting point: expanded hero, small/default footer, slightly reduced hero/carousel heights. Tune after Centered Game Text.",
+      "configure_palette": false
+    },
+    {
+      "name": "Clean Gameview",
+      "source": "css-loader-store",
+      "reason": "Cleans and modernizes the game-detail page. Useful, but it modifies one of Steam's more update-sensitive layouts.",
+      "settings": "Start with a blurred play bar and centered/zoom-centered alignment if available; keep Steam Cloud/status visible.",
+      "configure_palette": false
+    },
+    {
+      "name": "Clean Game Launch",
+      "source": "css-loader-store",
+      "reason": "Simplifies the launch screen so starting a game matches the rest of the clean console-style UI.",
+      "settings": "Defaults first. If it offers filter-removal/extra-clean options, enable only after verifying launch dialogs still expose needed choices.",
+      "configure_palette": false
+    },
+    {
+      "name": "Focus Highlight Color",
+      "source": "css-loader-store",
+      "reason": "Colors the focused selection border with the Bubble Gum Rave palette.",
+      "configure_palette": true,
+      "patch_options": {
+        "Round Compatibility": "Yes"
+      }
+    }
+  ],
+  "optional": [
+    {
+      "name": "Hero Zoom Eradication",
+      "source": "css-loader-store",
+      "reason": "Stops some hero-art zoom behavior and can make Art Hero/Clean Gameview feel steadier.",
+      "settings": "Only enable if the hero zoom bothers you or clashes with Art Hero.",
+      "configure_palette": false
+    },
+    {
+      "name": "No Home Edge Fade",
+      "source": "css-loader-store",
+      "reason": "Removes the stock home-edge fade so custom art/background treatments stay cleaner.",
+      "settings": "Enable after Art Hero/Better Blur so you can judge readability.",
+      "configure_palette": false
+    },
+    {
+      "name": "Mini Carousel",
+      "source": "css-loader-store",
+      "reason": "Shrinks the recent-games carousel and gives hero art more room; pairs especially well with Art Hero.",
+      "settings": "Use a conservative size reduction first; too small hurts handheld readability.",
+      "configure_palette": false
+    },
+    {
+      "name": "Gradient Top Bar",
+      "source": "css-loader-store",
+      "reason": "Alternative to Top Bar Transparency when you want the top bar itself to carry the rave palette.",
+      "settings": "Use this OR Top Bar Transparency as the primary treatment, not both unless you have verified the combination.",
+      "configure_palette": false
+    },
+    {
+      "name": "Game Cover Shine Animation",
+      "source": "css-loader-store",
+      "reason": "Adds animated highlight polish to covers; cosmetic only and more likely to be distracting than the reflection layer.",
+      "settings": "Keep subtle; disable if animations feel busy or reduce battery/UI smoothness.",
+      "configure_palette": false
+    },
+    {
+      "name": "Tilted Home",
+      "source": "css-loader-store",
+      "reason": "Strong home-screen layout change. Nice visually but more conflict-prone with Art Hero and carousel themes.",
+      "settings": "Do not enable until the base Bubble Gum Rave profile is saved and stable.",
+      "configure_palette": false
+    },
+    {
+      "name": "DellyFooter",
+      "source": "css-loader-store",
+      "reason": "Alternative footer treatment if you want a more minimal button-hint bar.",
+      "settings": "Optional because Chromahon Input Controls + Bubble Gum Rave already style this surface.",
+      "configure_palette": false
+    },
+    {
+      "name": "Static Background",
+      "source": "css-loader-store",
+      "reason": "Lets you add a fixed Bubble Gum Rave wallpaper/background behind Game Mode.",
+      "settings": "Use a dark OLED-first background with restrained neon bloom; avoid bright full-screen fills.",
+      "configure_palette": false
+    },
+    {
+      "name": "Faster Transition Animations",
+      "source": "css-loader-store",
+      "reason": "Makes Steam UI transitions feel snappier; useful after visual styling is stable.",
+      "settings": "Start modestly rather than max speed; verify menus remain readable and animations do not feel abrupt.",
+      "configure_palette": false
+    }
+  ],
+  "policy": {
+    "load_order": [
+      "Chromahon (Steam Menu)",
+      "Chromahon (Input Controls)",
+      "Chromahon (Context Menus)",
+      "Chromahon (QAM)",
+      "Full Screen Menus",
+      "Round",
+      "Centered Game Text",
+      "Better Blur",
+      "Top Bar Transparency",
+      "Better Game Icons",
+      "Better Game Badges",
+      "Better Achievements",
+      "Game Cover Reflections",
+      "Percentages",
+      "No Game Count",
+      "DellyVolume",
+      "Colored Keyboard",
+      "Art Hero",
+      "Clean Gameview",
+      "Clean Game Launch",
+      "Focus Highlight Color"
+    ],
+    "notes": [
+      "Bubble Gum Rave is a palette and native CSS Loader profile, never a Theme Store package.",
+      "Required and recommended components, including the requested home/game layouts, install automatically; remaining optional components stay opt-in.",
+      "Color controls are discovered from the loaded plugin schema; unknown controls are reported instead of faking success.",
+      "SteamGridDB owns Gaming Mode artwork; desktop icons are independent."
+    ]
+  },
+  "palette": {
+    "pink": "#ff4fd8",
+    "hot": "#ff2fb3",
+    "cyan": "#42f5ff",
+    "violet": "#a970ff",
+    "background": "#090612",
+    "panel": "#100a1d",
+    "text": "#fff7ff",
+    "muted": "#c9b9d8"
+  }
+}

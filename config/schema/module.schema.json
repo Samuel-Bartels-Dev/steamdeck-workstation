@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": [
+    "api_version",
+    "id",
+    "name",
+    "depends_on",
+    "actions",
+    "documentation"
+  ],
+  "properties": {
+    "api_version": {
+      "const": 1
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "name": {
+      "type": "string"
+    },
+    "depends_on": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "actions": {
+      "type": "object"
+    },
+    "documentation": {
+      "type": "object",
+      "required": [
+        "primary"
+      ]
+    }
+  }
+}

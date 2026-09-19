@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'HELP'
+NAME
+  tools/redact-support-bundle — Explain the support-bundle privacy boundary.
+SYNOPSIS
+  tools/redact-support-bundle [--help]
+DESCRIPTION
+  Advisory only: this helper does not sanitize an arbitrary input archive. Create a new sanitized archive with deckctl support-bundle.
+EXIT STATUS
+  0 on completion; nonzero on operational failure.
+SEE ALSO
+  deckctl help; docs/SCRIPTS.md
+HELP
+  exit 0
+fi
+echo "support-bundle uses an allowlist; broad credential/config trees are not copied."

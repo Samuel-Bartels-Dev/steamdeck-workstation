@@ -1,0 +1,12 @@
+{
+  "profile": "oled",
+  "display": {
+    "max_refresh_hz": 90
+  },
+  "remote": {
+    "preferred_fps": 90
+  },
+  "notes": [
+    "Prefer 45 FPS/90 Hz as a balanced target when a title cannot sustain 90 FPS."
+  ]
+}

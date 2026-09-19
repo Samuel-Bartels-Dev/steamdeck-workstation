@@ -1,0 +1,28 @@
+{
+  "api_version": 1,
+  "id": "gaming",
+  "name": "Gaming",
+  "depends_on": [
+    "base",
+    "storage"
+  ],
+  "capabilities": [
+    "steam",
+    "heroic",
+    "proton",
+    "battlenet"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

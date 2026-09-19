@@ -1,0 +1,403 @@
+{
+  "name": "CapyMenu (Context Menus)",
+  "display_name": "Chromahon (Context Menus)",
+  "enabled": false,
+  "patches": [
+    {
+      "name": "Edges",
+      "value": "Round",
+      "options": [
+        "Sharp",
+        "Sharp w/ Padding",
+        "Round"
+      ],
+      "components": []
+    },
+    {
+      "name": "Size",
+      "value": "Normal",
+      "options": [
+        "Normal",
+        "Wide"
+      ],
+      "components": []
+    },
+    {
+      "name": "Layout",
+      "value": "Top Banner Title",
+      "options": [
+        "Default",
+        "Top Banner Title",
+        "Bottom Stacked + Banner Title",
+        "Left-Hand Side",
+        "Bottom Left",
+        "Left-Hand Side + Banner Title",
+        "Top Left + Banner Title"
+      ],
+      "components": []
+    },
+    {
+      "name": "Menu Background",
+      "value": "OLED Black",
+      "options": [
+        "\u2205 None",
+        "OLED Black",
+        "Dark Gray",
+        "Bright Gray",
+        "Transparent Black",
+        "Transparent White",
+        "Marine Blue",
+        "Earthy Brown",
+        "Wine Red",
+        "Beige",
+        "Aubergine",
+        "Orange",
+        "Gradient..."
+      ],
+      "components": [
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#34c58e"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#2e5f80"
+        }
+      ]
+    },
+    {
+      "name": "Menu Foreground",
+      "value": "White",
+      "options": [
+        "White",
+        "Black",
+        "Custom..."
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Custom...",
+          "value": "#eee"
+        }
+      ]
+    },
+    {
+      "name": "Item Focus Background",
+      "value": "White",
+      "options": [
+        "Bright Gray",
+        "White",
+        "Dark Gray",
+        "Pale Yellow",
+        "Leaf Green",
+        "Pastel Pink",
+        "Wine Red",
+        "Aquamarine Blue",
+        "Orange",
+        "Gradient..."
+      ],
+      "components": [
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#FF0000"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#4186b4"
+        },
+        {
+          "name": "Gradient Color 3",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#b4417a"
+        }
+      ]
+    },
+    {
+      "name": "Item Focus Foreground",
+      "value": "Black",
+      "options": [
+        "White",
+        "Black",
+        "Custom..."
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Custom...",
+          "value": "#eee"
+        }
+      ]
+    },
+    {
+      "name": "Title Background",
+      "value": "Transparent White",
+      "options": [
+        "\u2205 None",
+        "OLED Black",
+        "Dark Gray",
+        "Bright Gray",
+        "Transparent Black",
+        "Transparent White",
+        "Marine Blue",
+        "Earthy Brown",
+        "Wine Red",
+        "Beige",
+        "Aubergine",
+        "Orange",
+        "Gradient..."
+      ],
+      "components": [
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#34c58e"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#2e5f80"
+        }
+      ]
+    },
+    {
+      "name": "Title Foreground",
+      "value": "White",
+      "options": [
+        "White",
+        "Black",
+        "Custom..."
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Custom...",
+          "value": "#eee"
+        }
+      ]
+    },
+    {
+      "name": "Modal Background (Affects all modals)",
+      "value": "SteamOS Default",
+      "options": [
+        "\u2205 None",
+        "SteamOS Default",
+        "Colored Blur",
+        "Gradient Blur",
+        "Image"
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Colored Blur",
+          "value": "#34e8eb80"
+        },
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient Blur",
+          "value": "#34c58e"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient Blur",
+          "value": "#2e5f80"
+        },
+        {
+          "name": "Image Picker",
+          "type": "image-picker",
+          "on": "Image",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "Special Button Focus Background",
+      "value": "Same as Item Focus",
+      "options": [
+        "Same as Item Focus",
+        "Bright Gray",
+        "White",
+        "Dark Gray",
+        "Pale Yellow",
+        "Leaf Green",
+        "Pastel Pink",
+        "Wine Red",
+        "Aquamarine Blue",
+        "Orange",
+        "Gradient..."
+      ],
+      "components": [
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#FF0000"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#4186b4"
+        },
+        {
+          "name": "Gradient Color 3",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#b4417a"
+        }
+      ]
+    },
+    {
+      "name": "Special Button Focus Foreground",
+      "value": "Same as Item Focus",
+      "options": [
+        "Same as Item Focus",
+        "White",
+        "Black",
+        "Custom..."
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Custom...",
+          "value": "#eee"
+        }
+      ]
+    },
+    {
+      "name": "Power: Destruct. Button Focus Background",
+      "value": "Same as Item Focus",
+      "options": [
+        "Same as Item Focus",
+        "Bright Gray",
+        "White",
+        "Dark Gray",
+        "Pale Yellow",
+        "Leaf Green",
+        "Pastel Pink",
+        "Wine Red",
+        "Aquamarine Blue",
+        "Orange",
+        "Gradient..."
+      ],
+      "components": [
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#FF0000"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#4186b4"
+        },
+        {
+          "name": "Gradient Color 3",
+          "type": "color-picker",
+          "on": "Gradient...",
+          "value": "#b4417a"
+        }
+      ]
+    },
+    {
+      "name": "Power: Destruct. Button Focus Foreground",
+      "value": "Same as Item Focus",
+      "options": [
+        "Same as Item Focus",
+        "White",
+        "Black",
+        "Custom..."
+      ],
+      "components": [
+        {
+          "name": "Color Picker",
+          "type": "color-picker",
+          "on": "Custom...",
+          "value": "#eee"
+        }
+      ]
+    },
+    {
+      "name": "Grow label on focus",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Animate label gradient",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Center labels",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Remove label separators",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Blur title (Trsp solid colors only. Recommended w/ Modal Bg Img.)",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Modal Background fade-in",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Apply Special Button styling to Gameview",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    }
+  ]
+}

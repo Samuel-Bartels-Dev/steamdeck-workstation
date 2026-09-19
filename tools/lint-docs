@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'HELP'
+NAME
+  tools/lint-docs — Validate local Markdown file references.
+SYNOPSIS
+  tools/lint-docs [--help]
+DESCRIPTION
+  Read-only validation of local inline Markdown link targets. Does not crawl external URLs or validate heading anchors. Returns 1 if a target is missing.
+EXIT STATUS
+  0 on completion; nonzero on operational failure.
+SEE ALSO
+  deckctl help; docs/SCRIPTS.md
+HELP
+  exit 0
+fi
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+exec python3 "$ROOT/tools/check-docs.py" "$@"

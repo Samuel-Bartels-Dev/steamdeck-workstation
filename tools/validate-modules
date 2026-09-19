@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'HELP'
+NAME
+  tools/validate-modules — Run repository validation.
+SYNOPSIS
+  tools/validate-modules [--help]
+DESCRIPTION
+  Runs the same offline contract/regression gates as deckctl repo validate. Returns nonzero for a failing gate.
+EXIT STATUS
+  0 on completion; nonzero on operational failure.
+SEE ALSO
+  deckctl help; docs/SCRIPTS.md
+HELP
+  exit 0
+fi
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"; python3 "$ROOT/tests/contract/test_repo.py"

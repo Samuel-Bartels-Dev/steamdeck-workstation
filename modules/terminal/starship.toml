@@ -1,0 +1,113 @@
+# Bubble Gum Rave — managed by deckctl. Safe to customize after capture/export.
+add_newline = true
+command_timeout = 800
+palette = "bubblegum"
+
+format = """
+[╭─](bold violet)$username$hostname$directory$git_branch$git_status$cmd_duration
+[│ ](bold violet)$python$nodejs$rust$golang$battery$time
+[╰─](bold violet)$character"""
+
+[palettes.bubblegum]
+pink = "#ff4fd8"
+hot_pink = "#ff2fb3"
+cyan = "#42f5ff"
+violet = "#a970ff"
+lime = "#b9ff63"
+yellow = "#ffd166"
+red = "#ff5c8a"
+white = "#f8e7ff"
+muted = "#b9a8ca"
+
+[username]
+show_always = true
+style_user = "bold pink"
+format = "[$user]($style)"
+
+[hostname]
+ssh_only = false
+style = "bold violet"
+format = "[@$hostname]($style)  "
+
+[directory]
+style = "bold cyan"
+format = "[$path]($style)[$read_only]($read_only_style)  "
+truncation_length = 3
+truncate_to_repo = true
+read_only = " 󰌾"
+read_only_style = "bold red"
+
+[git_branch]
+symbol = " "
+style = "bold pink"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+style = "bold violet"
+format = "([$all_status$ahead_behind]($style)) "
+conflicted = "~${count}"
+ahead = "⇡${count}"
+behind = "⇣${count}"
+diverged = "⇕⇡${ahead_count}⇣${behind_count}"
+untracked = "?${count}"
+stashed = "*${count}"
+modified = "!${count}"
+staged = "+${count}"
+renamed = "»${count}"
+deleted = "✘${count}"
+
+[cmd_duration]
+min_time = 1500
+style = "bold muted"
+format = "[took $duration]($style) "
+
+[python]
+symbol = " "
+style = "bold yellow"
+format = "[$symbol$version]($style) "
+
+[nodejs]
+symbol = " "
+style = "bold lime"
+format = "[$symbol$version]($style) "
+
+[rust]
+symbol = " "
+style = "bold hot_pink"
+format = "[$symbol$version]($style) "
+
+[golang]
+symbol = " "
+style = "bold cyan"
+format = "[$symbol$version]($style) "
+
+[battery]
+full_symbol = "󰁹 "
+charging_symbol = "󰂄 "
+discharging_symbol = "󰂃 "
+unknown_symbol = "󰂑 "
+empty_symbol = "󰂎 "
+format = "[$symbol$percentage]($style)  "
+
+[[battery.display]]
+threshold = 15
+style = "bold red"
+
+[[battery.display]]
+threshold = 30
+style = "bold yellow"
+
+[[battery.display]]
+threshold = 100
+style = "bold lime"
+
+[time]
+disabled = false
+time_format = "%H:%M"
+style = "muted"
+format = "[$time]($style)"
+
+[character]
+success_symbol = "[❯](bold cyan)"
+error_symbol = "[❯](bold red)"
+vimcmd_symbol = "[❮](bold lime)"

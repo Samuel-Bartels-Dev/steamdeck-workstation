@@ -1,0 +1,27 @@
+{
+  "api_version": 1,
+  "id": "storage",
+  "name": "Storage",
+  "depends_on": [
+    "base",
+    "hardware"
+  ],
+  "capabilities": [
+    "storage-health",
+    "storage-recommendation",
+    "removable-roles"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

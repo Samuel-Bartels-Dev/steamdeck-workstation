@@ -1,0 +1,203 @@
+{
+  "schema_version": 2,
+  "principle": "Install useful plugins broadly; change system/performance behavior only when the benefit is understood and scoped.",
+  "plugins": {
+    "CSS Loader": {
+      "mode": "configure-once",
+      "default": "Install real Theme Store components and apply Bubble Gum Rave as supported settings; never install a standalone palette theme.",
+      "notes": [
+        "Keep palette configuration versioned; obtain real components through CSS Loader Theme Store.",
+        "Refresh CSS Loader after Steam client updates if selectors change."
+      ]
+    },
+    "SteamGridDB": {
+      "mode": "install-only",
+      "default": "No forced global settings.",
+      "notes": [
+        "Use to repair artwork for Heroic, media, Moonlight, chiaki-ng, Android and emulation shortcuts."
+      ]
+    },
+    "ProtonDB Badges": {
+      "mode": "install-only",
+      "default": "Show compatibility information; no performance mutation.",
+      "notes": [
+        "Treat ProtonDB as advisory, not an automatic compatibility override."
+      ]
+    },
+    "PowerTools": {
+      "mode": "per-game-only",
+      "default": "Install for visibility and per-game/emulator tuning, but leave all global CPU/SMT/GPU/power settings at SteamOS defaults.",
+      "notes": [
+        "Use Persistent only for a tested per-game/emulator profile.",
+        "EmuDeck still documents SMT-off/manual-GPU tuning for some emulator workloads; apply only to the affected emulator/game after testing.",
+        "Never globally disable SMT, force GPU clocks, alter power limits, or set battery controls as part of provisioning."
+      ]
+    },
+    "HLTB for Deck": {
+      "mode": "install-only",
+      "default": "Install; no required configuration.",
+      "notes": [
+        "Informational only."
+      ]
+    },
+    "AutoFlatpaks": {
+      "mode": "configure-once",
+      "default": "Check for updates and show toast notifications; automatic unattended upgrading OFF.",
+      "notes": [
+        "Apply updates manually when convenient.",
+        "Travel lock should avoid broad Flatpak upgrades immediately before/during trips."
+      ]
+    },
+    "Bluetooth": {
+      "mode": "install-only",
+      "default": "Install for QAM Bluetooth device control.",
+      "notes": [
+        "Do not replace SteamOS Bluetooth management; this is a convenience surface."
+      ]
+    },
+    "Emuchievements": {
+      "mode": "configure-once",
+      "default": "Install; connect RetroAchievements only if you use the service.",
+      "notes": [
+        "No credential material belongs in the repo."
+      ]
+    },
+    "Non-Steam Badges": {
+      "mode": "install-only",
+      "default": "Install to visually identify non-Steam library entries.",
+      "notes": [
+        "Useful with Heroic, media apps, Android, Moonlight and other shortcuts."
+      ]
+    },
+    "Animation Changer": {
+      "mode": "configure-once",
+      "default": "Install; keep randomization OFF until a curated boot/suspend set is chosen.",
+      "notes": [
+        "Future Bubble Gum Rave animation pack can be versioned separately."
+      ]
+    },
+    "Audio Loader": {
+      "mode": "configure-once",
+      "default": "Install; keep stock sounds until a curated sound pack is selected.",
+      "notes": [
+        "Future Bubble Gum Rave sound pack can be versioned separately."
+      ]
+    },
+    "MoonDeck": {
+      "mode": "optional",
+      "default": "Do not install/configure by default. Standard Moonlight + Sunshine remains the core remote-gaming path.",
+      "notes": [
+        "Install MoonDeck only if you want to launch specific host Steam games directly from the Deck library.",
+        "MoonDeck Buddy runs on the streaming PC and is required for MoonDeck integration.",
+        "Moonlight/Sunshine continue to work without MoonDeck."
+      ]
+    },
+    "Deck Settings": {
+      "mode": "install-only",
+      "default": "Install and use as advisory game-specific performance/compatibility reference.",
+      "notes": [
+        "Do not automatically apply community settings; use them as input to tested per-game profiles."
+      ]
+    },
+    "Deck Shelves": {
+      "mode": "optional",
+      "default": "Optional library/home-screen organization after the core UI is stable.",
+      "notes": [
+        "Good fit if the unified Steam library becomes crowded."
+      ]
+    },
+    "Tailscale Control": {
+      "mode": "optional",
+      "default": "Optional QAM control only after the underlying Tailscale service is healthy.",
+      "notes": [
+        "Never use it as the Tailscale installer or source of truth."
+      ]
+    },
+    "Storage Cleaner": {
+      "mode": "manual-only",
+      "default": "Optional visibility/cleanup tool; never auto-delete shader cache or compatdata.",
+      "notes": [
+        "Compatdata can contain non-cloud saves. Always inspect before deleting."
+      ]
+    },
+    "vibrantDeck": {
+      "mode": "optional-not-recommended-oled",
+      "default": "Visible in the optional list but do not install by default on OLED.",
+      "notes": [
+        "Prefer Valve native color controls unless you intentionally want additional saturation."
+      ]
+    },
+    "Fantastic": {
+      "mode": "optional-not-recommended",
+      "default": "Visible in the optional list; do not install/apply a fan curve by default.",
+      "notes": [
+        "Prefer Valve fan control; only use a custom curve after temperature/noise testing."
+      ]
+    },
+    "AutoSuspend": {
+      "mode": "optional",
+      "default": "Do not install by default.",
+      "notes": [
+        "Useful only if you want stricter automatic suspend behavior than SteamOS already provides."
+      ]
+    },
+    "EmuDecky": {
+      "mode": "configure-once",
+      "default": "Install for EmuDeck hotkeys, Quick Settings and emulator-update access in Game Mode.",
+      "notes": [
+        "If EmuDeck already installed it as part of another feature, deckctl should simply detect it.",
+        "Do not duplicate save-sync ownership; deckctl backup remains the safety layer."
+      ]
+    },
+    "Battery Tracker": {
+      "mode": "optional",
+      "default": "Optional. No system mutation; use for battery history/power visibility.",
+      "notes": []
+    },
+    "Pause Games": {
+      "mode": "manual-only",
+      "default": "Optional. Keep automatic pause-on-focus-loss OFF by default.",
+      "notes": [
+        "Some games do not tolerate repeated SIGSTOP/SIGCONT well; enable per need and save often."
+      ]
+    },
+    "Volume Mixer": {
+      "mode": "optional",
+      "default": "Optional per-application volume convenience in Game Mode.",
+      "notes": []
+    },
+    "BetterKeyboard": {
+      "mode": "optional",
+      "default": "Optional on-screen keyboard convenience; install only if stock keyboard behavior bothers you.",
+      "notes": []
+    },
+    "Controller Tools": {
+      "mode": "install-only",
+      "default": "Install controller battery/status utilities; preserve existing controller profiles.",
+      "notes": [
+        "Use the plugin interface for personal preferences."
+      ]
+    },
+    "Game Theme Music": {
+      "mode": "install-only",
+      "default": "Install game-page music support; preserve existing audio settings.",
+      "notes": [
+        "Use the plugin interface for personal preferences."
+      ]
+    },
+    "MagicPods": {
+      "mode": "install-only",
+      "default": "Install supported earbud battery/control integration; preserve pairings and device settings.",
+      "notes": [
+        "Use the plugin interface for personal preferences."
+      ]
+    },
+    "TabMaster": {
+      "mode": "install-only",
+      "default": "Install library tab customization; preserve existing tabs and filters.",
+      "notes": [
+        "Use the plugin interface for personal preferences."
+      ]
+    }
+  }
+}

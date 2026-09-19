@@ -1,0 +1,36 @@
+name: Publish verified release
+on:
+  push:
+    branches: [main]
+    paths: [VERSION]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.13'
+      - run: ./tools/build-release "$RUNNER_TEMP/packages"
+      - run: python3 tools/verify-release.py "$RUNNER_TEMP/packages"
+      - name: Publish once after verification
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          version="$(cat VERSION)"
+          gh release create "v$version" "$RUNNER_TEMP/packages/"* \
+            --target "$GITHUB_SHA" --title "Steam Deck Workstation v$version" \
+            --notes-file "docs/RELEASE-$version.md"

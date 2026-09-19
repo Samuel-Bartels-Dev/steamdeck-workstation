@@ -1,0 +1,1088 @@
+{
+  "name": "CapyMenu (Steam Menu)",
+  "display_name": "Chromahon (Steam Menu)",
+  "enabled": false,
+  "patches": [
+    {
+      "name": "\u27a4 USAGE NOTES",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel = Home, Library, etc.",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Secondary Panel = Resume game, Controller settings, etc. (In Game Only)",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Tertiary Panel = Paged content (In Game Only)",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Global Settings",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Edges",
+      "value": "Semi-Round",
+      "options": [
+        "Default",
+        "Semi-Round",
+        "Round"
+      ],
+      "components": []
+    },
+    {
+      "name": "Item Focus Grow Anim",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Active Tab Indicator Type",
+      "value": "None",
+      "options": [
+        "Default",
+        "Wide",
+        "Dot",
+        "None"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Primary Panel",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel > Background",
+      "value": "Halos",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Halos",
+        "Stripes",
+        "IMG"
+      ],
+      "components": [
+        {
+          "name": "Solid Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#171717"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#1f1f1f"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#171717"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#121212"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#141414"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Image Picker",
+          "type": "image-picker",
+          "on": "IMG",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Bg Anim (Not on Solid Color, Stripes, IMG)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel > Collapse Bg",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel > Item Label",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#f0f0f0"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Icon",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "Hide"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#f0f0f0"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Focus Background",
+      "value": "Solid Colors",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Halos",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#dff261"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#b161f2"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Focus Bg Anim (Not on Stripes)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel > Item Focus Label",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#f5f5f5"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Focus Icon",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#f5f5f5"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Focus Underline",
+      "value": "H-Linear Grad",
+      "options": [
+        "None",
+        "Solid Colors",
+        "H-Linear Grad"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#d1d1d1"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#40dce7"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#ffe666"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#ca1c67"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Item Focus Underline Anim",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Primary Panel > Active Tab Indicator",
+      "value": "Solid Colors",
+      "options": [
+        "Solid Colors",
+        "V-Linear Grad"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#d1d1d1"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Primary Panel > Active Tab Indicator Anim",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Secondary Panel",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Secondary Panel > Background",
+      "value": "Halos",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Halos",
+        "Stripes",
+        "IMG"
+      ],
+      "components": [
+        {
+          "name": "Solid Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#80fff0"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#fdffa3"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#ec51a3"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#fffaad"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#000000"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Image Picker",
+          "type": "image-picker",
+          "on": "IMG",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Bg Anim (Not on Solid Color, Stripes, IMG)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Secondary Panel > Item Label",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#202020"
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Item Focus Background",
+      "value": "Solid Colors",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Halos",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#121212"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#dff261"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#b161f2"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Item Focus Bg Anim (Not on Stripes)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Secondary Panel > Item Focus Label",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#f5f5f5"
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Item Focus Underline",
+      "value": "None",
+      "options": [
+        "None",
+        "Solid Colors",
+        "H-Linear Grad"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#d1d1d1"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Item Focus Underline Anim",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Secondary Panel > Active Tab Indicator",
+      "value": "V-Linear Grad",
+      "options": [
+        "Solid Colors",
+        "V-Linear Grad"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#d1d1d1"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Secondary Panel > Active Tab Indicator Anim",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Tertiary Panel",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Tertiary Panel > Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Halos",
+        "Stripes",
+        "IMG"
+      ],
+      "components": [
+        {
+          "name": "Solid Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#121212"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#dff261"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#b161f2"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Image Picker",
+          "type": "image-picker",
+          "on": "IMG",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "Tertiary Panel > Bg Anim (Not on Solid Color, Stripes, IMG)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Tertiary Panel > Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#e3e3e3"
+        }
+      ]
+    }
+  ]
+}

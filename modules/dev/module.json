@@ -1,0 +1,28 @@
+{
+  "api_version": 1,
+  "id": "dev",
+  "name": "Development",
+  "depends_on": [
+    "base",
+    "hardware"
+  ],
+  "capabilities": [
+    "distrobox",
+    "codex",
+    "git",
+    "vscode"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

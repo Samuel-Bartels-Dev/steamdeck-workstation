@@ -1,0 +1,8 @@
+{
+  "profile": "remote-gaming",
+  "local_rendering": "minimal",
+  "verify": {
+    "tailscale_path": true,
+    "sunshine": true
+  }
+}

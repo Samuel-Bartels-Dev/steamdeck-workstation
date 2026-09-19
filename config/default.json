@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "channel": "stable",
+  "modules": {
+    "base": true,
+    "terminal": true,
+    "hardware": true,
+    "utilities": true,
+    "storage": true,
+    "gaming": true,
+    "controller": true,
+    "library": true,
+    "decky": true,
+    "emulation": true,
+    "android": true,
+    "media": true,
+    "remote": true,
+    "backup": true,
+    "dev": true
+  },
+  "storage": {
+    "games_label": "DECK-GAMES",
+    "emu_label": "DECK-EMU"
+  },
+  "gaming": {
+    "primary_frontend": "steam",
+    "heroic": true,
+    "battlenet": true
+  },
+  "backup": {
+    "destination": "~/DeckBackups"
+  },
+  "release": {
+    "github_repo": "Samuel-Bartels-Dev/steamdeck-workstation"
+  },
+  "android": {
+    "enabled": true,
+    "provider": "steamos-waydroid-bundle",
+    "recommended_image": "android-13-gapps",
+    "primary_game": "Pokemon Champions"
+  },
+  "media": {
+    "enabled": true,
+    "optional": true,
+    "browser": "com.google.Chrome",
+    "services": [
+      "netflix",
+      "hulu",
+      "crunchyroll",
+      "prime-video"
+    ]
+  }
+}

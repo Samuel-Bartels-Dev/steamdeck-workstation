@@ -1,0 +1,32 @@
+{
+  "world of warcraft": {
+    "preferred": "internal",
+    "reasons": [
+      "frequently patched",
+      "stateful Battle.net/prefix workflow",
+      "large asset working set"
+    ]
+  },
+  "wow": {
+    "preferred": "internal",
+    "reasons": [
+      "frequently patched",
+      "stateful Battle.net/prefix workflow"
+    ]
+  },
+  "diablo iv": {
+    "preferred": "internal",
+    "reasons": [
+      "online title",
+      "large frequent updates",
+      "stateful launcher/prefix"
+    ]
+  },
+  "cyberpunk 2077": {
+    "preferred": "games",
+    "reasons": [
+      "large replaceable PC game payload",
+      "works well as bulk library content unless actively performance constrained"
+    ]
+  }
+}

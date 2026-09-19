@@ -1,0 +1,8 @@
+{
+  "api_version": 1,
+  "id": "utilities",
+  "name": "Deck Utilities",
+  "depends_on": ["base"],
+  "actions": {"install":"install.sh","verify":"verify.sh","doctor":"doctor.sh"},
+  "documentation": {"primary":"README.md"}
+}

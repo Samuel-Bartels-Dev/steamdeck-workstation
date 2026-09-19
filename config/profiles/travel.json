@@ -1,0 +1,11 @@
+{
+  "profile": "travel",
+  "updates": {
+    "freeze_risky_changes": true
+  },
+  "verification": {
+    "remote": true,
+    "offline_games": true,
+    "backups": true
+  }
+}

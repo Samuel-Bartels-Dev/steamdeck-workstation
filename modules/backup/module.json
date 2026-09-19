@@ -1,0 +1,26 @@
+{
+  "api_version": 1,
+  "id": "backup",
+  "name": "Backup",
+  "depends_on": [
+    "base",
+    "storage"
+  ],
+  "capabilities": [
+    "save-protection",
+    "versioned-backup"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

@@ -1,0 +1,107 @@
+#!/usr/bin/env python3
+from pathlib import Path
+import shutil, sys, re, json, tempfile, os, hashlib, argparse, fcntl
+
+parser = argparse.ArgumentParser(description='Install the persistent deckctl control plane with atomic release-link promotion.', epilog='Copies a trusted local repository to ~/.local/share/steamdeck-workstation/releases/VERSION; installs shell aliases and the man page. Existing different content under the same version is refused. No vendor applications are installed. Exit 0 on success; nonzero on validation/copy errors.')
+parser.add_argument('source', nargs='?', default=str(Path(__file__).resolve().parents[1]), help='Trusted repository directory (default: this repository).')
+source = Path(parser.parse_args().source).resolve()
+version = (source / "VERSION").read_text().strip()
+if not re.fullmatch(r'\d+\.\d+\.\d+', version): raise SystemExit('Invalid release version')
+if not (source/'bin/deckctl').is_file(): raise SystemExit('Source is missing bin/deckctl')
+# Validate configuration before creating or replacing the active release.
+alias_map = json.loads((source / 'config/aliases.json').read_text())
+if not isinstance(alias_map, dict) or any(not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', k) or not isinstance(v,str) for k,v in alias_map.items()):
+    raise SystemExit('Invalid alias map')
+home = Path.home()
+base = home / ".local/share/steamdeck-workstation"
+release = base / "releases" / version
+current = base / "current"
+bindir = home / ".local/bin"
+config = home / ".config/deckctl/shell"
+aliases = config / "aliases.sh"
+
+release.parent.mkdir(parents=True, exist_ok=True)
+bindir.mkdir(parents=True, exist_ok=True)
+config.mkdir(parents=True, exist_ok=True)
+
+lock = (base / '.install.lock').open('a')
+fcntl.flock(lock, fcntl.LOCK_EX)
+if current.exists() and not current.is_symlink():
+    raise SystemExit('Refusing to replace an unmanaged current path')
+if release.is_symlink(): raise SystemExit('Release directory must not be a symlink')
+
+def inventory(root):
+    result = {}
+    for path in root.rglob('*'):
+        rel=path.relative_to(root)
+        if any(x in ('.git','support-bundles','__pycache__') for x in rel.parts) or path.suffix == '.pyc': continue
+        if path.is_symlink(): raise SystemExit(f'Release contains a symlink: {rel}')
+        if path.is_file(): result[str(rel)] = (hashlib.sha256(path.read_bytes()).hexdigest(), path.stat().st_mode & 0o777)
+    return result
+
+if source != release:
+    if release.exists():
+        if inventory(source) != inventory(release):
+            raise SystemExit('Different content already exists for this release version; use a new version or explicitly preserve/move the old release first')
+    else:
+        inventory(source)
+        stage = Path(tempfile.mkdtemp(prefix='.install-', dir=release.parent))
+        try:
+            ignore = shutil.ignore_patterns('.git', 'support-bundles', '__pycache__', '*.pyc')
+            shutil.copytree(source, stage/'repo', ignore=ignore)
+            (stage/'repo').rename(release)
+        finally:
+            shutil.rmtree(stage)
+
+def atomic_text(path, value):
+    fd, name = tempfile.mkstemp(prefix='.'+path.name+'-',dir=path.parent)
+    tmp = Path(name)
+    try:
+        with os.fdopen(fd,'w') as stream: stream.write(value)
+        if path.exists(): tmp.chmod(path.stat().st_mode & 0o777)
+        tmp.replace(path)
+    finally: tmp.unlink(missing_ok=True)
+
+def atomic_link(path, target):
+    fd, name = tempfile.mkstemp(prefix='.'+path.name+'-',dir=path.parent)
+    os.close(fd)
+    tmp=Path(name); tmp.unlink()
+    try:
+        tmp.symlink_to(target)
+        tmp.replace(path)
+    finally: tmp.unlink(missing_ok=True)
+
+lines = [
+    "# Managed by steamdeck-workstation. Safe to source repeatedly.",
+    'case ":$PATH:" in',
+    '  *":$HOME/.local/bin:"*) ;;',
+    '  *) export PATH="$HOME/.local/bin:$PATH" ;;',
+    'esac',
+    '',
+]
+for name, command in alias_map.items():
+    safe_command = command.replace("'", "'\"'\"'")
+    lines.append(f"alias {name}='{safe_command}'")
+alias_text = "\n".join(lines) + "\n"
+atomic_text(aliases, alias_text)
+
+marker_start = "# >>> steamdeck-workstation deckctl >>>"
+marker_end = "# <<< steamdeck-workstation deckctl <<<"
+block = f'''{marker_start}
+[ -f "$HOME/.config/deckctl/shell/aliases.sh" ] && . "$HOME/.config/deckctl/shell/aliases.sh"
+{marker_end}
+'''
+pattern = re.compile(re.escape(marker_start) + r".*?" + re.escape(marker_end) + r"\n?", re.S)
+for rc in (home / ".bashrc", home / ".zshrc"):
+    old = rc.read_text() if rc.exists() else ""
+    old = pattern.sub("", old).rstrip()
+    atomic_text(rc, (old + "\n\n" if old else "") + block)
+
+man_dir=home/'.local/share/man/man1'
+man_dir.mkdir(parents=True,exist_ok=True)
+if (release/'docs/man/deckctl.1').is_file():
+    atomic_link(man_dir/'deckctl.1', current/'docs/man/deckctl.1')
+atomic_link(bindir/'deckctl', current/'bin/deckctl')
+# Promote last: readers see either complete old or complete new source.
+atomic_link(current, release)
+print(release)

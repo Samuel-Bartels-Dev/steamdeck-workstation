@@ -1,0 +1,195 @@
+{
+  "schema_version": 5,
+  "policy": "curated-not-maximal",
+  "core": [
+    {
+      "name": "CSS Loader",
+      "folder": "SDH-CssLoader",
+      "reason": "Native Theme Store components with the Bubble Gum Rave palette applied to their supported controls.",
+      "install_by_default": true
+    },
+    {
+      "name": "SteamGridDB",
+      "folder": "decky-steamgriddb",
+      "reason": "Gaming Mode artwork owner (requested as SteamDeckDB): covers, heroes, logos and icons for Steam/non-Steam shortcuts.",
+      "install_by_default": true,
+      "requested_aliases": [
+        "SteamDeckDB"
+      ]
+    },
+    {
+      "name": "ProtonDB Badges",
+      "folder": "protondb-decky",
+      "reason": "Compatibility data on game pages.",
+      "install_by_default": true
+    },
+    {
+      "name": "PowerTools",
+      "folder": "PowerTools",
+      "reason": "Per-game/emulator tuning only; no blanket global performance profile.",
+      "install_by_default": true
+    }
+  ],
+  "recommended": [
+    {
+      "name": "HLTB for Deck",
+      "folder": "hltb-for-deck",
+      "reason": "HowLongToBeat data on game pages.",
+      "install_by_default": true
+    },
+    {
+      "name": "AutoFlatpaks",
+      "folder": "decky-autoflatpaks",
+      "reason": "Flatpak update visibility from Game Mode without unattended updating.",
+      "install_by_default": true
+    },
+    {
+      "name": "Bluetooth",
+      "folder": "Bluetooth",
+      "reason": "Convenient Bluetooth controls in Game Mode.",
+      "install_by_default": true
+    },
+    {
+      "name": "Emuchievements",
+      "folder": "Emuchievements",
+      "reason": "RetroAchievements visibility and emulation context.",
+      "install_by_default": true
+    },
+    {
+      "name": "Non-Steam Badges",
+      "folder": "decky-nonsteam-badges",
+      "reason": "Visually identify non-Steam entries.",
+      "install_by_default": true
+    },
+    {
+      "name": "Animation Changer",
+      "folder": "SDH-AnimationChanger",
+      "reason": "Boot/suspend animation customization.",
+      "install_by_default": true
+    },
+    {
+      "name": "Audio Loader",
+      "folder": "SDH-AudioLoader",
+      "reason": "UI/system sound customization.",
+      "install_by_default": true
+    },
+    {
+      "name": "Deck Settings",
+      "folder": "decky-game-settings",
+      "reason": "Community performance and compatibility reports in Game Mode.",
+      "install_by_default": true
+    },
+    {
+      "name": "EmuDecky",
+      "folder": "EmuDecky",
+      "reason": "EmuDeck hotkeys, quick settings and emulator maintenance from Game Mode.",
+      "install_by_default": true
+    },
+    {
+      "name": "Controller Tools",
+      "folder": "ControllerTools",
+      "reason": "Additional controller utilities when useful.",
+      "install_by_default": true
+    },
+    {
+      "name": "Game Theme Music",
+      "folder": "SDH-GameThemeMusic",
+      "reason": "Play theme music on game pages.",
+      "install_by_default": true
+    },
+    {
+      "name": "MagicPods",
+      "folder": "MagicPodsDecky",
+      "reason": "Battery information and supported controls for Bluetooth earbuds.",
+      "install_by_default": true
+    },
+    {
+      "name": "TabMaster",
+      "folder": "TabMaster",
+      "reason": "Customize Steam library tabs and filters.",
+      "install_by_default": true
+    }
+  ],
+  "optional": [
+    {
+      "name": "MoonDeck",
+      "folder": "moondeck",
+      "reason": "Optional tighter Moonlight/Sunshine integration; requires MoonDeck Buddy on the host PC.",
+      "install_by_default": false
+    },
+    {
+      "name": "Deck Shelves",
+      "folder": "Deck-Shelves",
+      "reason": "Extra library/home-screen organization.",
+      "install_by_default": false
+    },
+    {
+      "name": "Tailscale Control",
+      "folder": "tailscale-control",
+      "reason": "QAM control for an already-installed Tailscale service.",
+      "install_by_default": false
+    },
+    {
+      "name": "Storage Cleaner",
+      "folder": "decky-storage-cleaner",
+      "reason": "Cleanup visibility; manual use only.",
+      "install_by_default": false
+    },
+    {
+      "name": "vibrantDeck",
+      "folder": "vibrantDeck",
+      "reason": "Extra saturation controls; normally unnecessary on OLED.",
+      "install_by_default": false
+    },
+    {
+      "name": "Fantastic",
+      "folder": "Fantastic",
+      "reason": "Custom fan control; leave disabled unless measured testing justifies it.",
+      "install_by_default": false
+    },
+    {
+      "name": "AutoSuspend",
+      "folder": "decky-autosuspend",
+      "reason": "Optional stricter low-battery/idle suspend behavior.",
+      "install_by_default": false
+    },
+    {
+      "name": "Battery Tracker",
+      "folder": "steam-deck-battery-tracker",
+      "reason": "Track battery history and power statistics.",
+      "install_by_default": false
+    },
+    {
+      "name": "Pause Games",
+      "folder": "SDH-PauseGames",
+      "reason": "Pause/resume game processes; useful for multitasking but not universally safe.",
+      "install_by_default": false
+    },
+    {
+      "name": "Volume Mixer",
+      "folder": "VolumeMixer-decky",
+      "reason": "Per-application volume control from Game Mode.",
+      "install_by_default": false
+    },
+    {
+      "name": "BetterKeyboard",
+      "folder": "BetterKeyboard",
+      "reason": "Optional improvements to on-screen keyboard behavior.",
+      "install_by_default": false
+    }
+  ],
+  "avoid_by_default": [],
+  "installation": "Select desired plugins, then use `deckctl decky install-selected` to reconcile missing entries from Decky's official Store artifacts. Packages that cannot be safely resolved/validated remain missing and use the normal Decky Plugin Store fallback. No automatic removals.",
+  "selection_upgrades": [
+    {
+      "manifest_schema_version": 5,
+      "add_folders": [
+        "SDH-GameThemeMusic",
+        "ControllerTools",
+        "MagicPodsDecky",
+        "Bluetooth",
+        "TabMaster"
+      ]
+    }
+  ]
+}

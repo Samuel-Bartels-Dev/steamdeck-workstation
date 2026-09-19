@@ -1,0 +1,12 @@
+{
+  "profile": "lcd",
+  "display": {
+    "max_refresh_hz": 60
+  },
+  "remote": {
+    "preferred_fps": 60
+  },
+  "notes": [
+    "40 FPS/40 Hz remains a useful balanced target when supported."
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "api_version": 1,
+  "id": "android",
+  "name": "Android Gaming",
+  "depends_on": [
+    "base",
+    "hardware"
+  ],
+  "capabilities": [
+    "waydroid",
+    "android-games",
+    "pokemon-champions"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md",
+      "../../docs/decisions/ADR-007-android-waydroid.md"
+    ]
+  }
+}

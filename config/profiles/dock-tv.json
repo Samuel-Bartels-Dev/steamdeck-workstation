@@ -1,0 +1,9 @@
+{
+  "profile": "dock-tv",
+  "display": {
+    "verify_external": true
+  },
+  "network": {
+    "prefer_ethernet": true
+  }
+}

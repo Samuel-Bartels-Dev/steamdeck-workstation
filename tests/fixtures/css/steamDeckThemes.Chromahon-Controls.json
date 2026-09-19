@@ -1,0 +1,959 @@
+{
+  "name": "CapyInputs",
+  "display_name": "Chromahon (Input Controls)",
+  "enabled": false,
+  "patches": [
+    {
+      "name": "Light Scheme Adjustments",
+      "value": "Disabled",
+      "options": [
+        "Disabled",
+        "Apply to Quick Access Menu",
+        "Apply to Steam Menu",
+        "Apply to both menus"
+      ],
+      "components": []
+    },
+    {
+      "name": "Gradient Animations (Limited to Toggles & Sliders)",
+      "value": "Disabled",
+      "options": [
+        "Disabled",
+        "Apply to Quick Access Menu",
+        "Apply to Steam Menu",
+        "Apply to both menus"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Quick Access Menu",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM > Non-Round Toggles",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM > Toggle Handle Animation",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM > Toggle Rail 'Enabled'",
+      "value": "H-Linear Grad",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#ccdb76"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#76dbda"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#db7689"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Toggle Handle 'Enabled'",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#fff"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Toggle Rail 'Disabled'",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#292929"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Toggle Handle 'Disabled'",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#363636"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Non-Round Sliders",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM > Slider Fill",
+      "value": "Gradient",
+      "options": [
+        "Solid Color",
+        "Gradient"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Gradient Color 1",
+          "type": "color-picker",
+          "on": "Gradient",
+          "value": "#ccdb76"
+        },
+        {
+          "name": "Gradient Color 2",
+          "type": "color-picker",
+          "on": "Gradient",
+          "value": "#76dbda"
+        },
+        {
+          "name": "Gradient Color 3",
+          "type": "color-picker",
+          "on": "Gradient",
+          "value": "#db7689"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Slider Empty",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#ffffff4D"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Slider Handle",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#fff"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Slider Highlight",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#1C1C1C"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Button Decoration",
+      "value": "Underline",
+      "options": [
+        "None",
+        "Faint Outline",
+        "Outline",
+        "Underline",
+        "Solid Shadow"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM > Button Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#161616"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        },
+        {
+          "name": "Cutoff 1",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#14af90"
+        },
+        {
+          "name": "Cutoff 2",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af1486"
+        },
+        {
+          "name": "Cutoff 3",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Button Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#ccc"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Button Highlight Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#d6d6d6"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        },
+        {
+          "name": "Cutoff 1",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#14af90"
+        },
+        {
+          "name": "Cutoff 2",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af1486"
+        },
+        {
+          "name": "Cutoff 3",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "QAM > Button Highlight Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#121212"
+        }
+      ]
+    },
+    {
+      "name": "\u27a4 Steam Menu",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Steam Menu > Button Decoration",
+      "value": "None",
+      "options": [
+        "None",
+        "Faint Outline",
+        "Outline",
+        "Underline",
+        "Solid Shadow"
+      ],
+      "components": []
+    },
+    {
+      "name": "Steam Menu > Button Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        },
+        {
+          "name": "Cutoff 1",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#14af90"
+        },
+        {
+          "name": "Cutoff 2",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af1486"
+        },
+        {
+          "name": "Cutoff 3",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Button Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#bababa"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Button Highlight Background",
+      "value": "Radial Grad",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#d6d6d6"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#e8e8e8"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#b3b3b3"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        },
+        {
+          "name": "Cutoff 1",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#14af90"
+        },
+        {
+          "name": "Cutoff 2",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af1486"
+        },
+        {
+          "name": "Cutoff 3",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Button Highlight Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#121212"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Text Input Decoration",
+      "value": "None",
+      "options": [
+        "None",
+        "Outline",
+        "Underline"
+      ],
+      "components": []
+    },
+    {
+      "name": "Steam Menu > Text Input Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Text Input Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#bababa"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Text Input Highlight Background",
+      "value": "Radial Grad",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#d6d6d6"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#14af90"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af1486"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#af4514"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#e8e8e8"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#b3b3b3"
+        },
+        {
+          "name": "Stripes 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#14af90"
+        },
+        {
+          "name": "Stripes 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af1486"
+        },
+        {
+          "name": "Stripes 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#af4514"
+        }
+      ]
+    },
+    {
+      "name": "Steam Menu > Text Input Highlight Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#121212"
+        }
+      ]
+    }
+  ]
+}

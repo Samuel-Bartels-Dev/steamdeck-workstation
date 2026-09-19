@@ -1,0 +1,8 @@
+{
+  "api_version": 1,
+  "id": "library",
+  "name": "Steam Library Polish",
+  "depends_on": ["gaming", "decky"],
+  "actions": {"install":"install.sh","verify":"verify.sh","doctor":"doctor.sh"},
+  "documentation": {"primary":"README.md"}
+}

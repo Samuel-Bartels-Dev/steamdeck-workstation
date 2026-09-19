@@ -1,0 +1,9 @@
+{
+  "api_version": 1,
+  "id": "workspace",
+  "name": "Workspace Apps",
+  "depends_on": ["base"],
+  "capabilities": ["notion", "chatgpt", "claude", "notion-mcp"],
+  "actions": {"install": "install.sh", "verify": "verify.sh", "doctor": "doctor.sh"},
+  "documentation": {"primary": "README.md"}
+}

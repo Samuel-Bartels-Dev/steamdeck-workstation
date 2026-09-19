@@ -1,0 +1,101 @@
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 4,
+  "final_space": true,
+  "console_title_template": "{{ .Folder }} :: {{ .Shell }} :: Steam Deck",
+  "blocks": [
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "segments": [
+        {
+          "type": "session",
+          "style": "diamond",
+          "leading_diamond": "╭─",
+          "background": "#ff4fd8",
+          "foreground": "#090612",
+          "template": " {{ .UserName }}@{{ .HostName }} ",
+          "trailing_diamond": ""
+        },
+        {
+          "type": "path",
+          "style": "powerline",
+          "powerline_symbol": "",
+          "background": "#241332",
+          "foreground": "#42f5ff",
+          "options": {
+            "style": "mixed",
+            "folder_separator_icon": "/",
+            "home_icon": "~",
+            "max_depth": 3
+          },
+          "template": "  {{ .Path }} "
+        },
+        {
+          "type": "git",
+          "style": "powerline",
+          "powerline_symbol": "",
+          "background": "#a970ff",
+          "foreground": "#090612",
+          "options": {
+            "branch_icon": " ",
+            "fetch_status": true,
+            "fetch_upstream_icon": true
+          },
+          "template": " {{ .UpstreamIcon }}{{ .HEAD }}{{ if .Working.Changed }} {{ .Working.String }}{{ end }}{{ if .Staging.Changed }} {{ .Staging.String }}{{ end }} "
+        },
+        {
+          "type": "executiontime",
+          "style": "powerline",
+          "powerline_symbol": "",
+          "background": "#42f5ff",
+          "foreground": "#090612",
+          "options": {"threshold": 1500, "style": "austin"},
+          "template": "  {{ .FormattedMs }} "
+        },
+        {
+          "type": "status",
+          "style": "diamond",
+          "background": "#b9ff63",
+          "foreground": "#090612",
+          "background_templates": ["{{ if ne .Code 0 }}#ff2f6d{{ end }}"],
+          "options": {"always_enabled": true},
+          "template": " {{ if eq .Code 0 }}{{ else }} {{ .Code }}{{ end }} ",
+          "trailing_diamond": ""
+        }
+      ]
+    },
+    {
+      "type": "prompt",
+      "alignment": "left",
+      "newline": true,
+      "segments": [
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "#ff4fd8",
+          "template": "╰─"
+        },
+        {
+          "type": "text",
+          "style": "plain",
+          "foreground": "#42f5ff",
+          "template": "❯ "
+        }
+      ]
+    },
+    {
+      "type": "rprompt",
+      "alignment": "right",
+      "segments": [
+        {
+          "type": "time",
+          "style": "plain",
+          "foreground": "#a970ff",
+          "options": {"time_format": "15:04"},
+          "template": "  {{ .CurrentDate | date .Format }} "
+        }
+      ]
+    }
+  ]
+}

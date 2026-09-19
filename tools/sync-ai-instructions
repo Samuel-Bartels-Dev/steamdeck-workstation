@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  cat <<'HELP'
+NAME
+  tools/sync-ai-instructions — Explain AI instruction entry-point ownership.
+SYNOPSIS
+  tools/sync-ai-instructions [--help]
+DESCRIPTION
+  Read-only advisory. Shared instructions are authored in docs/ai/COMMON.md; this helper does not generate or overwrite them.
+EXIT STATUS
+  0 on completion; nonzero on operational failure.
+SEE ALSO
+  deckctl help; docs/SCRIPTS.md
+HELP
+  exit 0
+fi
+echo "AI entry files are thin adapters over docs/ai/COMMON.md; v0.2.26 validates presence instead of generating them."

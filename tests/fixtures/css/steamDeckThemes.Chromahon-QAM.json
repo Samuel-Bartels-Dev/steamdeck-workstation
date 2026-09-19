@@ -1,0 +1,957 @@
+{
+  "name": "CapyMenu (QAM)",
+  "display_name": "Chromahon (QAM)",
+  "enabled": false,
+  "patches": [
+    {
+      "name": "\u27a4 Global Settings",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "QAM Type",
+      "value": "Regular",
+      "options": [
+        "Regular",
+        "Regular Rounded",
+        "Inverted",
+        "Inverted Rounded"
+      ],
+      "components": []
+    },
+    {
+      "name": "Sidebar Layout",
+      "value": "Collapse Top",
+      "options": [
+        "Standard",
+        "Collapse Center",
+        "Collapse Top",
+        "Collapse Bottom"
+      ],
+      "components": []
+    },
+    {
+      "name": "Show Sidebar Page Indicator",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Hide Help Page",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Extend QAM Styling To Notification Toasts",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Content Panel",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Content Panel Background Type",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Radial Grad",
+        "Halos",
+        "Stripes",
+        "IMG"
+      ],
+      "components": [
+        {
+          "name": "Solid Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#0f0f0f"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Radial Grad 1",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Radial Grad 2",
+          "type": "color-picker",
+          "on": "Radial Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#dff261"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#b161f2"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Image Picker",
+          "type": "image-picker",
+          "on": "IMG",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Content Panel Bg Anim (Not on Solid Color, Stripes, IMG)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Content Panel Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#adadad"
+        }
+      ]
+    },
+    {
+      "name": "Header Layer 1 Bg Type",
+      "value": "Solid Colors",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Halos",
+        "Stripes",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#d1d1d1"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#dff261"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#b161f2"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Cutoff",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#eb506f"
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Header Layer 1 Bg Anim (Not on Stripes, Cutoff)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Header Layer 2 Bg Type",
+      "value": "H-Linear Grad",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "Cutoff"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#dff261"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#ccdb76"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#76dbda"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#db7689"
+        },
+        {
+          "name": "Cutoff",
+          "type": "color-picker",
+          "on": "Cutoff",
+          "value": "#50eb79"
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Header Layer 2 Bg Anim (Not on Cutoff)",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Header Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#202020"
+        }
+      ]
+    },
+    {
+      "name": "\u27a4 Focusable Items In Page",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Focusable Item Bg Highlight Type",
+      "value": "Halos",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Halos",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#dff261"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Halo 1",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#f4f4f4"
+        },
+        {
+          "name": "Halo 2",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#ccc"
+        },
+        {
+          "name": "Halo 3",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#bab3b3"
+        },
+        {
+          "name": "Halo 4",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#bfbfbf"
+        },
+        {
+          "name": "Halo 5",
+          "type": "color-picker",
+          "on": "Halos",
+          "value": "#8c8c8c"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Focusable Item Highlight Bg Anim (Not on Stripes)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Focusable Item Highlight Fg",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#202020"
+        }
+      ]
+    },
+    {
+      "name": "Item Separators",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#00000000"
+        }
+      ]
+    },
+    {
+      "name": "\u27a4 Sidebar",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Sidebar Panel Background",
+      "value": "Solid Color",
+      "options": [
+        "Solid Color",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "Solid Color",
+          "value": "#dbdbdb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "Sidebar Icon",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#0d0d0d4D"
+        }
+      ]
+    },
+    {
+      "name": "Sidebar Icon Highlight",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#bababa"
+        }
+      ]
+    },
+    {
+      "name": "Sidebar Icon Bg Highlight",
+      "value": "Solid Colors",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "V-Linear Grad",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#161616"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "V-Linear Grad 1",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#eb506f"
+        },
+        {
+          "name": "V-Linear Grad 2",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50eb79"
+        },
+        {
+          "name": "V-Linear Grad 3",
+          "type": "color-picker",
+          "on": "V-Linear Grad",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Sidebar Icon Highlight Bg Anim (Not on Stripes)",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "Sidebar Page Indicator",
+      "value": "H-Linear Grad",
+      "options": [
+        "Solid Colors",
+        "H-Linear Grad",
+        "Stripes"
+      ],
+      "components": [
+        {
+          "name": "Color 1",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Color 2 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Color 3 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#50baeb"
+        },
+        {
+          "name": "Color 4 (Anim Only)",
+          "type": "color-picker",
+          "on": "Solid Colors",
+          "value": "#dff261"
+        },
+        {
+          "name": "H-Linear Grad 1",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#ccdb76"
+        },
+        {
+          "name": "H-Linear Grad 2",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#76dbda"
+        },
+        {
+          "name": "H-Linear Grad 3",
+          "type": "color-picker",
+          "on": "H-Linear Grad",
+          "value": "#db7689"
+        },
+        {
+          "name": "Stripe 1",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#eb506f"
+        },
+        {
+          "name": "Stripe 2",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50eb79"
+        },
+        {
+          "name": "Stripe 3",
+          "type": "color-picker",
+          "on": "Stripes",
+          "value": "#50baeb"
+        }
+      ]
+    },
+    {
+      "name": "\u21b3 Sidebar Indicator Anim (Not on Stripes)",
+      "value": "Yes",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    },
+    {
+      "name": "\u27a4 Top Bar (Only Visible In-Game)",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Top Bar Background",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#ccc"
+        }
+      ]
+    },
+    {
+      "name": "Top Bar Foreground",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#202020"
+        }
+      ]
+    },
+    {
+      "name": "Top Bar Bg Highlight",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#202020"
+        }
+      ]
+    },
+    {
+      "name": "Top Bar Fg Highlight",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#ccc"
+        }
+      ]
+    },
+    {
+      "name": "\u27a4 Other",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": []
+    },
+    {
+      "name": "Notification Mark",
+      "value": null,
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#de234f"
+        }
+      ]
+    }
+  ]
+}

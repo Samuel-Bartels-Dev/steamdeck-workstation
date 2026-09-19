@@ -1,0 +1,28 @@
+{
+  "api_version": 1,
+  "id": "remote",
+  "name": "Remote",
+  "depends_on": [
+    "base",
+    "hardware"
+  ],
+  "capabilities": [
+    "tailscale",
+    "moonlight",
+    "chiaki-ng",
+    "wake-on-lan"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

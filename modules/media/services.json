@@ -1,0 +1,22 @@
+{
+  "netflix": {
+    "name": "Netflix",
+    "url": "https://www.netflix.com/browse",
+    "default": true
+  },
+  "hulu": {
+    "name": "Hulu",
+    "url": "https://www.hulu.com/hub/home",
+    "default": true
+  },
+  "crunchyroll": {
+    "name": "Crunchyroll",
+    "url": "https://www.crunchyroll.com/",
+    "default": true
+  },
+  "prime-video": {
+    "name": "Prime Video",
+    "url": "https://www.amazon.com/gp/video/storefront",
+    "default": true
+  }
+}

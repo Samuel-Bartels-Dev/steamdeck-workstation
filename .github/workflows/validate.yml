@@ -1,0 +1,29 @@
+name: Validate and package
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.12', '3.13']
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ matrix.python }}
+      - run: ./tools/build-release "$RUNNER_TEMP/packages"
+      - run: python3 tools/verify-release.py "$RUNNER_TEMP/packages"
+      - name: Shell syntax
+        run: |
+          bash -n install.sh bootstrap.sh uninstall.sh
+          for f in modules/*/*.sh; do bash -n "$f"; done
+      - name: Secret pattern check
+        run: |
+          ! grep -RInE '(BEGIN (RSA|OPENSSH|EC) PRIVATE KEY|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,})' --exclude-dir=.git .

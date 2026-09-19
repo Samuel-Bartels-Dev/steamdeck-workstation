@@ -1,0 +1,28 @@
+{
+  "api_version": 1,
+  "id": "emulation",
+  "name": "Emulation",
+  "depends_on": [
+    "base",
+    "storage"
+  ],
+  "capabilities": [
+    "emudeck",
+    "es-de",
+    "steam-rom-manager",
+    "bios-validation"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

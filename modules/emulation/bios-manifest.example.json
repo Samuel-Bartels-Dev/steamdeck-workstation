@@ -1,0 +1,29 @@
+{
+  "purpose": "Example metadata only; never commit BIOS binaries.",
+  "systems": {
+    "ps1": {
+      "type": "bios-files",
+      "destination": "Emulation/bios",
+      "validation": "EmuDeck BIOS Checker / DuckStation"
+    },
+    "ps2": {
+      "type": "bios-files",
+      "destination": "Emulation/bios",
+      "validation": "EmuDeck BIOS Checker / PCSX2"
+    },
+    "ps3": {
+      "type": "firmware-installer",
+      "destination": "RPCS3 UI",
+      "validation": "RPCS3 system software status"
+    },
+    "psvita": {
+      "type": "firmware-installer",
+      "destination": "Vita3K UI",
+      "validation": "Vita3K firmware status"
+    },
+    "gba": {
+      "type": "optional-or-core-dependent",
+      "validation": "emulator/core specific"
+    }
+  }
+}

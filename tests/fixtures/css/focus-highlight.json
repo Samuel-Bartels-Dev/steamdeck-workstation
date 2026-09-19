@@ -1,0 +1,43 @@
+{
+  "name": "Focus Highlight Color",
+  "display_name": "Focus Highlight Color",
+  "enabled": false,
+  "patches": [
+    {
+      "name": "Highlight Colors",
+      "value": "_",
+      "options": [
+        "_"
+      ],
+      "components": [
+        {
+          "name": "Main Color 1",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#FFFFFF9A"
+        },
+        {
+          "name": "Main Color 2",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#FFFFFF44"
+        },
+        {
+          "name": "On Highlighted Color",
+          "type": "color-picker",
+          "on": "_",
+          "value": "#FFFFFF33"
+        }
+      ]
+    },
+    {
+      "name": "Round Compatibility",
+      "value": "No",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "components": []
+    }
+  ]
+}

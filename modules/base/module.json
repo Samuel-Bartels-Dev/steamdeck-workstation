@@ -1,0 +1,23 @@
+{
+  "api_version": 1,
+  "id": "base",
+  "name": "Base",
+  "depends_on": [],
+  "capabilities": [
+    "flatpak",
+    "flathub"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  },
+  "ai": {
+    "context": [
+      "README.md"
+    ]
+  }
+}

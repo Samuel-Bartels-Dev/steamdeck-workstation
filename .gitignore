@@ -1,0 +1,42 @@
+# Secrets/private content
+private/
+secrets/
+*.token
+*.key
+*.pem
+*.p12
+*.pfx
+.env
+.env.*
+
+# Emulation/private game data
+**/bios-private/
+**/roms-private/
+**/saves-private/
+*.bin
+*.rom
+*.iso
+*.chd
+*.rvz
+*.wbfs
+*.pkg
+*.rap
+
+# Runtime state / generated support bundles
+.state/
+state/
+*.log
+support-bundles/
+backups/
+
+# Python/editor
+__pycache__/
+*.pyc
+.vscode/
+.idea/
+.DS_Store
+
+# Build artifacts
+release/
+*.tar.gz
+*.zip
