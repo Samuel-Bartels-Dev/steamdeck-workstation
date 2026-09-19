@@ -1,0 +1,7 @@
+{
+  "docker": "deckctl containers docker --",
+  "docker-compose": "deckctl containers compose --",
+  "compose": "deckctl containers compose --",
+  "d": "deckctl containers docker --",
+  "dc": "deckctl containers compose --"
+}
