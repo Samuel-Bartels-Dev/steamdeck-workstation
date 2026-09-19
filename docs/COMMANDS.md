@@ -185,7 +185,8 @@ SEE ALSO
 ## deckctl containers install
 
 ```text
-usage: deckctl containers install [-h] [--local | --context CONTEXT | --remote REMOTE]
+usage: deckctl containers install [-h] [--storage-driver {default,fuse-overlayfs}]
+       [--local | --context CONTEXT | --remote REMOTE]
 
 NAME
   deckctl containers install — Install optional Docker Engine, Compose and Buildx, or reuse an existing engine.
@@ -194,13 +195,17 @@ DESCRIPTION
   Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test; exit 2 means configuration is required. No automatic binary updates.
 
 options:
-  -h, --help         show this help message and exit
-  --local            Explicitly select the managed local rootless engine after using a
-                     remote/context engine.
-  --context CONTEXT  Reuse an existing Docker context and its Compose plugin without
-                     modifying its engine.
-  --remote REMOTE    Install private Docker CLI tools targeting
-                     ssh://user@hostname[:port]. Authenticate with SSH first.
+  -h, --help            show this help message and exit
+  --storage-driver {default,fuse-overlayfs}
+                        Select managed rootless storage: Docker default or classic fuse-
+                        overlayfs. Stop the engine before switching; old
+                        images/containers are preserved but hidden. Saved for retries.
+  --local               Explicitly select the managed local rootless engine after using
+                        a remote/context engine.
+  --context CONTEXT     Reuse an existing Docker context and its Compose plugin without
+                        modifying its engine.
+  --remote REMOTE       Install private Docker CLI tools targeting
+                        ssh://user@hostname[:port]. Authenticate with SSH first.
 
 EXAMPLES
   deckctl containers install

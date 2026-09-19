@@ -176,6 +176,7 @@ def status_data():
                 result.update(status='CONFIG_REQUIRED', message='Managed endpoint did not report rootless mode.')
             else:
                 result.update(status='READY', engine_version=data.get('ServerVersion'),
+                              storage_driver=data.get('Driver'),
                               compose_version=compose.stdout.strip(), rootless=rootless,
                               message='Engine and Compose respond; containers test verifies an actual launch.')
         if cfg['mode'] == 'managed':
@@ -213,18 +214,23 @@ def service(action):
     return 0
 
 
-def unit_text(directory):
+def unit_text(directory, storage_driver=None):
     def quote(value):
         if '\n' in value or '\r' in value:
             raise ValueError('Newlines are not supported in container installation paths')
         return '"' + value.replace('\\', '\\\\').replace('"', '\\"').replace('%', '%%').replace('$', '$$') + '"'
     base = paths()[0]
+    storage_flags = ''
+    if storage_driver == 'fuse-overlayfs':
+        storage_flags = ' --feature=containerd-snapshotter=false --storage-driver=fuse-overlayfs'
+    elif storage_driver is not None:
+        raise ValueError('Unsupported managed storage driver')
     return (MARKER + '[Unit]\nDescription=Steam Deck development Docker (rootless)\n'
             '[Service]\nType=simple\n'
             'Environment=' + quote('PATH=' + str(directory) + ':/usr/local/bin:/usr/bin:/bin') + '\n'
             'Environment=DOCKERD_ROOTLESS_ROOTLESSKIT_STATE_DIR=%t/deckctl-rootlesskit\n'
             'ExecStart=' + quote(str(directory / 'dockerd-rootless.sh')) +
-            ' --host=unix://%t/deckctl-docker.sock --data-root=' + quote(str(base / 'data')) + '\n'
+            ' --host=unix://%t/deckctl-docker.sock --data-root=' + quote(str(base / 'data')) + storage_flags + '\n'
             'Restart=on-failure\nRestartSec=3\nTimeoutStartSec=90\nDelegate=yes\n'
             'KillMode=mixed\n[Install]\nWantedBy=default.target\n')
 
@@ -236,10 +242,17 @@ def safe_directory(path):
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
 
 
-def install(context=None, remote=None, local=False):
+def install(context=None, remote=None, local=False, storage_driver=None):
     if os.geteuid() == 0:
         raise ValueError('Run as the Desktop user, not root.')
     old = config()
+    if storage_driver is not None and (context or remote or (old.get('mode') in ('context', 'remote') and not local)):
+        raise ValueError('--storage-driver applies only to the managed local engine; select --local explicitly.')
+    selected_storage = storage_driver if storage_driver is not None else old.get('storage_driver')
+    if selected_storage == 'default':
+        selected_storage = None
+    if selected_storage not in (None, 'fuse-overlayfs'):
+        raise ValueError('Unsupported managed storage driver')
     if remote and not re.fullmatch(r'ssh://[A-Za-z0-9_.-]+@[A-Za-z0-9][A-Za-z0-9.-]*(?::[0-9]{1,5})?', remote):
         raise ValueError('Remote must be ssh://user@hostname[:port], without paths or passwords.')
     if remote and not shutil.which('ssh'):
@@ -262,8 +275,15 @@ def install(context=None, remote=None, local=False):
         print('Existing Docker CLI detected. Reuse with containers install --context NAME; inspect docker context ls.')
         return 2
     errors = [] if remote else prerequisites()
+    if not remote and selected_storage == 'fuse-overlayfs' and not shutil.which('fuse-overlayfs'):
+        errors.append('Missing host prerequisite: fuse-overlayfs (required by the selected storage driver).')
     if errors:
         print('CONFIG_REQUIRED\n' + '\n'.join(errors) + '\nSteamOS was not unlocked or modified. Existing/remote Docker is an alternative.')
+        return 2
+    if (not remote and selected_storage != old.get('storage_driver') and
+            execute(['systemctl', '--user', 'is-active', UNIT]).returncode == 0):
+        print('Stop the managed engine with deckctl containers stop before changing storage drivers. '
+              'Existing images/containers remain on disk but are hidden by the other backend.')
         return 2
     base, cfgpath, unit = paths()
     safe_directory(base)
@@ -312,14 +332,17 @@ def install(context=None, remote=None, local=False):
         core.save_json(cfgpath, {'mode': 'remote', 'runtime': version, 'remote': remote, 'opt_in': True})
         return smoke()
     safe_directory(unit.parent)
-    content = unit_text(destination)
+    content = unit_text(destination, selected_storage)
     if not unit.exists() or unit.read_text() != content:
         temporary = unit.with_suffix('.service.tmp')
         if temporary.exists() or temporary.is_symlink():
             raise ValueError('Unexpected temporary service file; inspect before retrying.')
         temporary.write_text(content)
         temporary.replace(unit)
-    core.save_json(cfgpath, {'mode': 'managed', 'runtime': version, 'opt_in': True})
+    settings = {'mode': 'managed', 'runtime': version, 'opt_in': True}
+    if selected_storage:
+        settings['storage_driver'] = selected_storage
+    core.save_json(cfgpath, settings)
     if execute(['systemctl', '--user', 'daemon-reload']).returncode:
         return 1
     # Start for this session only. No enable, linger, sudo, or firewall changes.
@@ -341,6 +364,11 @@ def smoke():
         started = docker(prefix + ['up', '--detach', '--wait', '--wait-timeout', '60'], timeout=240)
         if started.returncode:
             print('Container test could not start: ' + started.stderr[-2000:])
+            if (config().get('mode') == 'managed' and 'fstype: overlay' in started.stderr
+                    and 'invalid argument' in started.stderr):
+                print('Rootless overlay mounts failed. If fuse-overlayfs is available, stop the managed engine '
+                      'with deckctl containers stop, then run deckctl containers install --storage-driver fuse-overlayfs. '
+                      'This preserves existing data but images/containers from the old backend become hidden.')
         else:
             probe = docker(prefix + ['exec', '-T', 'probe', 'wget', '-qO-', 'http://127.0.0.1:8080'])
             result = 0 if probe.returncode == 0 and probe.stdout.strip() == 'deckctl-container-ok' else 1
@@ -404,6 +432,8 @@ def add_parser(subparsers):
     status_parser = children.add_parser('status')
     status_parser.add_argument('--json', action='store_true')
     install_parser = children.add_parser('install')
+    install_parser.add_argument('--storage-driver', choices=('default', 'fuse-overlayfs'),
+                                help='Select managed rootless storage: Docker default or classic fuse-overlayfs. Stop the engine before switching; old images/containers are preserved but hidden. Saved for retries.')
     choice = install_parser.add_mutually_exclusive_group()
     choice.add_argument('--local', action='store_true', help='Explicitly select the managed local rootless engine after using a remote/context engine.')
     choice.add_argument('--context', help='Reuse an existing Docker context and its Compose plugin without modifying its engine.')
@@ -421,7 +451,7 @@ def add_parser(subparsers):
 def dispatch(args):
     action = args.containers_sub
     if action == 'install':
-        return install(args.context, args.remote, args.local)
+        return install(args.context, args.remote, args.local, args.storage_driver)
     if action == 'status':
         return status(args.json)
     if action in ('start', 'stop'):
