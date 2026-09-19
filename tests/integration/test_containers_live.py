@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Explicit live test on an existing Docker context; never starts/stops its engine."""
+"""Explicit live test on an existing Docker engine; never starts/stops its daemon."""
 import argparse
 import json
 import os
@@ -13,16 +13,25 @@ ROOT = Path(__file__).resolve().parents[2]
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--context', default='default', help='Existing CI/development Docker context with Compose and Buildx.')
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument('--context', default='default', help='Existing CI/development Docker context with Compose and Buildx.')
+    target.add_argument('--managed', action='store_true', help='Test the already configured managed rootless engine without changing its configuration.')
     args = parser.parse_args()
     # Keep this test out of normal install-time offline validation.
     with tempfile.TemporaryDirectory(prefix='deckctl-live-test-') as tmp:
         work = Path(tmp)
         env = {**os.environ, 'DECKCTL_CONFIG': str(work / 'config')}
+        if args.managed:
+            env = os.environ.copy()
         cli = [str(ROOT / 'bin/deckctl'), 'containers']
         def run(*arguments):
             return subprocess.run(cli + list(arguments), env=env, check=True, capture_output=True, text=True, timeout=300)
-        run('install', '--context', args.context)
+        if args.managed:
+            before = json.loads(run('status', '--json').stdout)
+            assert before['mode'] == 'managed' and before.get('rootless'), before
+            run('test')
+        else:
+            run('install', '--context', args.context)
         data = json.loads(run('status', '--json').stdout)
         assert data['status'] == 'READY', data
         run('docker', '--', 'buildx', 'version')

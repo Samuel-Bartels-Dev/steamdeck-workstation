@@ -176,6 +176,42 @@ class Containers(unittest.TestCase):
         self.assertNotIn('enable-linger', text)
         self.assertIn('WantedBy=default.target', text)
 
+    def test_fuse_requires_helper_before_any_changes(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        before = self.cfg.read_bytes()
+        with patch.object(c.os, 'geteuid', return_value=1000), patch.object(c, 'prerequisites', return_value=[]), patch.object(c.shutil, 'which', return_value=None), patch.object(c, 'download') as download:
+            self.assertEqual(c.install(storage_driver='fuse-overlayfs'), 2)
+            download.assert_not_called()
+        self.assertEqual(self.cfg.read_bytes(), before)
+        self.assertFalse(self.unit.exists())
+
+    def test_storage_switch_does_not_restart_running_engine(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        before = self.cfg.read_bytes()
+        with patch.object(c.os, 'geteuid', return_value=1000), patch.object(c, 'prerequisites', return_value=[]), patch.object(c.shutil, 'which', return_value='/usr/bin/fuse-overlayfs'), patch.object(c, 'execute', return_value=result()), patch.object(c, 'service') as service:
+            self.assertEqual(c.install(storage_driver='fuse-overlayfs'), 2)
+            service.assert_not_called()
+        self.assertEqual(self.cfg.read_bytes(), before)
+        self.assertFalse(self.unit.exists())
+
+    def test_storage_override_cannot_modify_remote_or_context(self):
+        with patch.object(c.os, 'geteuid', return_value=1000), patch.object(c, 'execute') as execute:
+            for kwargs in ({'remote': 'ssh://user@host'}, {'context': 'default'}):
+                with self.assertRaises(ValueError):
+                    c.install(storage_driver='fuse-overlayfs', **kwargs)
+            self.save({'mode': 'remote', 'remote': 'ssh://user@host'})
+            with self.assertRaises(ValueError):
+                c.install(storage_driver='fuse-overlayfs')
+            execute.assert_not_called()
+
+    def test_overlay_failure_explains_repair_and_still_cleans(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        failed = subprocess.CompletedProcess([], 1, '', 'fstype: overlay, err: invalid argument')
+        with contextlib.redirect_stdout(io.StringIO()) as output, patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[failed, result()]) as docker:
+            self.assertEqual(c.smoke(), 1)
+            self.assertIn('--storage-driver fuse-overlayfs', output.getvalue())
+            self.assertIn('down', docker.call_args_list[-1].args[0])
+
     def test_cleanup_never_prunes(self):
         self.base.mkdir()
         keep = self.base / 'database'
@@ -201,6 +237,25 @@ class Containers(unittest.TestCase):
             count = download.call_count
             self.assertEqual(c.install(), 0)
             self.assertEqual(download.call_count, count)
+            # An explicit repair keeps old storage intact and persists across retries.
+            old_data = self.base / 'data/containerd/keep'
+            old_data.parent.mkdir(parents=True)
+            old_data.write_text('existing image data')
+            with patch.object(c.shutil, 'which', return_value='/usr/bin/fuse-overlayfs'), patch.object(c, 'execute', side_effect=lambda args, **kw: result(3) if 'is-active' in args else result()):
+                self.assertEqual(c.install(storage_driver='fuse-overlayfs'), 0)
+                repaired = self.unit.read_text()
+                self.assertIn('--feature=containerd-snapshotter=false', repaired)
+                self.assertIn('--storage-driver=fuse-overlayfs', repaired)
+                self.assertEqual(c.install(), 0)
+                self.assertEqual(self.unit.read_text(), repaired)
+                self.assertEqual(c.config()['storage_driver'], 'fuse-overlayfs')
+                self.assertEqual(old_data.read_text(), 'existing image data')
+                self.assertEqual(download.call_count, count)
+                self.assertEqual(c.install(storage_driver='default'), 0)
+                self.assertNotIn('--storage-driver=', self.unit.read_text())
+                self.assertNotIn('--feature=', self.unit.read_text())
+                self.assertNotIn('storage_driver', c.config())
+                self.assertEqual(old_data.read_text(), 'existing image data')
         self.assertEqual(c.config()['mode'], 'managed')
         self.assertTrue(self.unit.read_text().startswith(c.MARKER))
         self.assertTrue((self.base / 'client/cli-plugins/docker-buildx').is_file())

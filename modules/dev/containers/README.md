@@ -73,6 +73,38 @@ security controls, running pacman or unlocking SteamOS. A kernel restriction can
 still prevent startup after preflight; inspect `journalctl --user -u
  deckctl-docker.service` (on one line).
 
+### Repair a rootless overlay mount failure
+
+Docker 29 defaults to the containerd image store. On some SteamOS kernels the
+engine responds, but creating a container fails with `fstype: overlay` and
+`invalid argument`. If `fuse-overlayfs` is already installed on the host, use:
+
+```bash
+deckctl containers stop
+deckctl containers install --storage-driver fuse-overlayfs
+deckctl containers status
+```
+
+This explicitly selects the classic `fuse-overlayfs` driver and disables the
+containerd snapshotter for this managed engine. It runs the Compose HTTP test
+and remembers the choice for future installation retries. The default backend
+is unchanged unless this option is selected. Missing `fuse-overlayfs` returns
+CONFIG_REQUIRED without installing system packages or changing SteamOS.
+
+Stop your project workloads before switching: the command refuses a storage
+change while the managed service is active. Existing image/container data stays
+on disk, but the old backend's images and containers are hidden while the other
+backend is selected; this is not a migration. Volumes are not pruned. Existing
+Docker contexts and remote engines cannot be changed with this option.
+To return to the original backend, stop the managed engine and run
+`deckctl containers install --storage-driver default`. This restores visibility
+of its original images/containers; it does not fix an incompatible overlay mount.
+
+See Docker's [storage driver guidance](https://docs.docker.com/engine/storage/drivers/select-storage-driver/)
+and [containerd image store documentation](https://docs.docker.com/engine/storage/containerd/).
+For a live build and HTTP check on the configured managed engine, run
+`python3 tests/integration/test_containers_live.py --managed` from a checkout.
+
 The downloaded binaries are pinned in [downloads.json](downloads.json), with
 SHA-256 checks. They come from Docker's official binary distribution and
 Docker's Compose/Buildx GitHub releases. Compose and Buildx hashes were checked
