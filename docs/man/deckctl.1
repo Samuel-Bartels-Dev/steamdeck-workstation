@@ -4,7 +4,7 @@ deckctl \- Steam Deck workstation control plane
 .SH "DECKCTL"
 .nf
 usage: deckctl [\-h] [\-\-version]
-       {detect,plan,apply,verify,doctor,inventory,support\-bundle,post\-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+       {containers,detect,plan,apply,verify,doctor,inventory,support\-bundle,post\-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
        ...
 
 NAME
@@ -14,7 +14,8 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {detect,plan,apply,verify,doctor,inventory,support\-bundle,post\-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+  {containers,detect,plan,apply,verify,doctor,inventory,support\-bundle,post\-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+    containers          Manage containers operations.
     detect              Identify Steam Deck model, SteamOS, and battery health from
                         local system files.
     plan                List enabled modules in dependency order with their current
@@ -69,7 +70,430 @@ options:
   \-\-version             show program's version number and exit
 
 EXAMPLES
-  deckctl  detect
+  deckctl  containers
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS"
+.nf
+usage: deckctl containers [\-h]
+       {status,install,start,stop,test,cleanup,provision,check,autostart,docker,compose}
+       ...
+
+NAME
+  deckctl containers — Manage containers operations using the commands below.
+
+DESCRIPTION
+  Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
+
+positional arguments:
+  {status,install,start,stop,test,cleanup,provision,check,autostart,docker,compose}
+    status              Report the selected Docker engine and Compose readiness.
+    install             Install optional Docker Engine, Compose and Buildx, or reuse an
+                        existing engine.
+    start               Start the project\-managed local Docker engine for this session.
+    stop                Stop the project\-managed local Docker engine.
+    test                Run and remove a uniquely named Compose HTTP smoke test.
+    cleanup             Explain automatic installer cleanup and preserve project data.
+    provision           Offer or resume optional Docker setup during the normal
+                        installer.
+    check               Check host prerequisites for a local rootless Docker engine.
+    autostart           Opt in or out of managed Docker startup at user login.
+    docker              Run Docker CLI arguments against the selected development
+                        engine.
+    compose             Run your Compose project against the selected development
+                        engine.
+
+options:
+  \-h, \-\-help            show this help message and exit
+
+EXAMPLES
+  deckctl containers status
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS STATUS"
+.nf
+usage: deckctl containers status [\-h] [\-\-json]
+
+NAME
+  deckctl containers status — Report the selected Docker engine and Compose readiness.
+
+DESCRIPTION
+  Read\-only: queries the selected engine and Compose version, never starts services or pulls images. READY means the API responds; containers test verifies a real launch. Exit 2 when unconfigured, stopped or unavailable. Podman/Distrobox are unchanged.
+
+options:
+  \-h, \-\-help  show this help message and exit
+  \-\-json      Emit machine\-readable JSON instead of the human\-readable report.
+
+EXAMPLES
+  deckctl containers status \-\-json
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS INSTALL"
+.nf
+usage: deckctl containers install [\-h] [\-\-local | \-\-context CONTEXT | \-\-remote REMOTE]
+
+NAME
+  deckctl containers install — Install optional Docker Engine, Compose and Buildx, or reuse an existing engine.
+
+DESCRIPTION
+  Opt\-in user\-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA\-256\-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires \-\-context NAME. \-\-local selects the managed local engine after a remote/context selection. \-\-remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test; exit 2 means configuration is required. No automatic binary updates.
+
+options:
+  \-h, \-\-help         show this help message and exit
+  \-\-local            Explicitly select the managed local rootless engine after using a
+                     remote/context engine.
+  \-\-context CONTEXT  Reuse an existing Docker context and its Compose plugin without
+                     modifying its engine.
+  \-\-remote REMOTE    Install private Docker CLI tools targeting
+                     ssh://user@hostname[:port]. Authenticate with SSH first.
+
+EXAMPLES
+  deckctl containers install
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS START"
+.nf
+usage: deckctl containers start [\-h]
+
+NAME
+  deckctl containers start — Start the project\-managed local Docker engine for this session.
+
+DESCRIPTION
+  Checks prerequisites and starts only deckctl\-docker.service. Waits for rootless API/Compose readiness. Does not enable startup or affect another engine.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers start
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS STOP"
+.nf
+usage: deckctl containers stop [\-h]
+
+NAME
+  deckctl containers stop — Stop the project\-managed local Docker engine.
+
+DESCRIPTION
+  Stops running workloads on this managed engine. Images, containers and volumes remain on disk. Existing/remote engines cannot be stopped through this command.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers stop
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS TEST"
+.nf
+usage: deckctl containers test [\-h]
+
+NAME
+  deckctl containers test — Run and remove a uniquely named Compose HTTP smoke test.
+
+DESCRIPTION
+  Requires a reachable engine and Compose. May download a digest\-pinned BusyBox image, creates a disposable service, waits for health, verifies its HTTP response, and removes only that test project. Publishes no host ports and uses no volumes. Does not certify your dashboard stack or host networking. Leaves the cached image for reuse.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers test
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS CLEANUP"
+.nf
+usage: deckctl containers cleanup [\-h]
+
+NAME
+  deckctl containers cleanup — Explain automatic installer cleanup and preserve project data.
+
+DESCRIPTION
+  Downloads are temporary and removed on completion/failure. This read\-only command never prunes images, volumes or user containers; database cleanup must be explicit in your project.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers cleanup
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS PROVISION"
+.nf
+usage: deckctl containers provision [\-h]
+
+NAME
+  deckctl containers provision — Offer or resume optional Docker setup during the normal installer.
+
+DESCRIPTION
+  First interactive use asks once; declining records opt\-out. Non\-interactive setup skips an unselected option. Accepted setup is retried on later installer runs; containers install can opt in after declining. Does not block unrelated modules from provisioning.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers provision
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS CHECK"
+.nf
+usage: deckctl containers check [\-h]
+
+NAME
+  deckctl containers check — Check host prerequisites for a local rootless Docker engine.
+
+DESCRIPTION
+  Read\-only host checks for Linux x86_64, UID/GID mapping, subordinate ranges, network helper, user namespaces and a systemd user session. No sudo, pacman, sysctl edits or SteamOS unlock. Missing prerequisites return 2; remote Docker may still be usable.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers check
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS AUTOSTART"
+.nf
+usage: deckctl containers autostart [\-h] {on,off}
+
+NAME
+  deckctl containers autostart — Opt in or out of managed Docker startup at user login.
+
+DESCRIPTION
+  on enables the managed user service; off disables future automatic starts without stopping current workloads. Does not enable linger or boot startup. The default is off.
+
+positional arguments:
+  {on,off}    Enable or disable managed Docker startup at user login; no system
+              boot/linger changes.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers autostart on
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS DOCKER"
+.nf
+usage: deckctl containers docker [\-h] ...
+
+NAME
+  deckctl containers docker — Run Docker CLI arguments against the selected development engine.
+
+DESCRIPTION
+  Pass arguments after \-\-. Normal Docker semantics apply, including destructive operations you explicitly request. Endpoint overrides are rejected. Private tools do not replace the system docker command. Remote bind mounts refer to the remote host.
+
+positional arguments:
+  arguments   Arguments passed to the selected Docker/Compose endpoint; use \-\- before
+              vendor options.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers docker \-\- ps
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck\-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per\-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration\-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+.fi
+.SH "DECKCTL CONTAINERS COMPOSE"
+.nf
+usage: deckctl containers compose [\-h] ...
+
+NAME
+  deckctl containers compose — Run your Compose project against the selected development engine.
+
+DESCRIPTION
+  Runs in your current working directory. Pass Compose arguments after \-\-; vendor operations can build images, start services or delete data as requested. No automatic port rewriting: bind local dashboards to 127.0.0.1 explicitly. On SSH engines bind mounts and published ports belong to the remote host.
+
+positional arguments:
+  arguments   Arguments passed to the selected Docker/Compose endpoint; use \-\- before
+              vendor options.
+
+options:
+  \-h, \-\-help  show this help message and exit
+
+EXAMPLES
+  deckctl containers compose \-\- up \-\-build \-d
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

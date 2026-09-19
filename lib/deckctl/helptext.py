@@ -189,3 +189,7 @@ def decorate(root):
             elif action.dest not in ('help','version'):
                 action.help=ARGUMENTS.get(action.dest, action.help)
                 if not action.help: raise ValueError(f'Undocumented argument: {key} {action.dest}')
+
+# Optional container commands keep their domain documentation with the implementation.
+from .containers import HELP as CONTAINER_HELP
+PAGES.update(CONTAINER_HELP)

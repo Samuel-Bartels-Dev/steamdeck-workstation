@@ -48,7 +48,7 @@ if r.returncode:
 r=__import__('subprocess').run([sys.executable,str(ROOT/'tests/contract/test_v0219.py')],cwd=ROOT)
 if r.returncode:
     sys.exit(r.returncode)
-for script in ['tests/contract/test_v0220.py','tests/contract/test_v0221.py','tests/contract/test_v0222.py','tests/contract/test_v0223.py','tests/contract/test_v0224.py','tests/contract/test_v0225.py','tests/contract/test_v0226.py','tools/check-docs.py']:
+for script in ['tests/contract/test_v0220.py','tests/contract/test_v0221.py','tests/contract/test_v0222.py','tests/contract/test_v0223.py','tests/contract/test_v0224.py','tests/contract/test_v0225.py','tests/contract/test_v0226.py','tests/contract/test_containers.py','tools/check-docs.py']:
     r=__import__('subprocess').run([sys.executable,str(ROOT/script)],cwd=ROOT)
     if r.returncode: sys.exit(r.returncode)
 print(f"REPO VALIDATION PASS — {len(mods)} modules")

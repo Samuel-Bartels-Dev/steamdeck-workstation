@@ -1,0 +1,24 @@
+{
+  "engine_version": "29.8.1",
+  "compose_version": "5.5.1",
+  "architecture": "x86_64",
+  "assets": {
+    "engine": {
+      "url": "https://download.docker.com/linux/static/stable/x86_64/docker-29.8.1.tgz",
+      "sha256": "d8db66739d2e28d4933786d73e918d9be643a67fbd835db1bf740d650a259e70"
+    },
+    "rootless": {
+      "url": "https://download.docker.com/linux/static/stable/x86_64/docker-rootless-extras-29.8.1.tgz",
+      "sha256": "8f1ed16fc6913241e599af6234a7f30502bde6e73bebbbc7176b17802d967d49"
+    },
+    "compose": {
+      "url": "https://github.com/docker/compose/releases/download/v5.5.1/docker-compose-linux-x86_64",
+      "sha256": "db1889184726840f75c4f9c001048430d4f25b3be3cb084d3ddd762bc0aed576"
+    },
+    "buildx": {
+      "url": "https://github.com/docker/buildx/releases/download/v0.37.1/buildx-v0.37.1.linux-amd64",
+      "sha256": "9447199cdb435f25880548343c128a4b6650e8891ee598905d8d29d39a8e359b"
+    }
+  },
+  "buildx_version": "0.37.1"
+}
