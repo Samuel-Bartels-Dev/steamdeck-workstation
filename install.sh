@@ -46,6 +46,8 @@ fi
 printf '\nPersistent command installed: %s\n' "$HOME/.local/bin/deckctl"
 printf 'Open a new terminal after setup for aliases: dplan, dverify, dsetup, dplugins, etc.\n'
 
+./bin/deckctl apps select
+
 ./bin/deckctl detect
 ./bin/deckctl profile auto || true
 printf '\nCurrent plan/status:\n'; ./bin/deckctl plan

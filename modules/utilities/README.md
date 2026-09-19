@@ -7,3 +7,11 @@ following [Zen's Linux installation guide](https://docs.zen-browser.app/guides/i
 It does not replace the default browser or Chrome's existing kiosk workflows.
 Existing user/system Flatpak installations are reused. Missing apps are reported
 by verification and failed downloads remain retryable through `deckctl apply`.
+
+## App choices and removal
+
+The desktop Flatpaks in this module are selectable with `deckctl apps select`.
+Only selected apps are installed and required by verification; existing apps are
+kept when deselected. `deckctl apps uninstall NAME` previews a user-app removal;
+add `--yes` to remove it while preserving settings and disabling reinstalls.
+See [app management](../../docs/APPS.md). Other module features are independent.

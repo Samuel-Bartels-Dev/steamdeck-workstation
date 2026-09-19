@@ -26,6 +26,10 @@ class DesktopApps(unittest.TestCase):
         (self.root / 'lib/deckctl').mkdir(parents=True)
         shutil.copy2(ROOT / 'lib/deckctl/module.sh', self.root / 'lib/deckctl/module.sh')
         (self.root / 'lib/deckctl/__init__.py').write_text('')
+        for name in ('apps.py', 'core.py'):
+            shutil.copy2(ROOT / 'lib/deckctl' / name, self.root / 'lib/deckctl' / name)
+        (self.root / 'config').mkdir()
+        shutil.copy2(ROOT / 'config/desktop-apps.json', self.root / 'config/desktop-apps.json')
         (self.root / 'lib/deckctl/desktop.py').write_text('def apply(): return 0\n')
         for module in APPS:
             shutil.copytree(ROOT / 'modules' / module, self.root / 'modules' / module)

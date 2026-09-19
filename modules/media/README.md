@@ -55,3 +55,11 @@ Distinct bundled SVG icons are installed locally and applied to known project
 shortcuts. Media/workspace launchers are also copied to the Desktop. Repair with
 `deckctl desktop apply`; audit with `deckctl desktop status`. No Steam Gaming Mode
 artwork files are touched; SteamGridDB remains their owner.
+
+## App choices and removal
+
+The desktop Flatpaks in this module are selectable with `deckctl apps select`.
+Only selected apps are installed and required by verification; existing apps are
+kept when deselected. `deckctl apps uninstall NAME` previews a user-app removal;
+add `--yes` to remove it while preserving settings and disabling reinstalls.
+See [app management](../../docs/APPS.md). Other module features are independent.

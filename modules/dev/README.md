@@ -30,3 +30,11 @@ Also installs **Zed** from the community-maintained
 independent of VS Code, Codex and Distrobox. Existing user/system Flatpak installs
 are reused; missing Zed is reported by verification. Project access, editor
 extensions and account sign-in are configured inside Zed by the user.
+
+## App choices and removal
+
+The desktop Flatpaks in this module are selectable with `deckctl apps select`.
+Only selected apps are installed and required by verification; existing apps are
+kept when deselected. `deckctl apps uninstall NAME` previews a user-app removal;
+add `--yes` to remove it while preserving settings and disabling reinstalls.
+See [app management](../../docs/APPS.md). Other module features are independent.
