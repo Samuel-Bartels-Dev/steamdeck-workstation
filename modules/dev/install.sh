@@ -2,7 +2,9 @@
 set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 
-flatpak_install com.visualstudio.code
+app_status=0
+flatpak_install com.visualstudio.code || app_status=1
+flatpak_install dev.zed.Zed || app_status=1
 mkdir -p "$HOME/.config/deckctl" "$HOME/.local/bin"
 cp "$DECKCTL_ROOT/modules/dev/distrobox.ini" "$HOME/.config/deckctl/distrobox.ini"
 
@@ -20,3 +22,4 @@ if have distrobox && have podman; then
 else
   echo "[warn] Distrobox/Podman not both visible on PATH. Codex is installed independently; deck-dev can be repaired later with deckctl doctor dev."
 fi
+exit "$app_status"

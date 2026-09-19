@@ -1,5 +1,18 @@
 # Media Apps
 
+Installs **VLC**, **Plex Desktop** (the playback client, not Plex Media Server),
+and **Spotify** as user Flatpaks from Flathub:
+
+- [VLC](https://flathub.org/apps/org.videolan.VLC): `org.videolan.VLC` (community package).
+- [Plex Desktop](https://flathub.org/apps/tv.plex.PlexDesktop): `tv.plex.PlexDesktop`.
+- [Spotify](https://flathub.org/apps/com.spotify.Client): `com.spotify.Client` (community package).
+
+Launch these apps from the Desktop Mode application menu. Existing user/system
+Flatpaks are reused, and verification lists missing apps. Plex/Spotify account
+sign-in, server selection and subscription features stay inside the apps; an
+installed package does not prove login or playback. These native desktop apps
+do not replace the optional Chrome-backed Game Mode shortcuts below.
+
 Optional Steam Game Mode web-app shortcuts for Netflix, Hulu, Crunchyroll, and Prime Video.
 
 ## Design

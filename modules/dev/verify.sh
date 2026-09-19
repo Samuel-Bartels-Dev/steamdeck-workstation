@@ -2,6 +2,7 @@
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 
 flatpak_has com.visualstudio.code || { module_json NOT_INSTALLED "VS Code Flatpak missing"; exit 0; }
+flatpak_has dev.zed.Zed || { module_json NOT_INSTALLED "Zed Flatpak missing; rerun deckctl apply"; exit 0; }
 
 codex_cmd=""
 if command -v codex >/dev/null 2>&1; then codex_cmd="$(command -v codex)"
