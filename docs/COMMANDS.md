@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.28
+# deckctl command manual — v0.2.29
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -2592,7 +2592,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.28.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.29.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2665,7 +2665,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.28.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.29.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
-if flatpak info com.github.tchx84.Flatseal >/dev/null 2>&1; then
-  module_json READY "Flatseal available for Flatpak permission recovery"
+missing=()
+flatpak_has com.github.tchx84.Flatseal || missing+=("Flatseal")
+flatpak_has app.zen_browser.zen || missing+=("Zen Browser")
+if (( ${#missing[@]} )); then
+  module_json NOT_INSTALLED "Missing desktop apps: ${missing[*]}; rerun deckctl apply"
 else
-  module_json NOT_INSTALLED "Flatseal missing"
+  module_json READY "Flatseal and Zen Browser installed"
 fi

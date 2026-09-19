@@ -1,3 +1,10 @@
+# v0.2.29
+
+- Add Zen Browser, Zed, VLC, Plex Desktop and Spotify to user Flatpak installs.
+- Detect missing desktop apps, propagate install failures and safely retry partial installs.
+
+See docs/RELEASE-0.2.29.md.
+
 # v0.2.28
 
 Docker storage repair, familiar commands and d/dc aliases, guided overlay recovery,

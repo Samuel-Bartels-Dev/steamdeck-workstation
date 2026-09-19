@@ -18,7 +18,7 @@ The bootstrap resolves the latest stable GitHub release, downloads its tar and
 checksums, verifies SHA-256 and archive structure, then runs the normal installer.
 It fails before provisioning when assets are unavailable or invalid. The command
 becomes usable once a public release with the required assets is published.
-Use `--version 0.2.28` to select this release or `--download-only DIRECTORY` to
+Use `--version 0.2.29` to select this release or `--download-only DIRECTORY` to
 save verified download files without installation. Download-only directories must
 not already contain those filenames. SHA-256 checks corruption against GitHub's
 manifest; it is not a separate cryptographic publisher signature.

@@ -22,3 +22,11 @@ Distrobox remains useful for project dependencies and disposable build tooling. 
 ## VS Code
 
 VS Code is installed as a Flatpak and is independent of the Codex CLI.
+
+## Zed
+
+Also installs **Zed** from the community-maintained
+[Flathub package](https://flathub.org/apps/dev.zed.Zed) (`dev.zed.Zed`). This is
+independent of VS Code, Codex and Distrobox. Existing user/system Flatpak installs
+are reused; missing Zed is reported by verification. Project access, editor
+extensions and account sign-in are configured inside Zed by the user.
