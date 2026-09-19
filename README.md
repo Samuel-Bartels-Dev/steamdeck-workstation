@@ -1,5 +1,7 @@
 # Steam Deck Workstation — v0.2.28
 
+Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
+
 ## Copy/paste quick fixes
 
 ```bash

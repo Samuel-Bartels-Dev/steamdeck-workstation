@@ -992,6 +992,16 @@
     "tests/contract/test_v0224.py",
     "tests/contract/test_v0225.py",
     "tools/sync-ai-instructions",
-    "uninstall.sh"
-  ]
+    "uninstall.sh",
+    "modules/utilities/install.sh",
+    "modules/utilities/verify.sh",
+    "modules/utilities/README.md",
+    "modules/dev/install.sh",
+    "modules/dev/verify.sh",
+    "modules/dev/README.md",
+    "modules/media/install.sh",
+    "modules/media/verify.sh",
+    "modules/media/README.md"
+  ],
+  "v0.2.28_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list."
 }

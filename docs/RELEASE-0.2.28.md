@@ -1,8 +1,13 @@
-# v0.2.28 — Docker that is tested and easier to use
+# v0.2.28 — Desktop apps and tested Docker setup
 
 This release delivers the merged Docker storage repair and shell aliases through
 the normal bootstrap, together with guided recovery, clearer status and an
 [everyday Docker guide](DOCKER.md).
+
+- Install Zen Browser and Zed editor, plus VLC, Plex Desktop and Spotify, through
+  the Utilities, Development and Media modules. These are user Flatpaks from
+  Flathub; existing installations are reused. Verification reports missing apps
+  and failed downloads can be retried. Sign-in/playback stays inside each app.
 
 - Use `docker ps`, `docker compose up -d`, `docker-compose`, or `compose` in
   Bash/Zsh. Short forms are `d` and `dc`. Setup installs aliases without replacing

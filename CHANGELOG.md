@@ -1,5 +1,6 @@
 # v0.2.28
 
+Add Zen Browser, Zed, VLC, Plex Desktop and Spotify to the module installs.
 Docker storage repair, familiar commands and d/dc aliases, guided overlay recovery,
 separate API and tested-container readiness, and a short Docker guide.
 See docs/RELEASE-0.2.28.md.
