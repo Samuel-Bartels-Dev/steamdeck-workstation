@@ -16,7 +16,7 @@ HELP
   exit 0
 fi
 cat <<'EOF'
-No destructive one-shot uninstall is provided in v0.2.26.
+No destructive one-shot uninstall is provided in v0.2.27.
 Use each vendor's supported uninstall path and modules/<module>/README.md.
 Personal saves/backups are never removed automatically.
 EOF

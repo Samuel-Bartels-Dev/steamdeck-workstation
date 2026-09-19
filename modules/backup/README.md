@@ -15,7 +15,7 @@ Symlink-backed emulator save locations are dereferenced so the actual data is ar
 
 Game payloads, ROM libraries, BIOS downloads, credentials, browser profiles, and tokens are not intentionally backed up by this module.
 
-## v0.2.26 operations
+## v0.2.27 operations
 
 See [Provisioning and recovery](../../docs/OPERATIONS.md) for detailed commands,
 verification, failure handling and rollback behavior. Use `deckctl help` for the

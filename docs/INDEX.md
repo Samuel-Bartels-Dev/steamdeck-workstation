@@ -52,3 +52,5 @@ Each module's canonical domain documentation is `modules/<module>/README.md`.
 ## Optional dashboard containers
 
 - [Docker/Compose setup, SSH engines and dashboard workflow](../modules/dev/containers/README.md)
+
+- [v0.2.27 release notes](RELEASE-0.2.27.md)

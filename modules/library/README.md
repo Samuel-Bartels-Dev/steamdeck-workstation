@@ -9,7 +9,7 @@ Audits managed non-Steam shortcuts and custom-artwork slots without downloading 
 
 Use the **SteamGridDB Decky plugin** to fix missing artwork from Game Mode. It supports non-Steam shortcuts and local files.
 
-## v0.2.26 operations
+## v0.2.27 operations
 
 See [Provisioning and recovery](../../docs/OPERATIONS.md) for detailed commands,
 verification, failure handling and rollback behavior. Use `deckctl help` for the

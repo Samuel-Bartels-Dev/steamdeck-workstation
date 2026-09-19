@@ -15,4 +15,4 @@ SEE ALSO
 HELP
   exit 0
 fi
-echo "AI entry files are thin adapters over docs/ai/COMMON.md; v0.2.26 validates presence instead of generating them."
+echo "AI entry files are thin adapters over docs/ai/COMMON.md; v0.2.27 validates presence instead of generating them."
