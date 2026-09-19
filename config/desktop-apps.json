@@ -1,0 +1,37 @@
+{
+  "flatseal": {
+    "name": "Flatseal",
+    "id": "com.github.tchx84.Flatseal",
+    "module": "utilities"
+  },
+  "zen": {
+    "name": "Zen Browser",
+    "id": "app.zen_browser.zen",
+    "module": "utilities"
+  },
+  "vscode": {
+    "name": "VS Code",
+    "id": "com.visualstudio.code",
+    "module": "dev"
+  },
+  "zed": {
+    "name": "Zed",
+    "id": "dev.zed.Zed",
+    "module": "dev"
+  },
+  "vlc": {
+    "name": "VLC",
+    "id": "org.videolan.VLC",
+    "module": "media"
+  },
+  "plex": {
+    "name": "Plex Desktop",
+    "id": "tv.plex.PlexDesktop",
+    "module": "media"
+  },
+  "spotify": {
+    "name": "Spotify",
+    "id": "com.spotify.Client",
+    "module": "media"
+  }
+}

@@ -3,7 +3,7 @@ set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 app_status=0
 for app in org.videolan.VLC tv.plex.PlexDesktop com.spotify.Client; do
-  flatpak_install "$app" || app_status=1
+  desktop_app_install "$app" || app_status=1
 done
 stage="$HOME/Desktop/Deck-Setup-Staged"
 helper="$HOME/.local/share/deckctl/media"

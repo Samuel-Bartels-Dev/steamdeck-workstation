@@ -1,3 +1,10 @@
+# v0.2.30
+
+- Add persistent desktop app selection to the installer and CLI.
+- Add targeted user-app removal with preview, preserved settings and reinstall prevention.
+
+See docs/RELEASE-0.2.30.md.
+
 # v0.2.29
 
 - Add Zen Browser, Zed, VLC, Plex Desktop and Spotify to user Flatpak installs.

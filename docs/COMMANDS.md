@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.29
+# deckctl command manual — v0.2.30
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -8,7 +8,7 @@ For setup and maintenance entry points, see [Script reference](SCRIPTS.md).
 
 ```text
 usage: deckctl [-h] [--version]
-       {containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+       {apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
        ...
 
 NAME
@@ -18,7 +18,8 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+  {apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+    apps                Manage apps operations.
     containers          Manage containers operations.
     detect              Identify Steam Deck model, SteamOS, and battery health from
                         local system files.
@@ -74,7 +75,196 @@ options:
   --version             show program's version number and exit
 
 EXAMPLES
-  deckctl  containers
+  deckctl  apps
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl apps
+
+```text
+usage: deckctl apps [-h] {list,select,install,uninstall} ...
+
+NAME
+  deckctl apps — Manage apps operations using the commands below.
+
+DESCRIPTION
+  Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
+
+positional arguments:
+  {list,select,install,uninstall}
+    list                List selectable desktop apps, choices and installation status.
+    select              Choose desktop apps for future installation.
+    install             Install selected desktop apps from Flathub.
+    uninstall           Preview removal of named user-installed desktop apps.
+
+options:
+  -h, --help            show this help message and exit
+
+EXAMPLES
+  deckctl apps list
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl apps list
+
+```text
+usage: deckctl apps list [-h] [--json]
+
+NAME
+  deckctl apps list — List selectable desktop apps, choices and installation status.
+
+DESCRIPTION
+  Read-only. Installed does not certify login or application behavior. Covers Zen, Zed, VLC, Plex, Spotify, VS Code and Flatseal.
+
+options:
+  -h, --help  show this help message and exit
+  --json      Emit machine-readable JSON instead of the human-readable report.
+
+EXAMPLES
+  deckctl apps list
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl apps select
+
+```text
+usage: deckctl apps select [-h] [--none] [names ...]
+
+NAME
+  deckctl apps select — Choose desktop apps for future installation.
+
+DESCRIPTION
+  With no arguments, prompts for each app. Names replace the full selection; --none selects no apps. Saves choices without installing or removing apps. Without a saved choice all catalog apps are selected for compatibility.
+
+positional arguments:
+  names       App keys replacing the selection; omit for the interactive chooser.
+
+options:
+  -h, --help  show this help message and exit
+  --none      Select no desktop apps; keep existing installations.
+
+EXAMPLES
+  deckctl apps select zen zed vlc
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl apps install
+
+```text
+usage: deckctl apps install [-h] [names ...]
+
+NAME
+  deckctl apps install — Install selected desktop apps from Flathub.
+
+DESCRIPTION
+  No names installs the saved selection. Explicit names enable and install those apps. Existing user/system packages are reused. Failures are retryable; other selected apps are attempted.
+
+positional arguments:
+  names       App keys to enable and install; omit for the saved selection.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl apps install spotify
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl apps uninstall
+
+```text
+usage: deckctl apps uninstall [-h] [--yes] names [names ...]
+
+NAME
+  deckctl apps uninstall — Preview removal of named user-installed desktop apps.
+
+DESCRIPTION
+  --yes removes the named user apps and disables their future installation. Preserves app data and settings. Never removes system installations, other apps or unused runtimes. A failed removal stays deselected and can be retried.
+
+positional arguments:
+  names       Exact app keys to remove from the user installation.
+
+options:
+  -h, --help  show this help message and exit
+  --yes       Accept this command’s confirmation prompts; prerequisite checks still run.
+
+EXAMPLES
+  deckctl apps uninstall spotify
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2592,7 +2782,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.29.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.30.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2665,7 +2855,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.29.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.30.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

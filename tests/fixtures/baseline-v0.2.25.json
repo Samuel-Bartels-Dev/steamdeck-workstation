@@ -1001,7 +1001,9 @@
     "modules/dev/README.md",
     "modules/media/install.sh",
     "modules/media/verify.sh",
-    "modules/media/README.md"
+    "modules/media/README.md",
+    "lib/deckctl/module.sh",
+    "modules/utilities/doctor.sh"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list."
 }

@@ -3,8 +3,8 @@ set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 
 app_status=0
-flatpak_install com.visualstudio.code || app_status=1
-flatpak_install dev.zed.Zed || app_status=1
+desktop_app_install com.visualstudio.code || app_status=1
+desktop_app_install dev.zed.Zed || app_status=1
 mkdir -p "$HOME/.config/deckctl" "$HOME/.local/bin"
 cp "$DECKCTL_ROOT/modules/dev/distrobox.ini" "$HOME/.config/deckctl/distrobox.ini"
 

@@ -20,3 +20,7 @@ flatpak_install() {
     flatpak install --user -y flathub "$app"
   fi
 }
+
+# Desktop choices are separate from presence checks for shared app dependencies.
+desktop_app_install() { PYTHONPATH="$DECKCTL_ROOT/lib" python3 -m deckctl.apps install "$1"; }
+desktop_app_satisfied() { PYTHONPATH="$DECKCTL_ROOT/lib" python3 -m deckctl.apps verify "$1"; }

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 missing=()
-flatpak_has org.videolan.VLC || missing+=("VLC")
-flatpak_has tv.plex.PlexDesktop || missing+=("Plex")
-flatpak_has com.spotify.Client || missing+=("Spotify")
+desktop_app_satisfied org.videolan.VLC || missing+=("VLC")
+desktop_app_satisfied tv.plex.PlexDesktop || missing+=("Plex")
+desktop_app_satisfied com.spotify.Client || missing+=("Spotify")
 if (( ${#missing[@]} )); then
   module_json NOT_INSTALLED "Missing desktop apps: ${missing[*]}; rerun deckctl apply"
   exit 0
@@ -30,11 +30,11 @@ done < <(find "$HOME/.local/share/Steam/userdata" -type f -path '*/config/shortc
 (( steam_seen > 4 )) && steam_seen=4
 
 if [[ "$created" -eq 4 && "$steam_seen" -eq 4 && "$chrome" == true ]]; then
-  module_json READY "VLC, Plex and Spotify installed; 4 media web apps present in Steam shortcuts"
+  module_json READY "Selected media apps satisfied; 4 media web apps present in Steam shortcuts"
 elif [[ "$created" -eq 4 && "$chrome" == true ]]; then
   module_json DEGRADED "4 media launchers created, but only $steam_seen/4 are detected in Steam; rerun deckctl media setup in Desktop Mode"
 elif [[ "$created" -gt 0 ]]; then
   module_json DEGRADED "$created/4 media launchers created; rerun deckctl media setup"
 else
-  module_json READY "VLC, Plex and Spotify installed; optional media web apps are not configured"
+  module_json READY "Selected media apps satisfied; optional media web apps are not configured"
 fi
