@@ -33,5 +33,15 @@
     "name": "Spotify",
     "id": "com.spotify.Client",
     "module": "media"
+  },
+  "discord": {
+    "name": "Discord",
+    "id": "com.discordapp.Discord",
+    "module": "utilities"
+  },
+  "slack": {
+    "name": "Slack",
+    "id": "com.slack.Slack",
+    "module": "utilities"
   }
 }

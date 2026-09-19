@@ -15,3 +15,11 @@ Only selected apps are installed and required by verification; existing apps are
 kept when deselected. `deckctl apps uninstall NAME` previews a user-app removal;
 add `--yes` to remove it while preserving settings and disabling reinstalls.
 See [app management](../../docs/APPS.md). Other module features are independent.
+
+## Chat apps
+
+Discord (`com.discordapp.Discord`) and Slack (`com.slack.Slack`) are available
+through user Flathub installs. Choose them in the installer or run
+`deckctl apps install discord slack`. Existing saved selections are preserved;
+new catalog entries are not silently added to a saved selection. Login, calls,
+screen sharing and workspace access require configuration and testing in each app.

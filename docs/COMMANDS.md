@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.30
+# deckctl command manual — v0.2.31
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -144,7 +144,7 @@ NAME
   deckctl apps list — List selectable desktop apps, choices and installation status.
 
 DESCRIPTION
-  Read-only. Installed does not certify login or application behavior. Covers Zen, Zed, VLC, Plex, Spotify, VS Code and Flatseal.
+  Read-only. Installed does not certify login or application behavior. Covers Zen, Zed, VLC, Plex, Spotify, VS Code, Flatseal, Discord and Slack.
 
 options:
   -h, --help  show this help message and exit
@@ -2782,7 +2782,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.30.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.31.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2855,7 +2855,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.30.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.31.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

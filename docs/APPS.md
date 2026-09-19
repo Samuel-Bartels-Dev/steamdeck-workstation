@@ -13,12 +13,14 @@ upgrades. Without a saved selection, all catalog apps remain enabled for compati
 | `vlc` | VLC | Media |
 | `plex` | Plex Desktop | Media |
 | `spotify` | Spotify | Media |
+| `discord` | Discord | Utilities |
+| `slack` | Slack | Utilities |
 
 ```bash
 deckctl apps list                 # choices and installed status
 deckctl apps select               # interactive chooser
 deckctl apps select zen zed vlc   # replace the entire selection
-deckctl apps select --none        # skip all seven; keep existing installations
+deckctl apps select --none        # skip all catalog apps; keep existing installations
 deckctl apps install              # install the saved selection
 deckctl apps install spotify      # enable and install just Spotify
 ```
@@ -59,3 +61,7 @@ settings can be reused. This command intentionally provides no data-purge option
 Choices survive updates, but rolling back to releases before v0.2.30 restores
 installers that do not understand these choices. Avoid running their provisioning
 if you want to keep apps deselected.
+
+Install Discord and Slack with `deckctl apps install discord slack`. Upgrades keep
+existing saved selections; new apps are available in the chooser but must be
+explicitly enabled when a selection already exists.
