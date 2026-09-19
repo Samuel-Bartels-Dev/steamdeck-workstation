@@ -1,0 +1,7 @@
+target-version = "py312"
+
+[lint]
+# Correctness checks across the entire codebase, without a formatting migration.
+select = ["E9", "F"]
+# Existing unused imports/locals are cleanup work, not runtime defects.
+ignore = ["F401", "F841"]
