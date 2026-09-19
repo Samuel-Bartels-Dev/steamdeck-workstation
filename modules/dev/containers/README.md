@@ -13,13 +13,40 @@ deckctl containers install
 deckctl containers status
 deckctl containers test
 cd /path/to/your/dashboard-repository
-deckctl containers compose -- config --quiet
-deckctl containers compose -- up --build -d
-deckctl containers compose -- ps
-deckctl containers compose -- logs --tail 100
+docker compose config --quiet
+docker compose up --build -d
+docker ps
+docker compose logs --tail 100
 # Stops this Compose project; omit --volumes to retain named database volumes.
-deckctl containers compose -- down
+docker compose down
 ```
+
+## Familiar commands and short aliases
+
+Docker setup installs these Bash/Zsh aliases. Open a new terminal after setup,
+or run `source ~/.config/deckctl/shell/containers.sh` in the current terminal.
+Existing installations can add them with `deckctl containers aliases`.
+
+| Familiar command | Short form | Examples |
+| --- | --- | --- |
+| `docker` | `d` | `docker ps`, `d ps`, `d logs app`, `d exec -it app sh` |
+| `docker compose` | `compose` or `dc` | `docker compose up -d`, `compose up -d`, `dc up -d` |
+| `docker-compose` | `dc` | `docker-compose logs -f`, `dc down` |
+| `docker buildx` | `d buildx` | `docker buildx version`, `d buildx build .` |
+
+All Docker subcommands pass through to the selected engine; argument quoting,
+exit status and the current project directory are preserved. Existing executable
+commands, shell functions and user aliases take precedence. If a native `docker`
+command exists, it keeps its own behavior; use `d` for the deckctl-selected engine.
+The map lives in [aliases.json](aliases.json). Re-running setup updates the managed
+alias file and keeps one source block in each shell configuration.
+
+These are shell aliases. Scripts and `sudo` do not expand them; scripts can use
+`deckctl containers docker -- ...` or `deckctl containers compose -- ...`.
+Global Docker endpoint/config overrides remain rejected by the managed wrapper;
+select an engine through `deckctl containers install --context` or `--remote`.
+Aliases do not start Docker automatically; after a login, use
+`deckctl containers start` if the managed engine is stopped.
 
 Use the project's own Compose file/Dockerfiles. This integration does not include
 or certify your beacon or RLCS application's code, credentials or production

@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -32,6 +33,7 @@ class Containers(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.object(c, 'paths', return_value=(self.base, self.cfg, self.unit)))
+        self.stack.enter_context(patch.object(Path, 'home', return_value=self.home))
         self.stack.enter_context(patch.dict(os.environ, {'XDG_RUNTIME_DIR': str(self.home)}))
         self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
 
@@ -220,6 +222,74 @@ class Containers(unittest.TestCase):
             self.assertEqual(c.cleanup(), 0)
             docker.assert_not_called()
         self.assertEqual(keep.read_text(), 'private')
+
+    def test_aliases_require_configuration_without_writes(self):
+        self.assertEqual(c.aliases(), 2)
+        self.assertFalse((self.home / '.bashrc').exists())
+
+    def test_aliases_preserve_shell_files_and_repeat_without_changes(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        rc = self.home / '.bashrc'
+        rc.write_text('export MY_SETTING=keep\n')
+        rc.chmod(0o640)
+        self.assertEqual(c.aliases(), 0)
+        before = rc.read_bytes(), rc.stat().st_mtime_ns
+        self.assertEqual(c.aliases(), 0)
+        self.assertEqual((rc.read_bytes(), rc.stat().st_mtime_ns), before)
+        self.assertEqual(rc.stat().st_mode & 0o777, 0o640)
+        self.assertIn('export MY_SETTING=keep', rc.read_text())
+        self.assertEqual(rc.read_text().count('# >>> steamdeck-workstation Docker aliases >>>'), 1)
+        target = self.home / 'custom-shell'
+        target.write_text('preserve')
+        (self.home / '.zshrc').unlink()
+        (self.home / '.zshrc').symlink_to(target)
+        with self.assertRaises(ValueError):
+            c.aliases()
+        self.assertEqual(target.read_text(), 'preserve')
+
+    def test_aliases_execute_in_real_shells_and_preserve_native_commands(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        c.aliases()
+        bindir = self.home / 'bin'
+        bindir.mkdir()
+        stub = bindir / 'deckctl'
+        stub.write_text(f'#!{sys.executable}\nimport json,os,sys\nprint(json.dumps([sys.argv[1:],os.getcwd()]))\nsys.exit(int(os.environ.get("ALIAS_TEST_EXIT", "0")))\n')
+        stub.chmod(0o755)
+        script = self.home / 'commands.sh'
+        project = self.home / 'project with spaces'
+        project.mkdir()
+        env = {**os.environ, 'HOME': str(self.home), 'PATH': str(bindir)}
+        source = '. "$HOME/.config/deckctl/shell/containers.sh"\n'
+        cases = [('docker ps -a', ['docker', '--', 'ps', '-a']),
+                 ('d logs --tail 20 demo', ['docker', '--', 'logs', '--tail', '20', 'demo']),
+                 ('docker compose up -d', ['docker', '--', 'compose', 'up', '-d']),
+                 ('docker buildx version', ['docker', '--', 'buildx', 'version']),
+                 ('docker-compose up -d', ['compose', '--', 'up', '-d']),
+                 ('compose -f "file with spaces.yml" config', ['compose', '--', '-f', 'file with spaces.yml', 'config']),
+                 ("dc run app echo '$(literal)'", ['compose', '--', 'run', 'app', 'echo', '$(literal)'])]
+        for shell_name in ('bash', 'zsh'):
+            shell = shutil.which(shell_name)
+            if not shell:
+                continue
+            flags = ['--noprofile', '--norc'] if shell_name == 'bash' else ['-f']
+            prelude = 'shopt -s expand_aliases\n' if shell_name == 'bash' else ''
+            for invocation, expected in cases:
+                with self.subTest(shell=shell_name, command=invocation):
+                    script.write_text(prelude + source + source + invocation + '\n')
+                    output = subprocess.run([shell, *flags, str(script)], env=env, cwd=project, capture_output=True, text=True)
+                    self.assertEqual(output.returncode, 0, output.stderr)
+                    self.assertEqual(json.loads(output.stdout), [['containers', *expected], str(project)])
+            script.write_text(prelude + source + 'dc ps\n')
+            output = subprocess.run([shell, *flags, str(script)], env={**env, 'ALIAS_TEST_EXIT': '17'}, capture_output=True)
+            self.assertEqual(output.returncode, 17)
+            native = bindir / 'docker'
+            native.write_text('#!/bin/sh\nprintf "native\\n"\n')
+            native.chmod(0o755)
+            script.write_text(prelude + "alias dc='printf custom-alias'\ncompose() { printf custom-function; }\n" + source + 'docker ps\nprintf "\\n"\ndc ps\nprintf "\\n"\ncompose ps\n')
+            output = subprocess.run([shell, *flags, str(script)], env=env, capture_output=True, text=True)
+            self.assertEqual(output.returncode, 0, output.stderr)
+            self.assertEqual(output.stdout.split(), ['native', 'custom-alias', 'custom-function'])
+            native.unlink()
 
     def test_managed_install_writes_private_state_and_repeats_without_download(self):
         def fake_download(asset, target):

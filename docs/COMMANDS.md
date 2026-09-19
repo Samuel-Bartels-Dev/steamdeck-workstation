@@ -97,7 +97,7 @@ SEE ALSO
 
 ```text
 usage: deckctl containers [-h]
-       {status,install,start,stop,test,cleanup,provision,check,autostart,docker,compose}
+       {status,install,start,stop,test,cleanup,provision,check,aliases,autostart,docker,compose}
        ...
 
 NAME
@@ -107,7 +107,7 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {status,install,start,stop,test,cleanup,provision,check,autostart,docker,compose}
+  {status,install,start,stop,test,cleanup,provision,check,aliases,autostart,docker,compose}
     status              Report the selected Docker engine and Compose readiness.
     install             Install optional Docker Engine, Compose and Buildx, or reuse an
                         existing engine.
@@ -118,6 +118,7 @@ positional arguments:
     provision           Offer or resume optional Docker setup during the normal
                         installer.
     check               Check host prerequisites for a local rootless Docker engine.
+    aliases             Install familiar Docker commands and short shell aliases.
     autostart           Opt in or out of managed Docker startup at user login.
     docker              Run Docker CLI arguments against the selected development
                         engine.
@@ -413,6 +414,40 @@ options:
 
 EXAMPLES
   deckctl containers check
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl containers aliases
+
+```text
+usage: deckctl containers aliases [-h]
+
+NAME
+  deckctl containers aliases — Install familiar Docker commands and short shell aliases.
+
+DESCRIPTION
+  Installs docker, docker-compose, compose, d (Docker), and dc (Compose) for Bash and Zsh after Docker is configured. Open a new terminal or source ~/.config/deckctl/shell/containers.sh. Existing executables, functions and aliases take precedence. Arguments and the working directory pass through unchanged; all Docker subcommands including buildx use the selected engine. These are interactive shell aliases, not executables for scripts or sudo. Scripts can use deckctl containers docker/compose --. Does not start the engine or run containers.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl containers aliases
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

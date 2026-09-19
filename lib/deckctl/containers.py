@@ -242,6 +242,53 @@ def safe_directory(path):
     path.mkdir(parents=True, exist_ok=True, mode=0o700)
 
 
+def aliases():
+    """Install shell conveniences without shadowing native commands or user aliases."""
+    if config().get('mode') not in ('managed', 'remote', 'context'):
+        print('Configure Docker first with deckctl containers install.')
+        return 2
+    mapping = json.loads((core.ROOT / 'modules/dev/containers/aliases.json').read_text())
+    lines = ['# Managed Docker aliases. Existing commands, functions and aliases win.']
+    for name, command in mapping.items():
+        if not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_-]*', name) or not isinstance(command, str):
+            raise ValueError('Invalid container alias map')
+        quoted = command.replace("'", "'\"'\"'")
+        lines.append(f"if ! command -v {name} >/dev/null 2>&1; then alias {name}='{quoted}'; fi")
+    shell = Path.home() / '.config/deckctl/shell/containers.sh'
+    safe_directory(shell.parent)
+    start = '# >>> steamdeck-workstation Docker aliases >>>'
+    end = '# <<< steamdeck-workstation Docker aliases <<<'
+    block = (start + '\n'
+             '[ -f "$HOME/.config/deckctl/shell/containers.sh" ] && . "$HOME/.config/deckctl/shell/containers.sh"\n'
+             + end + '\n')
+    updates = {shell: '\n'.join(lines) + '\n'}
+    for name in ('.bashrc', '.zshrc'):
+        rc = Path.home() / name
+        if rc.is_symlink():
+            raise ValueError(f'Refusing to replace a symlink: {rc}')
+        old = rc.read_text() if rc.exists() else ''
+        old = re.sub(re.escape(start) + r'.*?' + re.escape(end) + r'\n?', '', old, flags=re.S).rstrip()
+        updates[rc] = (old + '\n\n' if old else '') + block
+    for target, content in updates.items():
+        if target.is_symlink():
+            raise ValueError(f'Refusing to replace a symlink: {target}')
+        if target.exists() and target.read_text() == content:
+            continue
+        fd, name = tempfile.mkstemp(prefix='.' + target.name + '-', dir=target.parent)
+        temporary = Path(name)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                stream.write(content)
+            if target.exists():
+                temporary.chmod(target.stat().st_mode & 0o777)
+            temporary.replace(target)
+        finally:
+            temporary.unlink(missing_ok=True)
+    print('Docker aliases installed: docker, docker-compose, compose, d, dc.\n'
+          'Open a new terminal or run: source ~/.config/deckctl/shell/containers.sh')
+    return 0
+
+
 def install(context=None, remote=None, local=False, storage_driver=None):
     if os.geteuid() == 0:
         raise ValueError('Run as the Desktop user, not root.')
@@ -267,8 +314,10 @@ def install(context=None, remote=None, local=False, storage_driver=None):
             print('Existing context must have a reachable engine and working Compose plugin. Nothing changed.')
             return 2
         core.save_json(paths()[1], candidate)
+        aliases()
         return smoke()
     if old.get('mode') in ('context', 'remote') and not remote and not local:
+        aliases()
         return smoke()
     # Do not silently take over another Docker installation or change its context.
     if not old.get('mode') and not remote and shutil.which('docker'):
@@ -330,6 +379,7 @@ def install(context=None, remote=None, local=False, storage_driver=None):
         shutil.copy2(destination / name, plugin)
     if remote:
         core.save_json(cfgpath, {'mode': 'remote', 'runtime': version, 'remote': remote, 'opt_in': True})
+        aliases()
         return smoke()
     safe_directory(unit.parent)
     content = unit_text(destination, selected_storage)
@@ -343,6 +393,7 @@ def install(context=None, remote=None, local=False, storage_driver=None):
     if selected_storage:
         settings['storage_driver'] = selected_storage
     core.save_json(cfgpath, settings)
+    aliases()
     if execute(['systemctl', '--user', 'daemon-reload']).returncode:
         return 1
     # Start for this session only. No enable, linger, sudo, or firewall changes.
@@ -438,7 +489,7 @@ def add_parser(subparsers):
     choice.add_argument('--local', action='store_true', help='Explicitly select the managed local rootless engine after using a remote/context engine.')
     choice.add_argument('--context', help='Reuse an existing Docker context and its Compose plugin without modifying its engine.')
     choice.add_argument('--remote', help='Install private Docker CLI tools targeting ssh://user@hostname[:port]. Authenticate with SSH first.')
-    for name in ('start', 'stop', 'test', 'cleanup', 'provision', 'check'):
+    for name in ('start', 'stop', 'test', 'cleanup', 'provision', 'check', 'aliases'):
         children.add_parser(name)
     start_parser = children.add_parser('autostart')
     start_parser.add_argument('setting', choices=('on', 'off'), help='Enable or disable managed Docker startup at user login; no system boot/linger changes.')
@@ -464,10 +515,12 @@ def dispatch(args):
         problems = prerequisites()
         print('\n'.join(problems) if problems else 'Local rootless prerequisites: PASS; install/test still required.')
         return 2 if problems else 0
-    return {'test': smoke, 'cleanup': cleanup, 'provision': provision}[action]()
+    return {'test': smoke, 'cleanup': cleanup, 'provision': provision, 'aliases': aliases}[action]()
 
 
 HELP = {
+    'containers aliases': ('Install familiar Docker commands and short shell aliases.',
+        'Installs docker, docker-compose, compose, d (Docker), and dc (Compose) for Bash and Zsh after Docker is configured. Open a new terminal or source ~/.config/deckctl/shell/containers.sh. Existing executables, functions and aliases take precedence. Arguments and the working directory pass through unchanged; all Docker subcommands including buildx use the selected engine. These are interactive shell aliases, not executables for scripts or sudo. Scripts can use deckctl containers docker/compose --. Does not start the engine or run containers.', 'containers aliases'),
     'containers install': ('Install optional Docker Engine, Compose and Buildx, or reuse an existing engine.',
         'Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test; exit 2 means configuration is required. No automatic binary updates.', 'containers install'),
     'containers status': ('Report the selected Docker engine and Compose readiness.',
