@@ -48,3 +48,7 @@ Each module's canonical domain documentation is `modules/<module>/README.md`.
 - [v0.2.26 release notes](RELEASE-0.2.26.md)
 - [Provisioning and recovery](OPERATIONS.md)
 - [GitHub distribution](GITHUB-RELEASES.md)
+
+## Optional dashboard containers
+
+- [Docker/Compose setup, SSH engines and dashboard workflow](../modules/dev/containers/README.md)

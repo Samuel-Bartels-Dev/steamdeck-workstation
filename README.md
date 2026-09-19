@@ -818,3 +818,18 @@ See [the maintenance release notes](docs/RELEASE-0.2.26.md).
 See [GitHub distribution](docs/GITHUB-RELEASES.md) for the public source and internet
 installer, and [Provisioning and recovery](docs/OPERATIONS.md) for step retries,
 upgrade previews, shortcut repairs, restore and verified SD migration.
+
+## Optional Docker/Compose for dashboard development
+
+The normal installer offers an optional Docker development setup. Use
+`deckctl containers install` to opt in later, `deckctl containers check` for
+rootless SteamOS prerequisites, or `deckctl containers install --remote
+ssh://user@host` (on one line) for an existing Linux Docker host over SSH.
+
+Compose and Buildx support beacon/dashboard and RLCS development stacks.
+`deckctl containers compose -- up --build -d` runs your own project's Compose
+file from its checkout. Local startup is session-only by default; existing
+engines, Podman/Distrobox, volumes and databases are preserved. Missing host
+prerequisites are reported without unlocking SteamOS.
+
+See [container setup, commands and limitations](modules/dev/containers/README.md).

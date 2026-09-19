@@ -1,6 +1,6 @@
 from __future__ import annotations
 import argparse, json, subprocess, sys
-from . import core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, upgrade_plan, shortcut_ops
+from . import containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, upgrade_plan, shortcut_ops
 
 def repo_validate():
     return subprocess.run([sys.executable,str(core.ROOT/'tests/contract/test_repo.py')],cwd=core.ROOT).returncode
@@ -31,6 +31,7 @@ Command groups:
 Tip: run `deckctl <command> -h` for command-specific help.
 """)
     sp=p.add_subparsers(dest='cmd',required=True)
+    containers.add_parser(sp)
     sp.add_parser('detect'); sp.add_parser('plan'); sp.add_parser('apply')
     v=sp.add_parser('verify'); v.add_argument('--json',action='store_true')
     d=sp.add_parser('doctor'); d.add_argument('module',nargs='?')
@@ -82,6 +83,7 @@ def main(argv=None):
             parser=children[word]
         parser.print_help()
         return 0
+    if args.cmd=='containers': return containers.dispatch(args)
     if args.cmd=='detect': print(json.dumps(core.detect_hardware(),indent=2)); return 0
     if args.cmd=='plan': core.plan(); return 0
     if args.cmd=='apply': return core.apply()

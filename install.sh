@@ -69,5 +69,8 @@ Or double-click "Continue Steam Deck Setup" on the Desktop.
 NEXT
 fi
 
+# Optional development integration owns its own selection, preflight and retry logic.
+./bin/deckctl containers provision || apply_status=$?
+
 ./bin/deckctl setup report || apply_status=$?
 exit "$apply_status"

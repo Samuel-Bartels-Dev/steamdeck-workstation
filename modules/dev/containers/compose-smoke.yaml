@@ -1,0 +1,15 @@
+# No host ports, bind mounts or persistent volumes. Unique project per test.
+services:
+  probe:
+    image: busybox:1.37.0@sha256:9db7b59979c38555a39def84a31fb98b5296952f9e3afd4f6f11f05b07adfab0
+    command: [sh, -c, 'mkdir -p /tmp/www; printf "deckctl-container-ok\n" > /tmp/www/index.html; exec httpd -f -p 8080 -h /tmp/www']
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    healthcheck:
+      test: [CMD, wget, -qO-, 'http://127.0.0.1:8080']
+      interval: 2s
+      timeout: 2s
+      retries: 20
