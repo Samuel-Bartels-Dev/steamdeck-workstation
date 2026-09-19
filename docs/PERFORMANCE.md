@@ -23,4 +23,4 @@ The default policy is conservative: use Valve's current SteamOS behavior first, 
 - undervolting/overclocking
 - legacy CryoUtilities-style blanket tuning
 
-Install PowerTools for cases where a specific emulator/game benefits, and persist those settings per-title rather than globally. `deckctl profile` records desired operational profiles but v0.2.26 intentionally does not force global TDP/display changes.
+Install PowerTools for cases where a specific emulator/game benefits, and persist those settings per-title rather than globally. `deckctl profile` records desired operational profiles but v0.2.27 intentionally does not force global TDP/display changes.

@@ -1,3 +1,9 @@
+# v0.2.27
+
+Publish the optional Docker/Compose support already merged into main, so the stable
+bootstrap can install it. Includes PR lint gates, hardware/compatibility reporting,
+and scoped MIT licensing. See docs/RELEASE-0.2.27.md.
+
 # v0.2.26
 
 Provisioning resume/report, upgrade preview, shortcut repairs, verified restore and

@@ -12,7 +12,7 @@ Use labels/UUIDs, never a hard-coded mount path.
 
 `deckctl storage finalize-emulation-migration --yes` never deletes the old copy: after target validation it renames the internal source to a timestamped rollback folder for later manual deletion.
 
-## v0.2.26 operations
+## v0.2.27 operations
 
 See [Provisioning and recovery](../../docs/OPERATIONS.md) for detailed commands,
 verification, failure handling and rollback behavior. Use `deckctl help` for the

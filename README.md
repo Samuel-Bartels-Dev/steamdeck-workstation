@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.26
+# Steam Deck Workstation — v0.2.27
 
 ## Copy/paste quick fixes
 
@@ -57,8 +57,8 @@ If you copied the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.26.tar.gz
-cd steamdeck-workstation-0.2.26
+tar -xzf steamdeck-workstation-v0.2.27.tar.gz
+cd steamdeck-workstation-0.2.27
 chmod +x install.sh
 ./install.sh
 ```
@@ -101,8 +101,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.26.tar.gz
-cd steamdeck-workstation-0.2.26
+tar -xzf steamdeck-workstation-v0.2.27.tar.gz
+cd steamdeck-workstation-0.2.27
 chmod +x install.sh
 ./install.sh
 ```
@@ -798,20 +798,20 @@ same detailed entry, or `man deckctl` after installation.
 
 - [Complete command manual](docs/COMMANDS.md)
 - [Installer and maintenance script reference](docs/SCRIPTS.md)
-- [v0.2.26 engineering review and limitations](docs/ENGINEERING-REVIEW-0.2.20.md)
+- [v0.2.20 engineering review and limitations](docs/ENGINEERING-REVIEW-0.2.20.md)
 
-Release v0.2.26 adds comprehensive help and targeted reliability fixes while
+Release v0.2.20 adds comprehensive help and targeted reliability fixes while
 preserving all v0.2.19 modules and the protected Waydroid implementation.
 
-The v0.2.26 maintenance fix makes manual validation independent of Python 3.12/3.13 usage wrapping. See [release notes](docs/RELEASE-0.2.26.md).
+The manual validation handles Python 3.12/3.13 usage wrapping.
 
 ### Updating an existing Deck
 
 Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
-The v0.2.26 preflight fix allows this flow when Decky is already installed.
-See [the maintenance release notes](docs/RELEASE-0.2.26.md).
+The v0.2.22 preflight fix allows this flow when Decky is already installed.
+See [the latest release notes](docs/RELEASE-0.2.27.md).
 
 ## Online releases and recovery
 
