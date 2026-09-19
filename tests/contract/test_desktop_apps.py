@@ -10,7 +10,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[2]
-APPS = {'utilities': ['com.github.tchx84.Flatseal', 'app.zen_browser.zen'],
+APPS = {'utilities': ['com.github.tchx84.Flatseal', 'app.zen_browser.zen', 'com.discordapp.Discord', 'com.slack.Slack'],
         'dev': ['com.visualstudio.code', 'dev.zed.Zed'],
         'media': ['org.videolan.VLC', 'tv.plex.PlexDesktop', 'com.spotify.Client']}
 

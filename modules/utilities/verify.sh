@@ -3,6 +3,8 @@ source "$DECKCTL_ROOT/lib/deckctl/module.sh"
 missing=()
 desktop_app_satisfied com.github.tchx84.Flatseal || missing+=("Flatseal")
 desktop_app_satisfied app.zen_browser.zen || missing+=("Zen Browser")
+desktop_app_satisfied com.discordapp.Discord || missing+=("Discord")
+desktop_app_satisfied com.slack.Slack || missing+=("Slack")
 if (( ${#missing[@]} )); then
   module_json NOT_INSTALLED "Missing desktop apps: ${missing[*]}; rerun deckctl apply"
 else

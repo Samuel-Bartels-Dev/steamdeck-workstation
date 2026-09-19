@@ -1,3 +1,10 @@
+# v0.2.31
+
+- Add Discord and Slack to selectable desktop installs, verification and settings-preserving uninstall.
+- Preserve existing saved app selections when the catalog grows.
+
+See docs/RELEASE-0.2.31.md.
+
 # v0.2.30
 
 - Add persistent desktop app selection to the installer and CLI.
