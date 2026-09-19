@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.27
+# deckctl command manual — v0.2.28
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -157,7 +157,7 @@ NAME
   deckctl containers status — Report the selected Docker engine and Compose readiness.
 
 DESCRIPTION
-  Read-only: queries the selected engine and Compose version, never starts services or pulls images. READY means the API responds; containers test verifies a real launch. Exit 2 when unconfigured, stopped or unavailable. Podman/Distrobox are unchanged.
+  Read-only: queries the selected engine and Compose, then reads the last test result. API_READY means the API responds but no matching successful launch test exists. READY means the API responds and the last matching launch/HTTP/cleanup test passed; last_test_at shows when, not a live application guarantee. TEST_FAILED or TEST_REQUIRED indicates failed or interrupted testing. Engine, version, storage, endpoint or fixture changes invalidate old evidence. Never starts services, pulls images or writes results. Exit 0 only for READY, otherwise 2. Podman/Distrobox are unchanged.
 
 options:
   -h, --help  show this help message and exit
@@ -193,7 +193,7 @@ NAME
   deckctl containers install — Install optional Docker Engine, Compose and Buildx, or reuse an existing engine.
 
 DESCRIPTION
-  Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test; exit 2 means configuration is required. No automatic binary updates.
+  Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test. A known rootless overlay failure offers an interactive fuse-overlayfs repair only when the helper exists and no containers remain. Explains storage visibility and asks before stopping/switching; declining or noninteractive setup returns 2. No automatic binary updates.
 
 options:
   -h, --help            show this help message and exit
@@ -305,7 +305,7 @@ NAME
   deckctl containers test — Run and remove a uniquely named Compose HTTP smoke test.
 
 DESCRIPTION
-  Requires a reachable engine and Compose. May download a digest-pinned BusyBox image, creates a disposable service, waits for health, verifies its HTTP response, and removes only that test project. Publishes no host ports and uses no volumes. Does not certify your dashboard stack or host networking. Leaves the cached image for reuse.
+  Requires a reachable engine and Compose. May download a digest-pinned BusyBox image, creates a disposable service, waits for health, verifies its HTTP response, and removes only that test project. Records timestamped pass/fail evidence for this engine/storage/fixture; interrupted testing invalidates previous success. Publishes no host ports and uses no volumes. Does not certify your dashboard stack or host networking. Leaves the cached image for reuse.
 
 options:
   -h, --help  show this help message and exit
@@ -2592,7 +2592,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.27.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.28.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2665,7 +2665,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.27.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.28.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

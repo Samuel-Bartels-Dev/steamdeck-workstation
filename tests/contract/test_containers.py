@@ -98,6 +98,85 @@ class Containers(unittest.TestCase):
         with patch.object(c, 'docker', side_effect=[result(output='{"SecurityOptions": []}'), result(output='5.5.1')]), patch.object(c, 'execute', return_value=result(output='disabled')):
             self.assertEqual(c.status_data()['status'], 'CONFIG_REQUIRED')
 
+    def engine_status(self, engine='one', driver='overlayfs', code=0):
+        info = json.dumps({'ID': engine, 'ServerVersion': '29.8.1', 'Driver': driver,
+                           'SecurityOptions': ['name=rootless']})
+        with patch.object(c, 'docker', side_effect=[result(code, info), result(output='5.5.1')]), patch.object(c, 'execute', return_value=result(output='disabled')):
+            return c.status_data()
+
+    def test_api_response_is_not_container_readiness_and_status_never_writes(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        before = self.cfg.read_bytes()
+        data = self.engine_status()
+        self.assertEqual(data['status'], 'API_READY')
+        self.assertTrue(data['api_ready'])
+        self.assertEqual(data['test_status'], 'NOT_RUN')
+        self.assertFalse(c.test_receipt_path().exists())
+        self.assertEqual(self.cfg.read_bytes(), before)
+
+    def test_saved_result_matches_engine_storage_and_live_api(self):
+        self.save({'mode': 'managed', 'runtime': 'v1'})
+        data = self.engine_status()
+        c.core.save_json(c.test_receipt_path(), {'identity': data['test_identity'], 'result': 'PASSED', 'at': 'test-time'})
+        before = c.test_receipt_path().read_bytes()
+        self.assertEqual(self.engine_status()['status'], 'READY')
+        self.assertEqual(self.engine_status(engine='two')['status'], 'API_READY')
+        self.assertEqual(self.engine_status(driver='fuse-overlayfs')['status'], 'API_READY')
+        self.assertEqual(self.engine_status(code=1)['status'], 'STOPPED_OR_UNREACHABLE')
+        self.assertEqual(c.test_receipt_path().read_bytes(), before)
+        for outcome, expected in [('FAILED', 'TEST_FAILED'), ('RUNNING', 'TEST_REQUIRED')]:
+            c.core.save_json(c.test_receipt_path(), {'identity': data['test_identity'], 'result': outcome, 'failure': 'overlay_mount'})
+            self.assertEqual(self.engine_status()['status'], expected)
+
+    def test_smoke_persists_http_and_cleanup_outcomes(self):
+        api = {'api_ready': True, 'test_identity': 'fixture'}
+        cases = [(result(output='deckctl-container-ok'), result(), 0, 'PASSED'),
+                 (result(output='wrong'), result(), 1, 'FAILED'),
+                 (result(output='deckctl-container-ok'), result(1), 1, 'FAILED')]
+        for probe, cleanup, code, outcome in cases:
+            with patch.object(c, 'status_data', return_value=api), patch.object(c, 'docker', side_effect=[result(), probe, cleanup]):
+                self.assertEqual(c.smoke(), code)
+            receipt = json.loads(c.test_receipt_path().read_text())
+            self.assertEqual(receipt['result'], outcome)
+            self.assertEqual(receipt['identity'], 'fixture')
+            self.assertTrue(receipt['at'])
+        with patch.object(c, 'status_data', return_value=api), patch.object(c, 'docker', side_effect=[subprocess.TimeoutExpired('docker', 1), result()]):
+            with self.assertRaises(subprocess.TimeoutExpired):
+                c.smoke()
+        self.assertEqual(json.loads(c.test_receipt_path().read_text())['result'], 'FAILED')
+
+    def test_service_start_waits_for_api_without_requiring_prior_test(self):
+        self.save({'mode': 'managed'})
+        with patch.object(c, 'prerequisites', return_value=[]), patch.object(c, 'execute', return_value=result()), patch.object(c, 'status_data', return_value={'api_ready': True, 'status': 'API_READY'}):
+            self.assertEqual(c.service('start'), 0)
+
+    def test_guided_overlay_repair_accepts_only_empty_managed_engine(self):
+        self.save({'mode': 'managed'})
+        with patch.object(c, 'smoke', return_value=1), patch.object(c, 'status_data', return_value={'test_failure': 'overlay_mount'}), patch.object(c.shutil, 'which', return_value='/usr/bin/fuse-overlayfs'), patch.object(c.os, 'isatty', return_value=True), patch('builtins.input', return_value='yes'), patch.object(c, 'docker', return_value=result()), patch.object(c, 'service', return_value=0) as service, patch.object(c, 'install', return_value=0) as install:
+            self.assertEqual(c.install_test(), 0)
+            service.assert_called_once_with('stop')
+            install.assert_called_once_with(storage_driver='fuse-overlayfs')
+
+    def test_guided_repair_decline_missing_helper_noninteractive_and_workloads_do_not_stop(self):
+        self.save({'mode': 'managed'})
+        for interactive, helper, answer, inventory in [(False, 'helper', 'yes', [result()]),
+                                                       (True, None, 'yes', [result()]),
+                                                       (True, 'helper', 'no', [result()]),
+                                                       (True, 'helper', 'yes', [result(output='user-container')]),
+                                                       (True, 'helper', 'yes', [result(1)]),
+                                                       (True, 'helper', 'yes', [result(), result(output='new-container')])]:
+            with self.subTest(interactive=interactive, helper=helper, answer=answer), patch.object(c, 'smoke', return_value=1), patch.object(c, 'status_data', return_value={'test_failure': 'overlay_mount'}), patch.object(c.shutil, 'which', return_value=helper), patch.object(c.os, 'isatty', return_value=interactive), patch('builtins.input', return_value=answer), patch.object(c, 'docker', side_effect=inventory), patch.object(c, 'service') as service, patch.object(c, 'install') as install:
+                self.assertEqual(c.install_test(), 2)
+                service.assert_not_called()
+                install.assert_not_called()
+
+    def test_guided_repair_does_not_touch_remote_or_retry_fuse_failures(self):
+        for settings in ({'mode': 'remote'}, {'mode': 'context'}, {'mode': 'managed', 'storage_driver': 'fuse-overlayfs'}):
+            self.save(settings)
+            with patch.object(c, 'smoke', return_value=1), patch.object(c, 'status_data', return_value={'test_failure': 'overlay_mount'}), patch.object(c, 'service') as service:
+                self.assertEqual(c.install_test(), 1)
+                service.assert_not_called()
+
     def archive(self, name, kind=None):
         file = self.home / 'test.tar'
         with tarfile.open(file, 'w') as tar:
@@ -132,7 +211,7 @@ class Containers(unittest.TestCase):
             c.download({'url': 'https://download.docker.com/test', 'sha256': '0' * 64}, self.home / 'download')
 
     def test_smoke_health_failure_cleans_only_own_project(self):
-        with patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[result(1), result()]) as docker:
+        with patch.object(c, 'status_data', return_value={'status': 'API_READY', 'api_ready': True, 'test_identity': 'fixture'}), patch.object(c, 'docker', side_effect=[result(1), result()]) as docker:
             self.assertEqual(c.smoke(), 1)
         first, last = [call.args[0] for call in docker.call_args_list]
         self.assertEqual(first[2], last[2])
@@ -141,13 +220,13 @@ class Containers(unittest.TestCase):
         self.assertNotIn('--volumes', last)
 
     def test_smoke_asserts_real_response_and_cleans(self):
-        with patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[result(), result(output='wrong'), result()]):
+        with patch.object(c, 'status_data', return_value={'status': 'API_READY', 'api_ready': True, 'test_identity': 'fixture'}), patch.object(c, 'docker', side_effect=[result(), result(output='wrong'), result()]):
             self.assertEqual(c.smoke(), 1)
-        with patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[result(), result(output='deckctl-container-ok\n'), result()]):
+        with patch.object(c, 'status_data', return_value={'status': 'API_READY', 'api_ready': True, 'test_identity': 'fixture'}), patch.object(c, 'docker', side_effect=[result(), result(output='deckctl-container-ok\n'), result()]):
             self.assertEqual(c.smoke(), 0)
 
     def test_smoke_timeout_still_attempts_cleanup(self):
-        with patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[subprocess.TimeoutExpired('docker', 1), result()]) as docker:
+        with patch.object(c, 'status_data', return_value={'status': 'API_READY', 'api_ready': True, 'test_identity': 'fixture'}), patch.object(c, 'docker', side_effect=[subprocess.TimeoutExpired('docker', 1), result()]) as docker:
             with self.assertRaises(subprocess.TimeoutExpired):
                 c.smoke()
             self.assertIn('down', docker.call_args_list[-1].args[0])
@@ -209,7 +288,7 @@ class Containers(unittest.TestCase):
     def test_overlay_failure_explains_repair_and_still_cleans(self):
         self.save({'mode': 'managed', 'runtime': 'v1'})
         failed = subprocess.CompletedProcess([], 1, '', 'fstype: overlay, err: invalid argument')
-        with contextlib.redirect_stdout(io.StringIO()) as output, patch.object(c, 'status_data', return_value={'status': 'READY'}), patch.object(c, 'docker', side_effect=[failed, result()]) as docker:
+        with contextlib.redirect_stdout(io.StringIO()) as output, patch.object(c, 'status_data', return_value={'status': 'API_READY', 'api_ready': True, 'test_identity': 'fixture'}), patch.object(c, 'docker', side_effect=[failed, result()]) as docker:
             self.assertEqual(c.smoke(), 1)
             self.assertIn('--storage-driver fuse-overlayfs', output.getvalue())
             self.assertIn('down', docker.call_args_list[-1].args[0])

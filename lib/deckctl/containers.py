@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import hashlib
+from datetime import datetime, timezone
 import json
 import os
 from pathlib import Path
@@ -156,9 +157,22 @@ def docker(arguments, *, timeout=30, cfg=None):
     return execute(command + arguments, env=env, timeout=timeout)
 
 
+def test_receipt_path():
+    return paths()[1].with_name('containers-test.json')
+
+
+def test_identity(cfg, data):
+    """Bind historical test evidence to the selected engine and test fixture."""
+    identity = {k: cfg.get(k) for k in ('mode', 'context', 'remote', 'runtime', 'storage_driver')}
+    identity.update({k: data.get(k) for k in ('engine_id', 'engine_version', 'storage_driver', 'compose_version', 'rootless')})
+    identity['fixture'] = digest(core.ROOT / 'modules/dev/containers/compose-smoke.yaml')
+    return hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()
+
+
 def status_data():
     cfg = config()
     result = {'status': 'NOT_CONFIGURED', 'mode': cfg.get('mode'),
+              'api_ready': False, 'test_status': 'NOT_RUN',
               'autostart': False, 'message': 'Optional; run deckctl containers install.'}
     if cfg.get('mode') not in ('managed', 'context', 'remote'):
         return result
@@ -175,10 +189,23 @@ def status_data():
             if cfg['mode'] == 'managed' and not rootless:
                 result.update(status='CONFIG_REQUIRED', message='Managed endpoint did not report rootless mode.')
             else:
-                result.update(status='READY', engine_version=data.get('ServerVersion'),
+                result.update(status='API_READY', api_ready=True, engine_id=data.get('ID'),
+                              engine_version=data.get('ServerVersion'),
                               storage_driver=data.get('Driver'),
                               compose_version=compose.stdout.strip(), rootless=rootless,
-                              message='Engine and Compose respond; containers test verifies an actual launch.')
+                              message='Engine and Compose respond; run deckctl containers test to verify a container launch.')
+                result['test_identity'] = test_identity(cfg, result)
+                receipt = core.load_json(test_receipt_path(), {})
+                if isinstance(receipt, dict) and receipt.get('identity') == result['test_identity']:
+                    outcome = receipt.get('result')
+                    if outcome in ('PASSED', 'FAILED', 'RUNNING'):
+                        result.update(test_status=outcome, last_test_at=receipt.get('at'))
+                        if outcome == 'PASSED':
+                            result.update(status='READY', message='Engine responds; the last container launch/HTTP/cleanup test passed (see last_test_at).')
+                        else:
+                            result.update(status='TEST_FAILED' if outcome == 'FAILED' else 'TEST_REQUIRED',
+                                          message='The last container test failed or was interrupted; run deckctl containers test to retry.',
+                                          test_failure=receipt.get('failure'))
         if cfg['mode'] == 'managed':
             result['autostart'] = execute(['systemctl', '--user', 'is-enabled', UNIT]).stdout.strip() == 'enabled'
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
@@ -206,7 +233,7 @@ def service(action):
         return 1
     if action == 'start':
         for _ in range(30):
-            if status_data()['status'] == 'READY':
+            if status_data()['api_ready']:
                 return 0
             time.sleep(1)
         print(f'Engine did not become ready. Inspect: journalctl --user -u {UNIT}')
@@ -399,36 +426,92 @@ def install(context=None, remote=None, local=False, storage_driver=None):
     # Start for this session only. No enable, linger, sudo, or firewall changes.
     if service('start'):
         return 2
-    return smoke()
+    return install_test()
+
+
+def install_test():
+    """Offer the known storage repair only after this installation's test fails."""
+    result = smoke()
+    if result == 0:
+        return 0
+    cfg = config()
+    report = status_data()
+    if (cfg.get('mode') != 'managed' or cfg.get('storage_driver') == 'fuse-overlayfs'
+            or report.get('test_failure') != 'overlay_mount'):
+        return result
+    if not shutil.which('fuse-overlayfs'):
+        print('CONFIG_REQUIRED: the overlay repair needs the host fuse-overlayfs helper. SteamOS was not modified.')
+        return 2
+    if not os.isatty(0):
+        print('CONFIG_REQUIRED: rerun deckctl containers install in a terminal for the guided storage repair.')
+        return 2
+    print('Docker could not mount a container with its current storage backend.\n'
+          'The repair stops this managed engine and switches to fuse-overlayfs.\n'
+          'Existing images and containers remain on disk but are hidden by the new backend; no data is migrated or deleted.')
+    # Even stopped user containers must not silently disappear from their owner's view.
+    inventory = docker(['ps', '--all', '--quiet'])
+    if inventory.returncode or inventory.stdout.strip():
+        print('Existing containers or an unavailable inventory require manual review. '
+              'Stop your workloads, then use containers stop and containers install --storage-driver fuse-overlayfs.')
+        return 2
+    if input('Apply the fuse-overlayfs repair and rerun the test? [y/N] ').strip().lower() not in ('y', 'yes'):
+        return 2
+    # Recheck immediately before stopping; never stop a newly started user workload.
+    inventory = docker(['ps', '--all', '--quiet'])
+    if inventory.returncode or inventory.stdout.strip():
+        print('Container inventory changed; leaving the engine unchanged.')
+        return 2
+    if service('stop'):
+        return 1
+    return install(storage_driver='fuse-overlayfs')
 
 
 def smoke():
     """Compose up/inspect/down one uniquely named, volume-free fixture."""
-    if status_data()['status'] != 'READY':
+    report = status_data()
+    if not report['api_ready']:
         print('Selected engine and Compose must be ready before the launch test.')
         return 2
     name = 'deckctl-test-' + uuid.uuid4().hex[:12]
     fixture = core.ROOT / 'modules/dev/containers/compose-smoke.yaml'
     prefix = ['compose', '--project-name', name, '--file', str(fixture)]
     result = 1
+    failure = 'launch'
+    def record(outcome):
+        core.save_json(test_receipt_path(), {'identity': report['test_identity'], 'result': outcome,
+                       'at': datetime.now(timezone.utc).isoformat(),
+                       'failure': failure if outcome == 'FAILED' else None})
+    # Invalidate previous success before launching, including if this process is interrupted.
+    record('RUNNING')
     try:
         started = docker(prefix + ['up', '--detach', '--wait', '--wait-timeout', '60'], timeout=240)
         if started.returncode:
             print('Container test could not start: ' + started.stderr[-2000:])
             if (config().get('mode') == 'managed' and 'fstype: overlay' in started.stderr
                     and 'invalid argument' in started.stderr):
+                failure = 'overlay_mount'
                 print('Rootless overlay mounts failed. If fuse-overlayfs is available, stop the managed engine '
                       'with deckctl containers stop, then run deckctl containers install --storage-driver fuse-overlayfs. '
                       'This preserves existing data but images/containers from the old backend become hidden.')
         else:
+            failure = 'http'
             probe = docker(prefix + ['exec', '-T', 'probe', 'wget', '-qO-', 'http://127.0.0.1:8080'])
             result = 0 if probe.returncode == 0 and probe.stdout.strip() == 'deckctl-container-ok' else 1
             print('Container launch and internal HTTP test: ' + ('PASS' if result == 0 else 'FAIL'))
+    except (OSError, subprocess.SubprocessError):
+        failure = 'execution'
+        raise
     finally:
-        stopped = docker(prefix + ['down', '--timeout', '10'], timeout=60)
-        if stopped.returncode:
-            print(f'Could not remove smoke-test project {name}; use the reported project name to inspect it.')
-            result = 1
+        try:
+            stopped = docker(prefix + ['down', '--timeout', '10'], timeout=60)
+            if stopped.returncode:
+                print(f'Could not remove smoke-test project {name}; use the reported project name to inspect it.')
+                result, failure = 1, 'cleanup'
+        except (OSError, subprocess.SubprocessError):
+            result, failure = 1, 'cleanup'
+            raise
+        finally:
+            record('PASSED' if result == 0 else 'FAILED')
     return result
 
 
@@ -522,9 +605,9 @@ HELP = {
     'containers aliases': ('Install familiar Docker commands and short shell aliases.',
         'Installs docker, docker-compose, compose, d (Docker), and dc (Compose) for Bash and Zsh after Docker is configured. Open a new terminal or source ~/.config/deckctl/shell/containers.sh. Existing executables, functions and aliases take precedence. Arguments and the working directory pass through unchanged; all Docker subcommands including buildx use the selected engine. These are interactive shell aliases, not executables for scripts or sudo. Scripts can use deckctl containers docker/compose --. Does not start the engine or run containers.', 'containers aliases'),
     'containers install': ('Install optional Docker Engine, Compose and Buildx, or reuse an existing engine.',
-        'Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test; exit 2 means configuration is required. No automatic binary updates.', 'containers install'),
+        'Opt-in user-space setup. With no flags, checks rootless prerequisites without changing SteamOS, downloads pinned SHA-256-verified tools, creates a separate user service/data directory and starts it for this session. Existing Docker requires --context NAME. --local selects the managed local engine after a remote/context selection. --remote installs private CLI tools for an SSH engine; set up SSH trust/authentication first. Never changes the default Docker context, sudo settings or existing engine. Runs a real Compose smoke test. A known rootless overlay failure offers an interactive fuse-overlayfs repair only when the helper exists and no containers remain. Explains storage visibility and asks before stopping/switching; declining or noninteractive setup returns 2. No automatic binary updates.', 'containers install'),
     'containers status': ('Report the selected Docker engine and Compose readiness.',
-        'Read-only: queries the selected engine and Compose version, never starts services or pulls images. READY means the API responds; containers test verifies a real launch. Exit 2 when unconfigured, stopped or unavailable. Podman/Distrobox are unchanged.', 'containers status --json'),
+        'Read-only: queries the selected engine and Compose, then reads the last test result. API_READY means the API responds but no matching successful launch test exists. READY means the API responds and the last matching launch/HTTP/cleanup test passed; last_test_at shows when, not a live application guarantee. TEST_FAILED or TEST_REQUIRED indicates failed or interrupted testing. Engine, version, storage, endpoint or fixture changes invalidate old evidence. Never starts services, pulls images or writes results. Exit 0 only for READY, otherwise 2. Podman/Distrobox are unchanged.', 'containers status --json'),
     'containers check': ('Check host prerequisites for a local rootless Docker engine.',
         'Read-only host checks for Linux x86_64, UID/GID mapping, subordinate ranges, network helper, user namespaces and a systemd user session. No sudo, pacman, sysctl edits or SteamOS unlock. Missing prerequisites return 2; remote Docker may still be usable.', 'containers check'),
     'containers start': ('Start the project-managed local Docker engine for this session.',
@@ -534,7 +617,7 @@ HELP = {
     'containers autostart': ('Opt in or out of managed Docker startup at user login.',
         'on enables the managed user service; off disables future automatic starts without stopping current workloads. Does not enable linger or boot startup. The default is off.', 'containers autostart on'),
     'containers test': ('Run and remove a uniquely named Compose HTTP smoke test.',
-        'Requires a reachable engine and Compose. May download a digest-pinned BusyBox image, creates a disposable service, waits for health, verifies its HTTP response, and removes only that test project. Publishes no host ports and uses no volumes. Does not certify your dashboard stack or host networking. Leaves the cached image for reuse.', 'containers test'),
+        'Requires a reachable engine and Compose. May download a digest-pinned BusyBox image, creates a disposable service, waits for health, verifies its HTTP response, and removes only that test project. Records timestamped pass/fail evidence for this engine/storage/fixture; interrupted testing invalidates previous success. Publishes no host ports and uses no volumes. Does not certify your dashboard stack or host networking. Leaves the cached image for reuse.', 'containers test'),
     'containers cleanup': ('Explain automatic installer cleanup and preserve project data.',
         'Downloads are temporary and removed on completion/failure. This read-only command never prunes images, volumes or user containers; database cleanup must be explicit in your project.', 'containers cleanup'),
     'containers provision': ('Offer or resume optional Docker setup during the normal installer.',

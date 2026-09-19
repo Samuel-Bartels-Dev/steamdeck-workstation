@@ -24,11 +24,11 @@ def main():
         if args.managed:
             env = os.environ.copy()
         cli = [str(ROOT / 'bin/deckctl'), 'containers']
-        def run(*arguments):
-            return subprocess.run(cli + list(arguments), env=env, check=True, capture_output=True, text=True, timeout=300)
+        def run(*arguments, check=True):
+            return subprocess.run(cli + list(arguments), env=env, check=check, capture_output=True, text=True, timeout=300)
         if args.managed:
-            before = json.loads(run('status', '--json').stdout)
-            assert before['mode'] == 'managed' and before.get('rootless'), before
+            before = json.loads(run('status', '--json', check=False).stdout)
+            assert before['mode'] == 'managed' and before.get('rootless') and before.get('api_ready'), before
             run('test')
         else:
             run('install', '--context', args.context)
