@@ -37,6 +37,7 @@ class Session:
                 'apps': [{'id': key, 'name': app['name'], 'summary': APP_DESCRIPTIONS.get(key, 'Optional desktop app'),
                           'module': app['module']} for key, app in apps.catalog().items()],
                 'modules': core.enabled_modules(), 'selectedApps': apps.selection(),
+                'hasSavedPlan': (core.CONFIG_HOME/'modules.json').is_file(),
                 'defaults': list(manifests),
                 'components': component_options.catalog(), 'selectedComponents': component_options.selection(),
                 'defaultComponents': component_options.defaults(),
