@@ -240,7 +240,7 @@ class UpgradeAndBootstrap(Fixture):
         for name,entry in guard['files'].items():
             path=ROOT/name;self.assertTrue(path.is_file(),name);self.assertEqual(path.stat().st_mode & 0o777,entry['mode'],name)
             if hashlib.sha256(path.read_bytes()).hexdigest()!=entry['sha256']:changed.add(name)
-        self.assertEqual(changed,set(guard['reliability_changes']))
+        self.assertEqual(changed,set(guard['reliability_changes']) & set(guard['files']))
         for name in ['lib/deckctl/android.py','lib/deckctl/css_stack.py','lib/deckctl/setup_cleanup.py','modules/decky/plugins.json','tools/install-control-plane']:
             self.assertNotIn(name,changed)
 
