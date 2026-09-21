@@ -21,6 +21,20 @@ printf '%s\n' '---------------------'
 printf '%s\n' 'Creates Netflix, Hulu, Crunchyroll, and Prime Video as single-site Chrome kiosk shortcuts in Steam Game Mode.'
 printf '%s\n\n' 'Media sessions use Chrome --kiosk with the normal persistent Chrome profile. KeeperFill can still inject into the page when installed/unlocked; deckctl never stores credentials.'
 
+python3 - "$services" <<'PYMEDIA' > "$helper/service-lines.tsv"
+import json,sys,os
+from pathlib import Path
+path=Path(os.environ.get('DECKCTL_CONFIG',str(Path.home()/'.config/deckctl')))/'components.json'
+choices=json.loads(path.read_text()).get('media') if path.exists() else None
+for sid,data in json.load(open(sys.argv[1])).items():
+    if choices is None or sid in choices:
+        print(f"{sid}\t{data['name']}\t{data['url']}\t{'Y' if data.get('default',False) else 'N'}")
+PYMEDIA
+if [[ ! -s "$helper/service-lines.tsv" ]]; then
+  echo "No media web shortcuts selected."
+  exit 0
+fi
+
 if ! flatpak info com.google.Chrome >/dev/null 2>&1; then
   echo "Installing Google Chrome Flatpak..."
   flatpak install --user -y flathub com.google.Chrome
@@ -29,11 +43,6 @@ fi
 # Let Chrome see input devices used by Steam Deck/browser web apps. User-level only.
 flatpak override --user --filesystem=/run/udev:ro com.google.Chrome >/dev/null 2>&1 || true
 
-python3 - "$services" <<'PY' > "$helper/service-lines.tsv"
-import json,sys
-for sid,data in json.load(open(sys.argv[1])).items():
-    print(f"{sid}\t{data['name']}\t{data['url']}\t{'Y' if data.get('default',False) else 'N'}")
-PY
 
 steam_has_name() {
   local name="$1"

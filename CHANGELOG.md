@@ -1,5 +1,9 @@
 # v0.2.34
 
+## v0.2.35
+
+- Individual tool, appearance, remote-client, web-app, and AI-download selections throughout setup. Provisioning and verification honor each choice.
+
 - Replace checkbox dialogs with a native Qt Quick setup app: stage sidebar, responsive feature cards, review, and live module results.
 - Add explicit save/install actions, resumable vendor setup, and optional Docker controls.
 - Correct selected app dependencies and preserve choices when saving fails.

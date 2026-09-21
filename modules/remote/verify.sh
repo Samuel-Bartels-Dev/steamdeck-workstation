@@ -1,9 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
-if ! flatpak info com.moonlight_stream.Moonlight >/dev/null 2>&1 || ! flatpak info io.github.streetpea.Chiaki4deck >/dev/null 2>&1; then
-  module_json DEGRADED "Moonlight and/or chiaki-ng missing"
-  exit 0
+if component_selected remote moonlight && ! flatpak_has com.moonlight_stream.Moonlight; then
+  module_json NOT_INSTALLED "Selected Moonlight client is missing"; exit 0
+fi
+if component_selected remote chiaki && ! flatpak_has io.github.streetpea.Chiaki4deck; then
+  module_json NOT_INSTALLED "Selected chiaki-ng client is missing"; exit 0
+fi
+if ! component_selected remote tailscale; then
+  module_json READY "Selected remote clients are installed; pairing is handled in guided setup"; exit 0
 fi
 
 ts=""

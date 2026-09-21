@@ -1,7 +1,11 @@
 # On-demand AI coding workspace
 
+Use `deckctl setup customize` to choose individual tools in this category. Selections are saved in `~/.config/deckctl/components.json` and govern installation, verification, and guided setup. Deselecting a tool preserves existing installations and personal settings. Older setups without saved component choices retain their previous defaults.
+
 Owned by `lib/deckctl/ai_workspace.py`. Enabled in the normal module plan after
-Terminal, which installs Ghostty, tmux, Neovim and OpenCode. Installation downloads
+Terminal, which provides the required OpenCode client. Ghostty, tmux and Neovim
+are optional. Ollama and model download have separate selectors; selecting the
+model includes its required Ollama engine. A cloud-only setup can omit both. Installation downloads
 Ollama's official Linux archive, verifies its GitHub SHA-256 digest, and copies the
 raw executable to `~/.local/bin/ollama`. Bundled libraries stay under
 `~/.local/share/deckctl/ollama/`, linked through `~/.local/lib/ollama`. No sudo,

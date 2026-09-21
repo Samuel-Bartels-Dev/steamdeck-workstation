@@ -295,19 +295,27 @@ def _install_fonts() -> dict:
     return {"source": url, "archive_sha256": _sha256_bytes(data), "files": installed}
 
 
-def _copy_managed_config():
+def _copy_managed_config(selected=None):
     TERM_CONFIG.mkdir(parents=True, exist_ok=True)
     SHELL_CONFIG.parent.mkdir(parents=True, exist_ok=True)
     KONSOLE_DIR.mkdir(parents=True, exist_ok=True)
     src = core.ROOT / "modules/terminal"
-    shutil.copy2(src / "starship.toml", STARSHIP_CONFIG)
-    shutil.copy2(src / "bubble-gum-rave.omp.json", POSH_CONFIG)
-    if not PROMPT_ENGINE_FILE.exists():
-        PROMPT_ENGINE_FILE.write_text("posh\n")
-    shutil.copy2(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
-    shutil.copy2(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
-    shutil.copy2(src / "terminal.sh", SHELL_CONFIG)
-    shutil.copy2(src / "tmux.conf", TMUX_CONFIG)
+    if selected is None:
+        from . import component_options
+        selected = set(component_options.defaults()['terminal'])
+    files = {'starship': ('starship.toml', STARSHIP_CONFIG),
+             'oh-my-posh': ('bubble-gum-rave.omp.json', POSH_CONFIG),
+             'shell': ('terminal.sh', SHELL_CONFIG), 'tmux': ('tmux.conf', TMUX_CONFIG)}
+    for key, (source, target) in files.items():
+        if key in selected: shutil.copy2(src / source, target)
+    if 'shell' in selected:
+        if not PROMPT_ENGINE_FILE.exists():
+            PROMPT_ENGINE_FILE.write_text('posh\n' if 'oh-my-posh' in selected else 'starship\n')
+        enabled = TERM_CONFIG / 'selected-tools'
+        enabled.write_text('\n'.join(sorted(selected))+'\n')
+    if 'konsole' in selected:
+        shutil.copy2(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
+        shutil.copy2(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
 
 
 def _replace_marker(path: Path, start: str, end: str, block: str):
@@ -425,6 +433,8 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
         return 2
     BIN_DIR.mkdir(parents=True, exist_ok=True)
     receipts = core.load_json(RECEIPTS_FILE, {}) or {}
+    from . import component_options
+    selected = component_options.effective('terminal')
     failures = []
     if not config_only:
         installers = [
@@ -442,6 +452,7 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
             ("fonts", _install_fonts),
         ]
         for name, fn in installers:
+            if name not in selected: continue
             try:
                 print(f"==> terminal: {name}")
                 if name == "fonts":
@@ -461,14 +472,15 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
                 failures.append((name, str(exc)))
                 print(f"    WARN: {exc}")
         _save_receipts(receipts)
-    _copy_managed_config()
-    _install_shell_block()
-    _install_tmux_block()
-    _set_konsole_default()
-    _ghostty_desktop()
-    print("Applied Bubble Gum Rave terminal configuration.")
-    print(f"Prompt engine: {_prompt_engine().upper()} (Oh My Posh is the default; Starship remains installed as fallback).")
-    print("Open a new Konsole window (or `source ~/.config/deckctl/shell/terminal.sh`) to activate prompt/zoxide/fzf/tmux helpers.")
+    _copy_managed_config(selected)
+    if 'shell' in selected: _install_shell_block()
+    if 'tmux' in selected: _install_tmux_block()
+    if 'konsole' in selected: _set_konsole_default()
+    if 'ghostty' in selected: _ghostty_desktop()
+    print("Applied selected terminal tools and configuration.")
+    print("Only selected tools and appearance settings are applied.")
+    if "shell" in selected:
+        print("Open a new terminal to activate selected shell integrations.")
     if failures:
         print("\nSome optional terminal payloads could not be downloaded:")
         for name, err in failures:
@@ -534,8 +546,11 @@ def prompt_use(engine: str) -> int:
 
 
 def status_data() -> dict:
+    from . import component_options
+    selected = component_options.effective('terminal')
     command_state = {}
     for tool in TOOLS:
+        if tool not in selected: continue
         found = shutil.which(tool)
         p = found or (str(BIN_DIR / tool) if (BIN_DIR / tool).exists() else None)
         ready = bool(p and Path(p).exists())
@@ -547,6 +562,7 @@ def status_data() -> dict:
         command_state[tool] = {"ready": ready, "path": p}
     font = _font_match()
     data = {
+        "selected": sorted(selected),
         "commands": command_state,
         "font": {"ready": FONT_DIR.exists() and any(FONT_DIR.glob("*.ttf")), "match": font, "path": str(FONT_DIR)},
         "starship_config": STARSHIP_CONFIG.exists(),
@@ -559,10 +575,12 @@ def status_data() -> dict:
         "tmux_config": TMUX_CONFIG.exists() and _tmux_block_present(),
     }
     ready_count = sum(1 for v in command_state.values() if v["ready"])
-    all_cfg = all(data[k] for k in ("starship_config", "posh_config", "shell_config", "konsole_profile", "konsole_scheme", "konsole_default", "tmux_config"))
-    if ready_count == len(TOOLS) and data["font"]["ready"] and all_cfg:
+    requirements = {'starship': ['starship_config'], 'oh-my-posh': ['posh_config'], 'shell': ['shell_config'],
+                    'konsole': ['konsole_profile', 'konsole_scheme', 'konsole_default'], 'tmux': ['tmux_config']}
+    all_cfg = all(data[k] for item in selected for k in requirements.get(item, []))
+    if ready_count == len(command_state) and ('fonts' not in selected or data['font']['ready']) and all_cfg:
         data["status"] = "READY"
-        data["message"] = "Bubble Gum Rave terminal profile and CLI toolbox are ready"
+        data["message"] = "Selected terminal tools and settings are ready"
     elif ready_count == 0 and not all_cfg:
         data["status"] = "NOT_INSTALLED"
         data["message"] = "Terminal polish/toolbox is not installed"
@@ -580,17 +598,16 @@ def status(as_json: bool = False) -> int:
         return 0 if data["status"] == "READY" else 1
     print("BUBBLE GUM RAVE TERMINAL")
     print(f"Status             {data['status']}")
-    print(f"Konsole profile    {'READY' if data['konsole_profile'] else 'MISSING'}")
-    print(f"Konsole default    {'READY' if data['konsole_default'] else 'NOT ACTIVE'}")
-    print(f"Nerd Font          {'READY' if data['font']['ready'] else 'MISSING'} {data['font']['match'] or ''}")
-    print(f"Prompt engine      {data['prompt_engine']}")
-    print(f"Oh My Posh theme  {'READY' if data['posh_config'] else 'MISSING'}")
-    print(f"Starship config    {'READY' if data['starship_config'] else 'MISSING'}")
-    print(f"Bash integration   {'READY' if data['shell_config'] else 'MISSING'}")
-    print(f"tmux config        {'READY' if data['tmux_config'] else 'MISSING'}")
+    selected = set(data['selected'])
+    for option, label, ready in [
+            ('konsole','Konsole appearance',data['konsole_profile'] and data['konsole_scheme'] and data['konsole_default']),
+            ('fonts','Nerd Font',data['font']['ready']), ('oh-my-posh','Oh My Posh theme',data['posh_config']),
+            ('starship','Starship config',data['starship_config']), ('shell','Bash integration',data['shell_config']),
+            ('tmux','tmux config',data['tmux_config'])]:
+        state = 'NOT SELECTED' if option not in selected else 'READY' if ready else 'MISSING'
+        print(f'{label:<20} {state}')
     print("\nTOOLS")
-    for name in TOOLS:
-        item = data["commands"][name]
+    for name, item in data["commands"].items():
         print(f"{name:<12} {'READY' if item['ready'] else 'MISSING':<8} {item['path'] or ''}")
     print("\nPrompt: Oh My Posh is default. Switch with `deckctl terminal prompt use posh|starship`.")
     print("Shortcuts: ll, lt, c, .., ..., gs, gd, gl, ff; z/zi come from zoxide; Ctrl-R/Ctrl-T/Alt-C come from fzf.")
@@ -641,8 +658,7 @@ def tmux_apply() -> int:
     except Exception as exc:
         print(f"tmux install failed: {exc}")
         return 1
-    _copy_managed_config()
-    _install_shell_block()
+    _copy_managed_config({"tmux"})
     _install_tmux_block()
     print("tmux configuration applied. Existing tmux servers should be restarted after a tmux binary upgrade (`tmux kill-server`).")
     return 0

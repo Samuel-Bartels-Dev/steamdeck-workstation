@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
-from . import apps, core, gaming_options, css_stack
+from . import apps, core, gaming_options, css_stack, component_options
 
 
 def catalog():
@@ -101,7 +101,8 @@ def plugin_items():
             for key, item in items.items()]
 
 
-def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None):
+def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None):
+    if components is not None: components=component_options.validate(components)
     if css is not None: css=css_stack.validate_selection(css)
     if launchers is not None: launchers=gaming_options.validate(launchers)
     if plugins is not None:
@@ -112,6 +113,7 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None):
     if launchers is not None: files.append(core.CONFIG_HOME/'gaming-selection.json')
     if plugins is not None: files.append(core._decky_selection_path())
     if css is not None: files.append(core.CONFIG_HOME/'css-selection.json')
+    if components is not None: files.append(core.CONFIG_HOME/'components.json')
     previous=[p.read_bytes() if p.exists() else None for p in files]
     try:
         save_modules(modules)
@@ -128,6 +130,8 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None):
             core.save_json(core._decky_selection_path(), state)
         if css is not None:
             core.save_json(core.CONFIG_HOME/'css-selection.json', {'selected': css})
+        if components is not None:
+            core.save_json(core.CONFIG_HOME/'components.json', components)
     except (OSError,ValueError):
         for path,old in zip(files,previous):
             if old is None: path.unlink(missing_ok=True)
@@ -154,11 +158,15 @@ def configure_ui():
             plugins=_terminal_checklist('Decky plugins','Every plugin is optional.',plugin_items(),plugins)
         if 'decky' in roots and 'SDH-CssLoader' in plugins:
             css=_terminal_checklist('CSS Loader components','Every component is optional.',css_stack.selection_items(),css)
+        components=component_options.selection()
+        for group, items in component_options.catalog().items():
+            if group in roots:
+                components[group]=sorted(_terminal_checklist(group.title()+' tools','Choose each item independently.',items,set(components[group])))
         normalized=_app_module_roots(roots,selected)
         print(_summary(normalized,sorted(selected),set(normalized)-roots-{'base'}))
         if input('Save this plan? [y/N] ').strip().lower() not in ('y','yes'):
             return 0
-        save_plan(normalized,selected,launchers,plugins,css)
+        save_plan(normalized,selected,launchers,plugins,css,components)
         print('Plan saved. Run deckctl apply, then deckctl setup run.')
         return 0
     except (KeyboardInterrupt,EOFError):
@@ -166,7 +174,7 @@ def configure_ui():
         return 0
 
 
-def configure_defaults(minimal=False,module_names=None,app_names=None):
+def configure_defaults(minimal=False,module_names=None,app_names=None,component_names=None):
     if module_names is None:
         defaults=core.load_json(core.ROOT/'config/default.json',{}).get('modules',{})
         modules=['base'] if minimal else [key for key,value in defaults.items() if value]
@@ -177,7 +185,8 @@ def configure_defaults(minimal=False,module_names=None,app_names=None):
     else:
         selected=apps.known(app_names)
     modules=_app_module_roots(modules,selected)
-    save_plan(modules, selected)
+    components={key: [] for key in component_options.CATALOG} if minimal else component_names
+    save_plan(modules, selected, components=components)
     print(_summary(modules,selected))
     print('Setup plan saved. Review with `deckctl plan`, then run `deckctl apply`.')
     return 0
@@ -188,7 +197,7 @@ def dispatch(args):
         if args.defaults:
             defaults=core.load_json(core.ROOT/'config/default.json',{}).get('modules',{})
             return configure_defaults(module_names=[key for key,value in defaults.items() if value],
-                                     app_names=list(apps.catalog()))
+                                     app_names=list(apps.catalog()), component_names=component_options.defaults())
         if args.minimal: return configure_defaults(minimal=True)
         if args.module or args.app:
             modules=args.module if args.module else core.enabled_modules()

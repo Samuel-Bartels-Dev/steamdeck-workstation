@@ -30,6 +30,8 @@ ApplicationWindow {
     property var selectedLaunchers: []
     property var selectedPlugins: []
     property var selectedCss: []
+    property var selectedComponents: ({})
+    readonly property bool componentDetail: !!(data.components && data.components[detailPage])
     property var chosen: []
     property var selectedApps: []
     property var progress: ({running: false, modules: [], operation: null})
@@ -66,17 +68,27 @@ ApplicationWindow {
         xhr.send(payload === null ? null : JSON.stringify(payload))
     }
     function toggle(key, isApp) {
-        var values = (detailPage === "css" ? selectedCss : detailPage === "launchers" ? selectedLaunchers : detailPage === "plugins" ? selectedPlugins : isApp ? selectedApps : chosen).slice()
+        var values = (componentDetail ? selectedComponents[detailPage] : detailPage === "css" ? selectedCss : detailPage === "launchers" ? selectedLaunchers : detailPage === "plugins" ? selectedPlugins : isApp ? selectedApps : chosen).slice()
         var index = values.indexOf(key)
         if (index < 0) values.push(key); else values.splice(index, 1)
-        if (detailPage === "css") selectedCss = values
+        if (componentDetail) {
+            var updated = Object.assign({}, selectedComponents)
+            updated[detailPage] = values
+            selectedComponents = updated
+        }
+        else if (detailPage === "css") selectedCss = values
         else if (detailPage === "launchers") selectedLaunchers = values
         else if (detailPage === "plugins") selectedPlugins = values
         else if (isApp) selectedApps = values; else chosen = values
         saved = false; dirty = true; notice = ""; problem = ""
     }
     function detailPreset(defaults) {
-        if (detailPage === "css") selectedCss = defaults ? data.defaultCss.slice() : []
+        if (componentDetail) {
+            var updated = Object.assign({}, selectedComponents)
+            updated[detailPage] = defaults ? data.defaultComponents[detailPage].slice() : []
+            selectedComponents = updated
+        }
+        else if (detailPage === "css") selectedCss = defaults ? data.defaultCss.slice() : []
         else if (detailPage === "plugins") selectedPlugins = defaults ? data.defaultPlugins.slice() : []
         else selectedLaunchers = defaults ? data.launchers.map(function(x) { return x.id }) : []
         saved = false; dirty = true
@@ -107,11 +119,14 @@ ApplicationWindow {
         selectedLaunchers = full ? data.launchers.map(function(x) { return x.id }) : []
         selectedPlugins = full ? data.defaultPlugins.slice() : []
         selectedCss = full ? data.defaultCss.slice() : []
+        var components = {}
+        Object.keys(data.defaultComponents).forEach(function(key) { components[key] = full ? data.defaultComponents[key].slice() : [] })
+        selectedComponents = components
         saved = false; dirty = true; notice = full ? "Full workstation selected. Make it your own below." : "Starting small. Add only what you need."
     }
     function savePlan(install) {
         busy = true; problem = ""
-        request("save", {modules: chosen, apps: selectedApps, launchers: selectedLaunchers, plugins: selectedPlugins, css: selectedCss}, function(result) {
+        request("save", {modules: chosen, apps: selectedApps, launchers: selectedLaunchers, plugins: selectedPlugins, css: selectedCss, components: selectedComponents}, function(result) {
             saved = true; dirty = false; busy = false; notice = "Your setup plan is saved."
             if (install) startOperation("install")
             else if (data.planOnly) window.close()
@@ -145,7 +160,7 @@ ApplicationWindow {
         for (var i=0; i<args.length; i++) if (args[i].indexOf("http://127.0.0.1:") === 0) endpoint = args[i]
         if (!endpoint) { problem = "Open this app with deckctl setup customize."; return }
         request("catalog", null, function(result) {
-            data = result; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
+            data = result; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
         })
     }
     Timer {
@@ -182,8 +197,9 @@ ApplicationWindow {
         id: card
         property string heading
         property string detail
+        property string optionsPage: ""
         property bool selected: false
-        implicitHeight: Math.max(100, card.contentItem.implicitHeight + 30)
+        implicitHeight: Math.max(100, card.contentItem.implicitHeight + 30) + (optionsPage ? 56 : 0)
         hoverEnabled: true
         background: Rectangle {
             radius: 13
@@ -191,6 +207,7 @@ ApplicationWindow {
             border.width: card.activeFocus ? 2 : 1
             border.color: card.activeFocus ? "#ffffff" : (card.selected ? "#468e7c" : "#304153")
         }
+        bottomPadding: optionsPage ? 56 : 0
         contentItem: RowLayout {
             spacing: 14
             Rectangle {
@@ -204,6 +221,12 @@ ApplicationWindow {
                 TextLabel { text: card.heading; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 TextLabel { text: card.detail; color: card.selected ? "#b5d2c9" : window.muted; font.pixelSize: 13; Layout.fillWidth: true }
             }
+        }
+        Action {
+            visible: !!card.optionsPage
+            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 12
+            implicitHeight: 48; implicitWidth: 110; text: "Choose tools"
+            onClicked: { if (!card.selected) window.toggle(card.optionsPage, false); window.detailPage = card.optionsPage }
         }
         Accessible.name: heading + ". " + detail
         Accessible.role: Accessible.CheckBox
@@ -260,7 +283,7 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 TextLabel { text: window.selectedApps.length + " apps  ·  " + Math.max(0,window.allModules().length-1) + " features"; color: window.muted; font.pixelSize: 12 }
             }
-            TextLabel { text: window.detailPage === "css" ? "Choose your CSS components" : window.detailPage === "launchers" ? "Choose your launchers" : window.detailPage === "plugins" ? "Choose your Decky plugins" : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
+            TextLabel { text: window.componentDetail ? window.featureNames()[window.detailPage] : window.detailPage === "css" ? "Choose your CSS components" : window.detailPage === "launchers" ? "Choose your launchers" : window.detailPage === "plugins" ? "Choose your Decky plugins" : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
             TextLabel { text: window.detailPage ? "Every item is optional. Leaving it unchecked keeps it out of your installation plan." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
             RowLayout {
                 visible: window.stage < 4 && !window.detailPage; spacing: 10; Layout.bottomMargin: 1
@@ -270,12 +293,12 @@ ApplicationWindow {
             }
             Flow {
                 Layout.fillWidth: true; spacing: 10
-                visible: window.stage === 0
-                Action { visible: !window.detailPage && window.chosen.indexOf("gaming") >= 0; text: "Choose launchers · " + window.selectedLaunchers.length; onClicked: window.detailPage = "launchers" }
-                Action { visible: !window.detailPage && window.chosen.indexOf("decky") >= 0; text: "Choose plugins · " + window.selectedPlugins.length; onClicked: window.detailPage = "plugins" }
+                visible: window.stage < 3
+                Action { visible: window.stage === 0 && !window.detailPage && window.chosen.indexOf("gaming") >= 0; text: "Choose launchers · " + window.selectedLaunchers.length; onClicked: window.detailPage = "launchers" }
+                Action { visible: window.stage === 0 && !window.detailPage && window.chosen.indexOf("decky") >= 0; text: "Choose plugins · " + window.selectedPlugins.length; onClicked: window.detailPage = "plugins" }
                 Action { visible: window.detailPage === "plugins" && window.selectedPlugins.indexOf("SDH-CssLoader") >= 0; text: "CSS components · " + window.selectedCss.length; onClicked: window.detailPage = "css" }
                 Action { visible: !!window.detailPage; text: "Clear all"; onClicked: window.detailPreset(false) }
-                Action { visible: !!window.detailPage; text: window.detailPage !== "launchers" ? "Use recommended" : "Select all"; onClicked: window.detailPreset(true) }
+                Action { visible: !!window.detailPage; text: window.componentDetail || window.detailPage === "launchers" ? "Select all" : "Use recommended"; onClicked: window.detailPreset(true) }
             }
             Rectangle {
                 visible: !!window.problem || !!window.notice
@@ -294,12 +317,13 @@ ApplicationWindow {
                         visible: window.stage < 4
                         Layout.fillWidth: true; columns: window.width < 1000 ? 1 : 2; columnSpacing: 12; rowSpacing: 12
                         Repeater {
-                            model: window.detailPage === "css" ? window.data.css : window.detailPage === "launchers" ? window.data.launchers : window.detailPage === "plugins" ? window.data.plugins : window.stage < 3 ? (window.data.groups[window.stage] || {modules:[]}).modules : (window.stage === 3 ? window.data.apps : [])
+                            model: window.componentDetail ? window.data.components[window.detailPage] : window.detailPage === "css" ? window.data.css : window.detailPage === "launchers" ? window.data.launchers : window.detailPage === "plugins" ? window.data.plugins : window.stage < 3 ? (window.data.groups[window.stage] || {modules:[]}).modules : (window.stage === 3 ? window.data.apps : [])
                             delegate: ChoiceCard {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 heading: modelData.name; detail: modelData.summary
-                                selected: (window.detailPage === "css" ? window.selectedCss : window.detailPage === "launchers" ? window.selectedLaunchers : window.detailPage === "plugins" ? window.selectedPlugins : window.stage === 3 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
+                                optionsPage: !window.detailPage && window.data.components && window.data.components[modelData.id] ? modelData.id : ""
+                                selected: (window.componentDetail ? window.selectedComponents[window.detailPage] : window.detailPage === "css" ? window.selectedCss : window.detailPage === "launchers" ? window.selectedLaunchers : window.detailPage === "plugins" ? window.selectedPlugins : window.stage === 3 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
                                 onClicked: window.toggle(modelData.id, window.stage === 3)
                             }
                         }
@@ -329,6 +353,20 @@ ApplicationWindow {
                                 TextLabel { text: window.featureNames()[modelData] || modelData; Layout.fillWidth: true; font.pixelSize: 14 }
                                 TextLabel { text: modelData === "base" ? "Required" : (window.chosen.indexOf(modelData) < 0 ? "Included dependency / app owner" : "Selected"); color: window.muted; font.pixelSize: 12 }
                             }
+                        }
+                        Repeater {
+                            model: window.loaded ? Object.keys(window.data.components).filter(function(key) { return window.allModules().indexOf(key) >= 0 }) : []
+                            delegate: ColumnLayout {
+                                required property string modelData
+                                Layout.fillWidth: true
+                                TextLabel { text: window.featureNames()[modelData].toUpperCase(); color: window.muted; font.pixelSize: 11 }
+                                TextLabel { text: window.selectedNames(window.data.components[modelData], window.selectedComponents[modelData] || []); Layout.fillWidth: true; font.pixelSize: 14 }
+                            }
+                        }
+                        TextLabel {
+                            visible: window.allModules().indexOf("ai-workspace") >= 0
+                            text: "AI workspace requires OpenCode. Selecting the local model also includes Ollama. Ghostty, tmux and Neovim are optional."
+                            Layout.fillWidth: true; font.pixelSize: 13; color: window.muted
                         }
                         TextLabel { text: "DESKTOP APPS"; color: window.muted; font.pixelSize: 11; font.letterSpacing: 1.2; Layout.topMargin: 10 }
                         TextLabel { text: window.data.apps.filter(function(app) { return window.selectedApps.indexOf(app.id)>=0 }).map(function(app) { return app.name }).join("  ·  ") || "No desktop apps selected"; Layout.fillWidth: true; font.pixelSize: 14 }

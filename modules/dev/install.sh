@@ -9,9 +9,10 @@ mkdir -p "$HOME/.config/deckctl" "$HOME/.local/bin"
 cp "$DECKCTL_ROOT/modules/dev/distrobox.ini" "$HOME/.config/deckctl/distrobox.ini"
 
 # Codex is a host-level user tool. Do not make it depend on Distrobox/npm.
-"$DECKCTL_ROOT/modules/dev/install-codex.sh"
+if component_selected dev codex; then "$DECKCTL_ROOT/modules/dev/install-codex.sh"; fi
 
 # Distrobox remains the isolated development environment for project dependencies.
+if component_selected dev distrobox; then
 if have distrobox && have podman; then
   if ! distrobox list 2>/dev/null | grep -Eq '(^|[[:space:]])deck-dev([[:space:]]|$)'; then
     echo "Creating deck-dev Distrobox..."
@@ -21,5 +22,6 @@ if have distrobox && have podman; then
   fi
 else
   echo "[warn] Distrobox/Podman not both visible on PATH. Codex is installed independently; deck-dev can be repaired later with deckctl doctor dev."
+fi
 fi
 exit "$app_status"

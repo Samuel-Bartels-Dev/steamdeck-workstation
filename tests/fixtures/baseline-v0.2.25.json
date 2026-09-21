@@ -1019,7 +1019,20 @@
     "modules/gaming/install.sh",
     "modules/gaming/verify.sh",
     "lib/deckctl/css_stack.py",
-    "tests/contract/test_v0226.py"
+    "tests/contract/test_v0226.py",
+    "lib/deckctl/ai_workspace.py",
+    "lib/deckctl/setup_window.py",
+    "lib/deckctl/ui/Setup.qml",
+    "lib/deckctl/workspace.py",
+    "modules/ai-workspace/README.md",
+    "modules/media/setup-media.sh",
+    "modules/remote/README.md",
+    "modules/remote/install.sh",
+    "modules/remote/verify.sh",
+    "modules/terminal/terminal.sh",
+    "modules/workspace/README.md",
+    "tests/fixtures/baseline-v0.2.25.json",
+    "tests/integration/test_setup_ui.py"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
   "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved."

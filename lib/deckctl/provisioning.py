@@ -12,9 +12,16 @@ AUTO_STEPS={'decky','emudeck','android','decky_plugins','decky_plugin_install',
             'decky_theme','workspace','media','controller_templates','codex'}
 
 def selected(step, enabled):
-    from . import gaming_options
+    from . import gaming_options, component_options
     if step.get('module') and step['module'] not in enabled:
         return False
+    sid=step['id']
+    owner={'codex': 'dev', 'tailscale': 'remote', 'moonlight': 'remote', 'chiaki': 'remote', 'keeper': 'media'}.get(sid)
+    if owner and not component_options.selected(owner, sid): return False
+    if sid in ('workspace', 'media'):
+        names=component_options.effective(sid)
+        if sid == 'media': names.discard('keeper')
+        if not names: return False
     return step['id'] not in ('heroic', 'battlenet') or gaming_options.selected(step['id'])
 
 
