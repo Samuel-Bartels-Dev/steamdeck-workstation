@@ -176,7 +176,7 @@ class Preservation(unittest.TestCase):
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.24.json').read_text())['plugin_changes'])
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         self.assertEqual(changed-maintenance,set(guard['provisioning_changes'])-maintenance)
-        self.assertEqual((ROOT/'VERSION').read_text().strip(),'0.2.33')
+        self.assertEqual((ROOT/'VERSION').read_text().strip(),'0.2.34')
         self.assertIn('tests/fixtures/baseline-v0.2.18.json',maintenance)
         for path in ('tests/fixtures/baseline-v0.2.19.json','tests/fixtures/baseline-v0.2.20.json'):
             self.assertNotIn(path,changed)

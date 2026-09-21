@@ -1,4 +1,7 @@
 # Gaming Module
+
+Choose individual launchers and tools with `deckctl setup customize` → Play & personalize → Choose launchers. Heroic, Battle.net, ProtonPlus and the manual NonSteamLaunchers helper are independent options. Apply and guided setup honor these choices; deselection never uninstalls existing software. Saved preferences live in `~/.config/deckctl/gaming-selection.json`. Older setups without this file retain their previous defaults.
+
 Steam Game Mode is the primary front end.
 
 ## Heroic

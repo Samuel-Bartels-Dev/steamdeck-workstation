@@ -414,7 +414,7 @@ class RecoveryAndSource(Isolated):
         for name, mode in guard['executable_modes'].items():
             self.assertEqual((ROOT / name).stat().st_mode & 0o777, mode, name)
         self.assertEqual(set(core.module_manifests()), set(guard['modules']) | {'ai-workspace'})
-        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.33')
+        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.34')
 
     def test_all_shell_python_json_syntax_and_entry_permissions(self):
         import ast

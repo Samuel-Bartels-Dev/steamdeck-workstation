@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.33
+# deckctl command manual — v0.2.34
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -2969,7 +2969,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.34.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -3042,7 +3042,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.34.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -5501,7 +5501,7 @@ NAME
   deckctl setup customize — Build a staged workstation plan with optional features and desktop apps.
 
 DESCRIPTION
-  Steam Deck Desktop Mode opens a native KDE chooser; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Selection never installs or removes software. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.
+  Desktop Mode opens a Qt Quick setup app with a stage sidebar, feature cards, app choices, review and live module results; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Saving choices never installs or removes software. Save & install explicitly starts provisioning with Konsole handling vendor prompts. The local UI connection closes when the app exits. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.
 
 options:
   -h, --help       show this help message and exit

@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.33
+# Steam Deck Workstation — v0.2.34
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -59,8 +59,8 @@ If you copied the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.33.tar.gz
-cd steamdeck-workstation-0.2.33
+tar -xzf steamdeck-workstation-v0.2.34.tar.gz
+cd steamdeck-workstation-0.2.34
 chmod +x install.sh
 ./install.sh
 ```
@@ -103,8 +103,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.33.tar.gz
-cd steamdeck-workstation-0.2.33
+tar -xzf steamdeck-workstation-v0.2.34.tar.gz
+cd steamdeck-workstation-0.2.34
 chmod +x install.sh
 ./install.sh
 ```
@@ -121,13 +121,21 @@ dverify
 
 ## Choose only the stages you want
 
-The installer opens a setup builder before provisioning. Its three pages group
-features into **Play and personalize**, **Workstation and creation**, and
-**Everyday and connected**, followed by desktop apps. The repository defaults
-start checked; uncheck any stage or app you do not need, review the plan, and
-confirm. On Steam Deck Desktop Mode this uses KDE's native dialog UI; in a
-terminal it uses the same staged questions. The builder only saves preferences:
-it does not install, remove, or change existing apps.
+![Native Steam Deck setup app](docs/screenshots/setup-features.png)
+
+The installer opens a native Qt Quick setup app in Desktop Mode. A persistent
+sidebar guides you through gaming, workstation tools, everyday essentials,
+desktop apps, review, and installation. Feature cards have large touch targets,
+clear selected states, and keyboard focus indicators. The window adapts to the
+Deck display with scrolling content and a fixed action bar.
+
+Choose **Start small** or **Full workstation**, adjust your selections, and review
+the dependencies included with your choices. **Save for later** keeps your plan;
+**Save & install** starts provisioning and shows real module results. Vendor
+prompts open in Konsole; sign-in, pairing, and optional Docker are separate
+explicit actions on the installation page. Nothing is installed just by selecting
+a card. Closing the app shuts down its temporary loopback connection; it adds no
+background service. A text flow remains available outside Desktop Mode.
 
 ```bash
 deckctl setup customize          # reopen the visual/text setup builder
@@ -839,7 +847,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.33.md).
+See [the latest release notes](docs/RELEASE-0.2.34.md).
 
 ## Online releases and recovery
 
@@ -872,3 +880,5 @@ while keeping settings. See [app management](docs/APPS.md).
 Discord and Slack are also available: `deckctl apps install discord slack`.
 
 The terminal module includes Ghostty, tmux, Neovim and OpenCode. `deckctl ai-workspace install` configures user-space Ollama and downloads a small local coding model; `deckctl ai-workspace open` runs a temporary server for a local coding session. See [AI workspace](modules/ai-workspace/README.md).
+
+Launcher and Decky choices are individual: open **Choose launchers** or **Choose plugins** in Play & personalize. Every plugin can be unchecked; choosing a category does not require every item. Review lists your exact selections before saving or installing.

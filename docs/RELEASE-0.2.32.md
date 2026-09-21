@@ -1,15 +1,5 @@
 # v0.2.32 — On-demand coding workspace and terminal tools
 
-The installer now opens a staged setup builder so each person can choose the
-parts of the workstation they want. It groups optional modules into play,
-workstation, and everyday/connected stages, then offers a separate desktop-app
-selection. Steam Deck Desktop Mode uses KDE's native selection dialogs; command
-line sessions have a text fallback. The review page explains the plan before it
-is saved. Choosing options does not install or remove software. Unselected
-stages stay out of provisioning and do not count as setup failures. Run
-`deckctl setup customize` later to revise a plan; use `--minimal` or `--defaults`
-for a base-only or full-default plan. See the [setup builder guide](../README.md#choose-only-the-stages-you-want).
-
 The terminal module adds Ghostty, Neovim, OpenCode and keeps its existing tmux
 installation. `deckctl ai-workspace install` configures the tools, verifies and
 installs Ollama wholly in user space, then pre-pulls `qwen2.5-coder:1.5b`.

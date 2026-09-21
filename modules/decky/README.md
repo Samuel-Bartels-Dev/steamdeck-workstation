@@ -1,5 +1,8 @@
 # Decky Module
 
+Every plugin is optional, including the Core and Recommended lists below. In `deckctl setup customize`, enable Decky and open **Choose plugins** to select any subset or clear all. Explicit selections remain authoritative across future manifest updates. Choosing zero plugins keeps only the selected Decky Loader setup; unchecking Decky skips that too. Existing plugins are never removed.
+
+
 Decky is an enhancement layer, never a core dependency. Steam, games, remote access and recovery should continue to work if Decky is temporarily broken.
 
 ## Policy

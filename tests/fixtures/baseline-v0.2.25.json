@@ -1013,7 +1013,11 @@
     "modules/terminal/README.md",
     "lib/deckctl/desktop.py",
     "config/setup-options.json",
-    "lib/deckctl/setup_builder.py"
+    "lib/deckctl/setup_builder.py",
+    "modules/decky/README.md",
+    "modules/gaming/README.md",
+    "modules/gaming/install.sh",
+    "modules/gaming/verify.sh"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
   "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved."

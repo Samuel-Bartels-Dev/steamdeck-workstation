@@ -970,6 +970,7 @@ def _decky_selected_folders():
     state=load_json(_decky_selection_path(), None)
     if state and isinstance(state.get("selected_folders"), list):
         selected=set(state["selected_folders"])
+        if state.get("explicit_selection"): return selected
         revision=state.get("manifest_schema_version",0)
         if not isinstance(revision,int): revision=0
         for upgrade in _decky_manifest().get("selection_upgrades",[]):
@@ -991,7 +992,7 @@ def _decky_upgrade_selection():
     revision=state.get("manifest_schema_version",0)
     if not isinstance(revision,int): revision=0
     current=_decky_manifest().get("schema_version",0)
-    if revision >= current: return
+    if revision >= current or state.get("explicit_selection"): return
     selected=_decky_selected_folders()
     items=_decky_item_map()
     state.update(manifest_schema_version=current,selected_folders=sorted(selected),
@@ -1012,6 +1013,7 @@ def _decky_write_selection(selected):
         "schema_version":1,
         "manifest_schema_version":_decky_manifest().get("schema_version"),
         "updated_at":time.strftime('%Y-%m-%dT%H:%M:%S%z'),
+        "explicit_selection":True,
         "selected_folders":sorted(selected),
         "selected_plugins":[item_map[x].get("name",x) for x in sorted(selected)],
     }
