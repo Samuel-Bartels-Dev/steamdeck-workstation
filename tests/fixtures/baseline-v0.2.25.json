@@ -1017,7 +1017,8 @@
     "modules/decky/README.md",
     "modules/gaming/README.md",
     "modules/gaming/install.sh",
-    "modules/gaming/verify.sh"
+    "modules/gaming/verify.sh",
+    "lib/deckctl/css_stack.py"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
   "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved."
