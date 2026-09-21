@@ -21,3 +21,15 @@ See [app management](APPS.md) and [terminal setup](../modules/terminal/README.md
 ![Desktop app choices](screenshots/setup-desktop-apps.png)
 
 ![Compact setup window](screenshots/setup-compact.png)
+
+The **Bubble Gum Rave** Fastfetch theme pairs pink keys, cyan/purple section
+headings and pale text with the red Sharingan eye. It shows SteamOS, model,
+kernel, uptime, CPU/GPU, RAM/swap, battery, available home/external storage,
+display and desktop/shell information. Hardware fields appear when detected.
+The optional Konsole appearance choice supplies the matching dark background;
+the Fastfetch theme works in other terminals too.
+
+The managed theme is `~/.config/deckctl/terminal/fastfetch.json`.
+After updating, select fastfetch and Shell helpers, run
+`deckctl terminal apply --config-only`, then open a new shell and run `ff`.
+It is a snapshot on demand, with no background monitor.

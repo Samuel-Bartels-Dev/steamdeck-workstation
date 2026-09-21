@@ -42,7 +42,7 @@
     "fzf": "Find files and command history by typing part of a name. Shell helpers enable keyboard shortcuts.",
     "eza": "Get richer directory listings with Git status and icons. Shell helpers add convenient commands.",
     "bat": "Read files with syntax highlighting in the terminal. Useful for quickly inspecting source code.",
-    "fastfetch": "Display your system details in the terminal when checking the Deck or sharing troubleshooting information.",
+    "fastfetch": "See Deck specs, RAM, storage, battery and session details in the Bubble Gum Rave theme with Sharingan artwork. Add Shell helpers for the ff shortcut.",
     "fonts": "Add JetBrains Mono with extra symbols so terminal prompts and file icons display clearly.",
     "shell": "Enable convenient Bash aliases and integrations for your selected tools. Keeps Bash as your shell.",
     "konsole": "Apply the Bubble Gum Rave colors and profile to Konsole if you want a customized terminal appearance.",

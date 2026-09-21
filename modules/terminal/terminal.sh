@@ -45,12 +45,16 @@ if [[ $- == *i* ]]; then
     if ! command -v fastfetch >/dev/null 2>&1; then
       echo "fastfetch is not installed"; return 1
     fi
+    local config="$HOME/.config/deckctl/terminal/fastfetch.json"
     local logo="$HOME/.config/deckctl/terminal/sharingan.txt"
+    local -a options=()
+    [[ ! -f "$config" ]] || options+=(--config "$config")
     if [[ -f "$logo" ]]; then
-      command fastfetch --logo "$logo" --logo-color-1 red "$@"
+      options+=(--logo "$logo" --logo-color-1 red)
     else
-      command fastfetch --logo small "$@"
+      options+=(--logo small)
     fi
+    command fastfetch "${options[@]}" "$@"
   }
   mkcd() { mkdir -p -- "$1" && cd -- "$1"; }
 

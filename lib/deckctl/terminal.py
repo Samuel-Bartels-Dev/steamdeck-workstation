@@ -309,6 +309,8 @@ def _copy_managed_config(selected=None):
              'shell': ('terminal.sh', SHELL_CONFIG), 'tmux': ('tmux.conf', TMUX_CONFIG)}
     for key, (source, target) in files.items():
         if key in selected: shutil.copy2(src / source, target)
+    if 'fastfetch' in selected:
+        shutil.copy2(src / 'fastfetch.json', TERM_CONFIG / 'fastfetch.json')
     if 'shell' in selected:
         if not PROMPT_ENGINE_FILE.exists():
             PROMPT_ENGINE_FILE.write_text('posh\n' if 'oh-my-posh' in selected else 'starship\n')
