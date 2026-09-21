@@ -72,6 +72,14 @@ class Components(unittest.TestCase):
         for heading in ('BUBBLE GUM RAVE / DECK', 'HARDWARE / RESOURCES', 'STORAGE / SESSION', 'RAM', 'Swap'):
             self.assertIn(heading, result.stdout)
 
+    def test_update_metadata_skips_current_and_newer_installs_without_payload_downloads(self):
+        with patch.object(terminal, '_github_latest', return_value={'tag_name':'v2.0.0'}), patch.object(terminal, '_request', side_effect=AssertionError('No payload download')):
+            self.assertFalse(terminal._tool_update_available('fastfetch', {'version':'2.0.0'}))
+            self.assertFalse(terminal._tool_update_available('fastfetch', {'version':'3.0.0'}))
+            self.assertTrue(terminal._tool_update_available('fastfetch', {'version':'1.0.0'}))
+        with patch.object(terminal, '_github_latest', side_effect=OSError('offline')):
+            self.assertFalse(terminal._tool_update_available('fastfetch', {'version':'1.0.0'}))
+
     def test_invalid_components_and_failed_final_write_leave_plan_unchanged(self):
         self.save(terminal=['tmux'])
         before={p.name:p.read_bytes() for p in core.CONFIG_HOME.iterdir()}

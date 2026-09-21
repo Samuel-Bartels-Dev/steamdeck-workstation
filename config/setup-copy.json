@@ -47,7 +47,7 @@
     "shell": "Enable convenient Bash aliases and integrations for your selected tools. Keeps Bash as your shell.",
     "konsole": "Apply the Bubble Gum Rave colors and profile to Konsole if you want a customized terminal appearance.",
     "ollama": "Run supported AI models locally instead of sending requests to a cloud provider. No service starts at login.",
-    "model": "Download a small coding model for local AI sessions. Requires Ollama; uses disk space and RAM while running.",
+    "model": "Lightweight coding help with lower memory use. About 1 GB download plus Ollama. Choose this for quicker, smaller tasks; install either model or both.",
     "codex": "Use a standalone coding agent to work on projects from the terminal. Provider sign-in is separate.",
     "distrobox": "Keep project dependencies in a deck-dev container. Requires Distrobox and Podman already available.",
     "moonlight": "Stream games from a Sunshine-equipped PC to your Deck. Pair with your PC after installation.",
@@ -60,7 +60,8 @@
     "hulu": "Open Hulu directly from Game Mode. Uses Chrome and requires your own service access.",
     "crunchyroll": "Open Crunchyroll directly from Game Mode for anime and other available shows. Uses Chrome and your account.",
     "prime-video": "Open Prime Video directly from Game Mode. Uses Chrome and requires your own service access.",
-    "keeper": "Use KeeperFill to fill saved logins in Chrome web apps. Requires Chrome and your Keeper account."
+    "keeper": "Use KeeperFill to fill saved logins in Chrome web apps. Requires Chrome and your Keeper account.",
+    "model-7b": "Higher-quality coding help with more memory use and slower responses. About 4.7 GB download plus Ollama. Choose this for harder tasks; Deck speed varies."
   },
   "launchers": {
     "heroic": "Install and manage Epic, GOG and Amazon games in one launcher, then add games to Steam.",

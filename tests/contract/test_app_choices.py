@@ -47,6 +47,9 @@ class Choices(unittest.TestCase):
                 code = 1
             else:
                 self.installed.discard(app_id)
+        elif command[1] == 'update':
+            self.assertEqual(command[2:-1], ['--user', '-y'])
+            self.assertIn(app_id, self.installed)
         elif command[1] == 'install':
             self.assertEqual(command[2:-1], ['--user', '-y', 'flathub'])
             if app_id == self.failed_app:

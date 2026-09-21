@@ -19,6 +19,17 @@ import urllib.request
 from . import core, terminal
 
 MODEL = 'qwen2.5-coder:1.5b'
+LOCAL_MODELS = {
+    MODEL: {'name': 'Qwen 2.5 Coder 1.5B', 'component': 'model', 'space_bytes': 1536 * 1024**2},
+    'qwen2.5-coder:7b': {'name': 'Qwen 2.5 Coder 7B', 'component': 'model-7b', 'space_bytes': 6 * 1024**3},
+}
+
+
+def selected_models():
+    from . import component_options
+    selected = component_options.effective('ai-workspace')
+    return [model for model, item in LOCAL_MODELS.items() if item['component'] in selected]
+
 HOST = '127.0.0.1'
 PORT = 11435  # Dedicated endpoint; never borrow/stop another Ollama server.
 HOME = Path.home()
@@ -27,6 +38,47 @@ DATA = HOME / '.local/share/deckctl/ollama'
 MODELS = DATA / 'models'
 CONFIG = HOME / '.config/opencode/config.json'
 RECEIPT = core.STATE / 'ollama-install.json'
+
+
+
+def _storage_info(path):
+    # Resolve the destination first so moved/symlinked model stores use their
+    # actual filesystem. Inspect an existing ancestor without creating files.
+    anchor = path.resolve()
+    while not anchor.exists():
+        anchor = anchor.parent
+    return anchor, anchor.stat().st_dev, shutil.disk_usage(anchor).free
+
+
+def check_space(models=(), runtime=False, upgrading=()):
+    """Conservative download/staging budgets, combined per destination filesystem."""
+    requirements = []
+    if runtime:
+        requirements.extend([(DATA, 8 * 1024**3, 'Ollama runtime staging'),
+                             (BIN, 256 * 1024**2, 'Ollama executable')])
+    for model in models:
+        if model in upgrading or not model_present(model):
+            requirements.append((MODELS, LOCAL_MODELS[model]['space_bytes'], model))
+    volumes = {}
+    for path, amount, label in requirements:
+        anchor, device, free = _storage_info(path)
+        volume = volumes.setdefault(device, {'path': anchor, 'free': free, 'needed': 1024**3, 'items': []})
+        volume['free'] = min(volume['free'], free)
+        volume['needed'] += amount
+        volume['items'].append(label)
+    failures = []
+    for volume in volumes.values():
+        needed, free = volume['needed'], volume['free']
+        detail = (f"{volume['path']}: need {needed / 1024**3:.2f} GiB free "
+                  f"(including 1 GiB headroom), available {free / 1024**3:.2f} GiB "
+                  f"for {', '.join(volume['items'])}")
+        print('Storage check: ' + detail)
+        if free < needed:
+            failures.append(detail + f"; free at least {(needed-free) / 1024**3:.2f} GiB more")
+    if failures:
+        raise RuntimeError('Not enough disk space. ' + ' | '.join(failures) +
+                           '. Free space or select fewer models, then retry; this download has not started.')
+    return volumes
 
 
 def runtime_env():
@@ -41,7 +93,7 @@ def config_data():
             'provider': {
                 'local-ollama': {'npm': '@ai-sdk/openai-compatible', 'name': 'Local Ollama',
                                  'options': {'baseURL': f'http://{HOST}:{PORT}/v1'},
-                                 'models': {MODEL: {'name': 'Qwen 2.5 Coder 1.5B'}}},
+                                 'models': {model: {'name': item['name']} for model, item in LOCAL_MODELS.items()}},
                 'openai': {'name': 'ChatGPT Pro (sign in with OpenAI)'}},
             'agent': {'local-coder': {'description': 'Lightweight local coding chat; no tool execution',
                                       'mode': 'primary', 'model': 'local-ollama/' + MODEL,
@@ -132,24 +184,58 @@ def _extract(tf, destination):
             raise ValueError('Ollama archive link chain escapes installation')
 
 
-def install_ollama():
-    binary = BIN / 'ollama'
+
+def model_update_needed(model):
+    if not model_present(model):
+        return True
+    try:
+        name, tag = model.split(':')
+        remote = json.loads(terminal._request(
+            f'https://registry.ollama.ai/v2/library/{name}/manifests/{tag}', 20))
+        if not isinstance(remote, dict) or not isinstance(remote.get('layers'), list) or 'config' not in remote:
+            raise ValueError('invalid upstream manifest')
+        local = json.loads((MODELS/'manifests/registry.ollama.ai/library'/model.replace(':','/')).read_text())
+        return remote != local
+    except (OSError, ValueError) as exc:
+        print(f'WARN: Cannot check {model} for updates; keeping installed model: {exc}')
+        return False
+
+
+def ollama_release_plan():
+    binary = BIN/'ollama'
     receipt = core.load_json(RECEIPT, {}) or {}
-    if binary.exists() or binary.is_symlink():
-        if receipt.get('binary_sha256') and terminal._sha256_file(binary) == receipt['binary_sha256']:
-            library = HOME / '.local/lib/ollama'
-            if library.is_dir():
-                print('Ollama already installed; retained')
-                return
-        raise ValueError(f'Existing or incomplete {binary} preserved; inspect before replacing it')
-    library = HOME / '.local/lib/ollama'
-    if library.exists() or library.is_symlink():
+    existing = binary.exists() or binary.is_symlink()
+    library = HOME/'.local/lib/ollama'
+    if existing:
+        if not receipt.get('binary_sha256') or terminal._sha256_file(binary) != receipt['binary_sha256'] or not library.is_dir():
+            raise ValueError(f'Existing or incomplete {binary} preserved; inspect before replacing it')
+    elif library.exists() or library.is_symlink():
         raise ValueError(f'Existing Ollama libraries preserved: {library}')
+    try:
+        release, asset = terminal._github_asset('ollama/ollama', r'^ollama-linux-amd64\.tar\.zst$')
+    except (OSError, ValueError, RuntimeError) as exc:
+        if not existing:
+            raise
+        print(f'WARN: Cannot check Ollama updates; keeping installed runtime: {exc}')
+        return None
+    if existing:
+        newer = terminal.newer_version(release.get('tag_name'), receipt.get('version'))
+        if newer is not True:
+            print('Ollama retained; no newer comparable release' if newer is None else 'Ollama up to date; download skipped')
+            return None
+    return release, asset
+
+
+def install_ollama(release_plan=None):
+    plan = release_plan if release_plan is not None else ollama_release_plan()
+    if plan is None:
+        return
+    release, asset = plan
+    binary = BIN/'ollama'
+    library = HOME/'.local/lib/ollama'
     if not shutil.which('zstd'):
         raise RuntimeError('zstd is required to unpack the upstream Ollama archive')
-    if shutil.disk_usage(HOME).free < 8 * 1024**3:
-        raise RuntimeError('Allow at least 8 GiB free for Ollama download, libraries and model')
-    release, asset = terminal._github_asset('ollama/ollama', r'^ollama-linux-amd64\.tar\.zst$')
+    check_space(runtime=True)
     DATA.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix='.install-', dir=DATA) as temporary:
         temp = Path(temporary)
@@ -178,15 +264,38 @@ def install_ollama():
         stage.rename(destination)
         BIN.mkdir(parents=True, exist_ok=True)
         library.parent.mkdir(parents=True, exist_ok=True)
-        library.symlink_to(destination / 'lib/ollama')
-        shutil.copy2(destination / 'bin/ollama', binary)
+        # Prepare both replacements before touching the working runtime. Retain
+        # old runtime payloads for recovery; only the owned link changes.
+        old_target = os.readlink(library) if library.is_symlink() else None
+        if library.exists() and old_target is None:
+            raise ValueError(f'Existing Ollama library directory preserved: {library}')
+        fd, staged_name = tempfile.mkstemp(prefix='.ollama-', dir=BIN)
+        os.close(fd)
+        staged = Path(staged_name)
+        link = library.with_name('ollama-new-' + str(os.getpid()))
+        try:
+            shutil.copy2(destination/'bin/ollama', staged)
+            link.symlink_to(destination/'lib/ollama')
+            link.replace(library)
+            try:
+                staged.replace(binary)
+            except OSError:
+                library.unlink()
+                if old_target is not None:
+                    library.symlink_to(old_target)
+                raise
+        finally:
+            staged.unlink(missing_ok=True)
+            link.unlink(missing_ok=True)
         core.save_json(RECEIPT, {'version': release['tag_name'], 'source': asset['browser_download_url'],
                                 'archive_sha256': digest, 'binary_sha256': terminal._sha256_file(binary),
                                 'runtime': str(destination)})
 
 
-def model_present():
-    manifest = MODELS / 'manifests/registry.ollama.ai/library/qwen2.5-coder/1.5b'
+def model_present(model=MODEL):
+    if model not in LOCAL_MODELS:
+        raise ValueError('Unknown local model: ' + model)
+    manifest = MODELS / 'manifests/registry.ollama.ai/library' / model.replace(':', '/')
     try:
         data = json.loads(manifest.read_text())
         layers = [data['config'], *data['layers']]
@@ -321,29 +430,38 @@ def run_client(command):
             stop_group(process)
 
 
-def pull():
+def pull(model=MODEL):
+    if model not in LOCAL_MODELS:
+        raise ValueError('Unknown local model: ' + model)
+    check_space([model], upgrading=[model])
     with server():
-        if run_client([str(BIN / 'ollama'), 'pull', MODEL]):
+        if run_client([str(BIN / 'ollama'), 'pull', model]):
             raise RuntimeError('Model download failed; retry deckctl ai-workspace install')
-    if not model_present():
+    if not model_present(model):
         raise RuntimeError('Model manifest/blobs are incomplete after download')
 
 
 def install():
     if os.geteuid() == 0:
         raise ValueError('Run workspace installation as your normal user, without sudo')
-    configure()  # Validate user configuration before downloads.
     from . import component_options
-    if component_options.selected('ai-workspace', 'ollama'): install_ollama()
-    if component_options.selected('ai-workspace', 'model') and not model_present():
-        pull()
+    models = [model for model in selected_models() if model_update_needed(model)]
+    plan = ollama_release_plan() if component_options.selected('ai-workspace', 'ollama') else None
+    check_space(models, runtime=plan is not None, upgrading=models)
+    configure()  # Validate user configuration before downloads.
+    if plan is not None:
+        install_ollama(plan)
+    for model in models:
+        pull(model)
     guide()
     return 0
 
 
 def guide():
     print('''\nON-DEMAND AI WORKSPACE
-Local: deckctl ai-workspace open
+Local (uses your selected model; prefers lightweight if both selected): deckctl ai-workspace open
+Lightweight: deckctl ai-workspace open --model qwen2.5-coder:1.5b
+Higher quality: deckctl ai-workspace open --model qwen2.5-coder:7b
 ChatGPT Pro setup: run opencode, enter /connect, choose OpenAI -> ChatGPT Plus/Pro, then finish browser sign-in.
 Then list models: opencode models openai
 Cloud: deckctl ai-workspace open --profile chatgpt-pro --model openai/MODEL_FROM_LIST
@@ -365,10 +483,11 @@ def status(as_json=False):
     from . import component_options
     required = ['opencode'] + (['ollama'] if component_options.selected('ai-workspace','ollama') else [])
     tools = {name: os.access(BIN / name, os.X_OK) for name in required}
-    loaded = model_present()
-    data = {'status': 'READY' if all(tools.values()) and config_ok and (loaded or not component_options.selected('ai-workspace','model')) else 'NOT_INSTALLED',
+    models = {model: model_present(model) for model in selected_models()}
+    loaded = bool(models) and all(models.values())
+    data = {'status': 'READY' if all(tools.values()) and config_ok and all(models.values()) else 'NOT_INSTALLED',
             'message': 'On-demand workspace installation; accounts and GUI behavior require separate checks.',
-            'tools': tools, 'config_ready': config_ok, 'model_downloaded': loaded,
+            'tools': tools, 'config_ready': config_ok, 'model_downloaded': loaded, 'selected_models': models,
             'endpoint_in_use': occupied(), 'endpoint': f'http://{HOST}:{PORT}', 'autostart': False}
     print(json.dumps(data, indent=2) if as_json else '\n'.join(f'{k}: {v}' for k, v in data.items()))
     return 0 if data['status'] == 'READY' else 1
@@ -380,7 +499,7 @@ def add_parser(subparsers):
     sp.add_parser('install'); sp.add_parser('guide')
     st = sp.add_parser('status'); st.add_argument('--json', action='store_true')
     op = sp.add_parser('open'); op.add_argument('--profile', choices=['local-ollama', 'chatgpt-pro'], default='local-ollama', help='Local owned engine or OpenAI subscription provider.')
-    op.add_argument('--model', help='OpenAI model ID from opencode models openai; required for chatgpt-pro.')
+    op.add_argument('--model', help='Local: qwen2.5-coder:1.5b or qwen2.5-coder:7b. Cloud: openai/MODEL_FROM_LIST (required).')
 
 
 def dispatch(args):
@@ -397,9 +516,13 @@ def dispatch(args):
             raise ValueError('Use --model openai/MODEL_FROM_LIST; see opencode models openai after sign-in')
         with signal_cleanup():
             return run_client([str(BIN / 'opencode'), '--model', args.model])
-    if args.model:
-        raise ValueError('Local profile uses the pre-pulled qwen2.5-coder:1.5b model')
-    if not model_present():
-        raise ValueError('Local model is missing; run deckctl ai-workspace install')
+    choices = selected_models()
+    model = args.model or (choices[0] if choices else MODEL)
+    if model.startswith('local-ollama/'):
+        model = model.removeprefix('local-ollama/')
+    if model not in LOCAL_MODELS:
+        raise ValueError('Choose qwen2.5-coder:1.5b or qwen2.5-coder:7b for the local profile')
+    if not model_present(model):
+        raise ValueError(f'{model} is missing; select it in setup, then run deckctl ai-workspace install')
     with server():
-        return run_client([str(BIN / 'opencode'), '--agent', 'local-coder', '--model', 'local-ollama/' + MODEL])
+        return run_client([str(BIN / 'opencode'), '--agent', 'local-coder', '--model', 'local-ollama/' + model])

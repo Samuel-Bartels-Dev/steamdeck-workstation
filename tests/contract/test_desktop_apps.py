@@ -44,7 +44,8 @@ from pathlib import Path
 state=Path(os.environ['FAKE_FLATPAK_STATE'])
 apps=json.loads(state.read_text())
 args=sys.argv[1:]
-if args[0]=='info': sys.exit(0 if args[1] in apps else 1)
+if args[0]=='info': sys.exit(0 if args[-1] in apps else 1)
+if args[0]=='update': sys.exit(0 if args[-1] in apps else 1)
 assert args[:5]==['install','--user','-y','flathub',args[-1]],args
 with open(os.environ['FAKE_FLATPAK_CALLS'],'a') as f: f.write(json.dumps(args)+'\\n')
 if args[-1]==os.environ.get('FAIL_APP'): sys.exit(1)

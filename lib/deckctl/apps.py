@@ -50,6 +50,9 @@ def module_action(action, app_id):
             print(f'[skip] {key} is not selected')
         return 0
     if has(app_id):
+        if action == 'install' and has(app_id, '--user'):
+            # Flatpak compares repository commits and downloads only updates.
+            return subprocess.run(['flatpak', 'update', '--user', '-y', app_id]).returncode
         return 0
     if action == 'verify':
         return 1

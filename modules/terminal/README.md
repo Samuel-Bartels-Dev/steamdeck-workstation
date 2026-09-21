@@ -112,3 +112,17 @@ The managed theme is `~/.config/deckctl/terminal/fastfetch.json`.
 After updating, select fastfetch and Shell helpers, run
 `deckctl terminal apply --config-only`, then open a new shell and run `ff`.
 It is a snapshot on demand, with no background monitor.
+
+## Repeat installs and updates
+
+Normal apply checks release metadata for healthy selected tools. Matching or
+newer installed numbered versions skip payload downloads; newer upstream
+versions update. Missing tools install, and untracked/modified binaries stay
+protected. Unknown version formats and offline checks retain installed tools
+with a message instead of guessing. `--refresh` also checks versions and no
+longer forces a redundant download. `--config-only` avoids update checks.
+
+Shell-installer tools are installed in staging and pass a version check before
+replacing the managed executable. Temporary files are removed. AppImages and
+older Ollama runtimes are executable/recovery payloads, not disposable download
+archives; they are retained.

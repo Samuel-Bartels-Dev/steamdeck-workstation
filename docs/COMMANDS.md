@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.37
+# deckctl command manual — v0.2.38
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -108,8 +108,8 @@ DESCRIPTION
 
 positional arguments:
   {install,guide,status,open}
-    install             Install user-space Ollama, configure OpenCode and pre-pull Qwen
-                        2.5 Coder 1.5B.
+    install             Install user-space Ollama, configure OpenCode and pre-pull your
+                        selected Qwen coding models.
     guide               Print workspace launch and supported ChatGPT subscription sign-
                         in instructions.
     status              Inspect local AI workspace installation without starting an
@@ -145,10 +145,10 @@ SEE ALSO
 usage: deckctl ai-workspace install [-h]
 
 NAME
-  deckctl ai-workspace install — Install user-space Ollama, configure OpenCode and pre-pull Qwen 2.5 Coder 1.5B.
+  deckctl ai-workspace install — Install user-space Ollama, configure OpenCode and pre-pull your selected Qwen coding models.
 
 DESCRIPTION
-  Downloads the upstream Linux archive and libraries without sudo, validates its SHA-256 and installs the raw executable in ~/.local/bin. Temporarily starts an owned local server for the model pull and stops it afterward. Preserves unrelated configuration; conflicts fail before mutation. Terminal tools are installed by the terminal module.
+  Downloads the upstream Linux archive and libraries without sudo, validates its SHA-256 and installs the raw executable in ~/.local/bin. Choose lightweight 1.5B, higher-quality 7B, or both in setup. Complete models are compared with upstream manifest metadata; unchanged models are skipped. Disk space is checked per destination filesystem before runtime/model downloads. Temporarily starts an owned local server for each model pull and stops it afterward. Preserves unrelated configuration; conflicts fail before mutation. Terminal tools are installed by the terminal module.
 
 options:
   -h, --help  show this help message and exit
@@ -252,14 +252,14 @@ NAME
   deckctl ai-workspace open — Open a foreground, on-demand AI coding session.
 
 DESCRIPTION
-  local-ollama starts a dedicated loopback Ollama process with OLLAMA_KEEP_ALIVE=0 and stops its process group on exit or handled signals. chatgpt-pro starts no Ollama process and requires an OpenAI model ID after browser sign-in. Never borrows or stops an existing server. Closing a detached tmux client does not end its workspace; exit the session itself.
+  Use --model qwen2.5-coder:1.5b or --model qwen2.5-coder:7b to choose an installed local model. Without --model, use the selected model (lightweight first when both are selected). local-ollama starts a dedicated loopback Ollama process with OLLAMA_KEEP_ALIVE=0 and stops its process group on exit or handled signals. chatgpt-pro starts no Ollama process and requires an OpenAI model ID after browser sign-in. Never borrows or stops an existing server. Closing a detached tmux client does not end its workspace; exit the session itself.
 
 options:
   -h, --help            show this help message and exit
   --profile {local-ollama,chatgpt-pro}
                         Local owned engine or OpenAI subscription provider.
-  --model MODEL         OpenAI model ID from opencode models openai; required for
-                        chatgpt-pro.
+  --model MODEL         Local: qwen2.5-coder:1.5b or qwen2.5-coder:7b. Cloud:
+                        openai/MODEL_FROM_LIST (required).
 
 EXAMPLES
   deckctl ai-workspace open
@@ -2969,7 +2969,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.37.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.38.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -3042,7 +3042,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.37.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.38.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -3624,13 +3624,13 @@ NAME
   deckctl terminal apply — Install the user-space terminal stack and apply managed shell, prompt, font, and tmux configuration.
 
 DESCRIPTION
-  May download tools and fonts and update managed configuration. --config-only avoids tool downloads; --refresh rechecks/downloads upstream assets.
+  May download tools and fonts and update managed configuration. --config-only avoids tool downloads; --refresh rechecks upstream versions; current versions are not downloaded again.
 
 options:
   -h, --help     show this help message and exit
   --config-only  Apply managed configuration without downloading terminal tools.
-  --refresh      Refresh upstream terminal tool assets instead of relying on the
-                 existing installation.
+  --refresh      Check upstream terminal tool versions while preserving the existing
+                 installation.
 
 EXAMPLES
   deckctl terminal apply --config-only
