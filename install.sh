@@ -75,4 +75,5 @@ fi
 ./bin/deckctl containers provision || apply_status=$?
 
 ./bin/deckctl setup report || apply_status=$?
+./bin/deckctl ai-workspace guide
 exit "$apply_status"

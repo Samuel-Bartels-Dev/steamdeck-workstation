@@ -293,6 +293,10 @@ class DesktopBehavior(Isolated):
         entry = apps / 'deck-media-netflix.desktop'
         entry.write_text('[Desktop Entry]\nType=Application\nName=Netflix\nExec=/unchanged --kiosk\nIcon=web-browser\n[Desktop Action example]\nIcon=keep-this\n')
         other = apps / 'unmanaged.desktop'; other.write_text('untouched')
+        moon = apps / 'Moonlight Game Streaming.desktop'
+        moon.write_text('[Desktop Entry]\nType=Application\nName=Moonlight Game Streaming\nExec=steam steam://rungameid/123\nIcon=old-artwork.ico\n')
+        battle = apps / 'Battle.net.desktop'
+        battle.write_text('[Desktop Entry]\nType=Application\nName=Battle.net\nExec=steam steam://rungameid/456\nIcon=old-artwork.ico\n')
         artwork = self.home / '.local/share/Steam/userdata/1/config/grid/123.png'
         artwork.parent.mkdir(parents=True); artwork.write_bytes(b'artwork-owned-by-SteamGridDB')
         vdf = artwork.parent.parent / 'shortcuts.vdf'; vdf.write_bytes(b'steam-data')
@@ -300,6 +304,12 @@ class DesktopBehavior(Isolated):
         self.assertEqual(desktop.status(), 0)
         self.assertIn('Exec=/unchanged --kiosk', entry.read_text()); self.assertIn('Icon=keep-this', entry.read_text())
         self.assertIn(str(desktop.icon_path('netflix')), entry.read_text())
+        self.assertIn(str(desktop.icon_path('moonlight')), moon.read_text())
+        self.assertIn(str(desktop.icon_path('battlenet')), battle.read_text())
+        self.assertIn('Exec=steam steam://rungameid/123', moon.read_text())
+        self.assertIn('Exec=steam steam://rungameid/456', battle.read_text())
+        self.assertEqual((self.home / 'Desktop' / moon.name).read_text(), moon.read_text())
+        self.assertEqual((self.home / 'Desktop' / battle.name).read_text(), battle.read_text())
         copy_path = self.home / 'Desktop' / entry.name
         self.assertEqual(copy_path.read_bytes(), entry.read_bytes()); self.assertTrue(os.access(copy_path, os.X_OK))
         self.assertEqual(artwork.read_bytes(), b'artwork-owned-by-SteamGridDB'); self.assertEqual(vdf.read_bytes(), b'steam-data'); self.assertEqual(other.read_text(), 'untouched')
@@ -403,8 +413,8 @@ class RecoveryAndSource(Isolated):
             self.assertEqual(hashlib.sha256((ROOT / name).read_bytes()).hexdigest(), sha, name)
         for name, mode in guard['executable_modes'].items():
             self.assertEqual((ROOT / name).stat().st_mode & 0o777, mode, name)
-        self.assertEqual(set(core.module_manifests()), set(guard['modules']))
-        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.31')
+        self.assertEqual(set(core.module_manifests()), set(guard['modules']) | {'ai-workspace'})
+        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.32')
 
     def test_all_shell_python_json_syntax_and_entry_permissions(self):
         import ast

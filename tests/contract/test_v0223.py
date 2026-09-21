@@ -99,9 +99,9 @@ class ExistingInstallation(unittest.TestCase):
                 installed=self.run_tool(ROOT)
                 current=self.home/'.local/share/steamdeck-workstation/current'
                 self.assertEqual(current.resolve(),installed)
-                self.assertEqual(installed.name,'0.2.31')
+                self.assertEqual(installed.name,'0.2.32')
                 result=subprocess.run([str(self.home/'.local/bin/deckctl'),'--version'],env=self.env,capture_output=True,text=True,timeout=10)
-                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'0.2.31')
+                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'0.2.32')
                 for name,content in payloads.items():self.assertEqual((self.home/name).read_bytes(),content,name)
                 self.assertEqual(old_inventory,{str(p.relative_to(old)):hashlib.sha256(p.read_bytes()).hexdigest() for p in old.rglob('*') if p.is_file()})
                 self.assertIn('# personal shell config',bashrc.read_text())
@@ -224,7 +224,7 @@ class Cleanup(unittest.TestCase):
         from deckctl import reliability
         folder=core.STATE/'downloads';folder.mkdir(parents=True)
         arc=folder/'release.tar.gz'
-        installed=self.home/'installed';installed.mkdir();(installed/'VERSION').write_text('0.2.31')
+        installed=self.home/'installed';installed.mkdir();(installed/'VERSION').write_text('0.2.32')
         current=self.home/'current';current.symlink_to(installed)
         for explicit,validation_status,removed in [(False,0,True),(True,0,False),(False,1,False)]:
             arc.write_bytes(b'archive fixture')

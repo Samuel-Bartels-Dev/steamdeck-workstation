@@ -1,0 +1,16 @@
+{
+  "api_version": 1,
+  "id": "ai-workspace",
+  "name": "On-demand AI Coding Workspace",
+  "depends_on": [
+    "terminal"
+  ],
+  "actions": {
+    "install": "install.sh",
+    "verify": "verify.sh",
+    "doctor": "doctor.sh"
+  },
+  "documentation": {
+    "primary": "README.md"
+  }
+}

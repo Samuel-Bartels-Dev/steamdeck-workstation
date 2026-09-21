@@ -422,6 +422,8 @@
     "uninstall.sh": 493
   },
   "modules": [
+    "ai-workspace",
+    "ai-workspace",
     "android",
     "backup",
     "base",
