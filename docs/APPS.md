@@ -15,6 +15,9 @@ upgrades. Without a saved selection, all catalog apps remain enabled for compati
 | `spotify` | Spotify | Media |
 | `discord` | Discord | Utilities |
 | `slack` | Slack | Utilities |
+| `whatsapp` | WhatsApp (Whatsie, third-party client) | Utilities |
+| `telegram` | Telegram | Utilities |
+| `parsec` | Parsec (remote client) | Remote |
 
 ```bash
 deckctl apps list                 # choices and installed status
@@ -65,3 +68,15 @@ if you want to keep apps deselected.
 Install Discord and Slack with `deckctl apps install discord slack`. Upgrades keep
 existing saved selections; new apps are available in the chooser but must be
 explicitly enabled when a selection already exists.
+
+Each app is a separate choice under **Desktop apps**. For just the requested
+communication, media and streaming apps:
+
+```bash
+deckctl apps install parsec slack whatsapp telegram plex
+```
+
+WhatsApp uses [Whatsie](https://flathub.org/en/apps/com.ktechpit.whatsie), a
+third-party web client requiring phone linking. Parsec requires an account and
+a Windows/macOS host. Plex Desktop plays from an existing Plex server; it does
+not install a Plex server on the Deck.

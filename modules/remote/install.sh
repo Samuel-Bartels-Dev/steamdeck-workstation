@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
+desktop_app_install com.parsecgaming.parsec
 if component_selected remote moonlight; then flatpak_install com.moonlight_stream.Moonlight; fi
 if component_selected remote chiaki; then flatpak_install io.github.streetpea.Chiaki4deck; fi
 if component_selected remote tailscale; then

@@ -43,5 +43,20 @@
     "name": "Slack",
     "id": "com.slack.Slack",
     "module": "utilities"
+  },
+  "parsec": {
+    "name": "Parsec",
+    "id": "com.parsecgaming.parsec",
+    "module": "remote"
+  },
+  "whatsapp": {
+    "name": "WhatsApp (Whatsie)",
+    "id": "com.ktechpit.whatsie",
+    "module": "utilities"
+  },
+  "telegram": {
+    "name": "Telegram",
+    "id": "org.telegram.desktop",
+    "module": "utilities"
   }
 }

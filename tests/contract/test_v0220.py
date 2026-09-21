@@ -48,7 +48,7 @@ class Review(unittest.TestCase):
                 self.assertEqual(alias.stdout,result.stdout)
         self.assertEqual(list(self.home.iterdir()),[])
     def test_help_errors_version_and_no_abbreviations(self):
-        self.assertEqual(self.run_cli('--version').stdout.strip(),'0.2.36')
+        self.assertEqual(self.run_cli('--version').stdout.strip(),'0.2.37')
         self.assertEqual(self.run_cli('help','unknown').returncode,2)
         self.assertEqual(self.run_cli('terminal','apply','--config-o').returncode,2)
         self.assertEqual(self.run_cli('remote','register','desk').returncode,2)

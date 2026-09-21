@@ -4,6 +4,7 @@ import contextlib
 import os
 from pathlib import Path
 import subprocess
+import shutil
 import sys
 import tempfile
 import unittest
@@ -40,6 +41,36 @@ class Components(unittest.TestCase):
             self.assertEqual(download.call_args.args[-1],'ghostty')
             download.assert_called_once()
             config.assert_called_once_with({'ghostty'})
+
+    def test_fastfetch_art_is_optional_and_shell_passes_arguments(self):
+        config = self.home/'.config/deckctl/terminal'
+        shell = self.home/'.config/deckctl/shell/terminal.sh'
+        with patch.object(terminal, 'TERM_CONFIG', config), patch.object(terminal, 'SHELL_CONFIG', shell), patch.object(terminal, 'KONSOLE_DIR', self.home/'konsole'):
+            terminal._copy_managed_config(set())
+            self.assertFalse((config/'sharingan.txt').exists())
+            self.assertFalse((config/'fastfetch.json').exists())
+            terminal._copy_managed_config({'fastfetch'})
+            self.assertEqual((config/'fastfetch.json').read_bytes(), (core.ROOT/'modules/terminal/fastfetch.json').read_bytes())
+            self.assertEqual((config/'sharingan.txt').read_bytes(), (core.ROOT/'modules/terminal/sharingan.txt').read_bytes())
+        bindir=self.home/'bin'; bindir.mkdir()
+        fake=bindir/'fastfetch'
+        fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n'); fake.chmod(0o755)
+        env=dict(os.environ, HOME=str(self.home), PATH=str(bindir)+':/usr/bin:/bin')
+        result=subprocess.run(['bash', '--noprofile', '--norc', '-ic',
+            'source "$1"; ff --logo small', 'test', str(core.ROOT/'modules/terminal/terminal.sh')],
+            env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.splitlines(), ['--config', str(config/'fastfetch.json'), '--logo', str(config/'sharingan.txt'), '--logo-color-1', 'red', '--logo', 'small'])
+
+    @unittest.skipUnless(shutil.which('fastfetch'), 'Fastfetch is not installed')
+    def test_real_fastfetch_parses_theme_and_renders_resource_sections(self):
+        result=subprocess.run(['fastfetch', '--config', str(core.ROOT/'modules/terminal/fastfetch.json'),
+            '--logo', str(core.ROOT/'modules/terminal/sharingan.txt'), '--pipe'],
+            capture_output=True, text=True, timeout=15)
+        self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
+        self.assertNotIn('JsonConfig Error', result.stdout + result.stderr)
+        for heading in ('BUBBLE GUM RAVE / DECK', 'HARDWARE / RESOURCES', 'STORAGE / SESSION', 'RAM', 'Swap'):
+            self.assertIn(heading, result.stdout)
 
     def test_invalid_components_and_failed_final_write_leave_plan_unchanged(self):
         self.save(terminal=['tmux'])

@@ -17,7 +17,7 @@ Before resetting the existing Deck, preserve only the state that is difficult or
 - Note which microSD card contains which library.
 - Note your Sunshine host names and the MAC address of any PC you want to wake remotely.
 - Make sure you can authenticate to Steam, Epic, Battle.net, PSN, Tailscale, and ChatGPT/Codex after the wipe.
-- Have this v0.2.36 USB bundle available before starting the reset.
+- Have this v0.2.37 USB bundle available before starting the reset.
 
 ## Do not copy into Git
 

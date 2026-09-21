@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
+if ! desktop_app_satisfied com.parsecgaming.parsec; then
+  module_json NOT_INSTALLED "Selected Parsec client is missing; rerun deckctl apply"; exit 0
+fi
 if component_selected remote moonlight && ! flatpak_has com.moonlight_stream.Moonlight; then
   module_json NOT_INSTALLED "Selected Moonlight client is missing"; exit 0
 fi

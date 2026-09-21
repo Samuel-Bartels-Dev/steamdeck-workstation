@@ -33,7 +33,7 @@ class Session:
 
     def snapshot(self):
         manifests = core.module_manifests()
-        return {'groups': setup_builder.catalog()['groups'],
+        data = {'groups': setup_builder.catalog()['groups'],
                 'apps': [{'id': key, 'name': app['name'], 'summary': APP_DESCRIPTIONS.get(key, 'Optional desktop app'),
                           'module': app['module']} for key, app in apps.catalog().items()],
                 'modules': core.enabled_modules(), 'selectedApps': apps.selection(),
@@ -41,13 +41,21 @@ class Session:
                 'defaults': list(manifests),
                 'components': component_options.catalog(), 'selectedComponents': component_options.selection(),
                 'defaultComponents': component_options.defaults(),
-                'launchers': gaming_options.ITEMS, 'selectedLaunchers': gaming_options.selection(),
+                'launchers': [dict(item) for item in gaming_options.ITEMS], 'selectedLaunchers': gaming_options.selection(),
                 'plugins': setup_builder.plugin_items(), 'selectedPlugins': sorted(core._decky_selected_folders()),
                 'defaultPlugins': core._decky_default_selection(),
                 'css': css_stack.selection_items(), 'selectedCss': css_stack.selection(),
                 'defaultCss': [item['name'] for category in ('required','recommended') for item in css_stack._stack(unfiltered=True)[category]],
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
                 'planOnly': self.plan_only}
+        descriptions = core.load_json(core.ROOT/'config/setup-copy.json', {})
+        sections = dict(data)
+        sections['modules'] = [item for group in data['groups'] for item in group['modules']]
+        sections['components'] = [item for items in data['components'].values() for item in items]
+        for section in ('modules', 'apps', 'components', 'launchers', 'plugins', 'css'):
+            for item in sections[section]:
+                item['summary'] = descriptions.get(section, {}).get(item['id'], item['summary'])
+        return data
 
     def save(self, payload):
         if self.process and self.process.poll() is None:

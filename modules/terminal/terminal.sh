@@ -42,7 +42,19 @@ if [[ $- == *i* ]]; then
     if _deckctl_tool_selected bat && command -v bat >/dev/null 2>&1; then bat --paging=never "$@"; else command cat "$@"; fi
   }
   ff() {
-    if command -v fastfetch >/dev/null 2>&1; then fastfetch --logo small "$@"; else echo "fastfetch is not installed"; fi
+    if ! command -v fastfetch >/dev/null 2>&1; then
+      echo "fastfetch is not installed"; return 1
+    fi
+    local config="$HOME/.config/deckctl/terminal/fastfetch.json"
+    local logo="$HOME/.config/deckctl/terminal/sharingan.txt"
+    local -a options=()
+    [[ ! -f "$config" ]] || options+=(--config "$config")
+    if [[ -f "$logo" ]]; then
+      options+=(--logo "$logo" --logo-color-1 red)
+    else
+      options+=(--logo small)
+    fi
+    command fastfetch "${options[@]}" "$@"
   }
   mkcd() { mkdir -p -- "$1" && cd -- "$1"; }
 

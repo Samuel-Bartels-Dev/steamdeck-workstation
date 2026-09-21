@@ -1,5 +1,11 @@
 # v0.2.34
 
+## v0.2.37
+
+- Add individual Parsec, Telegram and WhatsApp (Whatsie) choices alongside Slack and Plex; add Sharingan-inspired artwork to `ff`.
+
+- Clear sidebar sections, earlier desktop app choices, and practical benefit descriptions for every curated setup option and review item.
+
 ## v0.2.36
 
 - Refined setup browsing, search, item-by-item review, related Decky/CSS choices, and installation handoff. Fresh plans start with no optional selections.
