@@ -13,7 +13,7 @@
 3. Reboot after updates.
 4. Switch to **Desktop Mode**.
 5. Connect a keyboard/mouse if convenient.
-6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.32`).
+6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.33`).
 7. Extract it if needed.
 8. Open Konsole in the project folder.
 9. Run:
@@ -23,8 +23,9 @@ chmod +x install.sh
 ./install.sh
 ```
 
-10. The installer will detect hardware, validate the repo, install safe user-space packages, and stage interactive installers where required.
-11. Complete the displayed checklist:
+10. The installer opens the setup builder. Choose optional feature stages and desktop apps, review your plan, and confirm. The shipped defaults are preselected; you can clear anything you do not need. This saves choices only.
+11. Review the selected modules with `./bin/deckctl plan`, then continue through the installer to install only that plan.
+12. Complete the displayed checklist for selected features:
    - Tailscale authentication/install flow.
    - Decky stable installer, then curated plugins.
    - EmuDeck first-run wizard and storage selection.
@@ -33,16 +34,16 @@ chmod +x install.sh
    - chiaki-ng PS5 registration/PSN remote setup.
    - Moonlight pairing to Sunshine hosts.
    - Codex/other dev authentication.
-12. Insert/identify `DECK-GAMES` and `DECK-EMU` cards as applicable.
-13. Import your private BIOS/firmware material through the documented EmuDeck paths; do not put those files in this repo.
-14. Run:
+13. Insert/identify `DECK-GAMES` and `DECK-EMU` cards as applicable.
+14. Import your private BIOS/firmware material through the documented EmuDeck paths; do not put those files in this repo.
+15. Run:
 
 ```bash
 ./bin/deckctl verify
 ./bin/deckctl travel check
 ```
 
-15. Return to Game Mode.
+16. Return to Game Mode. Skipped features can be selected later with `deckctl setup customize` and installed with `deckctl apply`.
 
 ## Important
 

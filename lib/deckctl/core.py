@@ -38,6 +38,15 @@ def module_manifests():
     return out
 
 def enabled_modules():
+    selected_file=CONFIG_HOME/'modules.json'
+    if selected_file.exists():
+        data=load_json(selected_file,{})
+        selected=data.get('selected') if isinstance(data,dict) else None
+        known=set(module_manifests())
+        if (not isinstance(selected,list) or any(not isinstance(x,str) or x not in known for x in selected)
+                or len(selected)!=len(set(selected)) or 'base' not in selected):
+            raise ValueError(f'Invalid module selection: {selected_file}; run deckctl setup customize to repair it.')
+        return selected
     cfg = load_json(ROOT/"config/default.json", {})
     return [k for k, v in cfg.get("modules", {}).items() if v]
 
@@ -581,6 +590,7 @@ def setup_steps():
     return [
         {
             "id":"heroic",
+            "module":"gaming",
             "title":"Heroic / Epic Games",
             "description":"Sign into Epic, enable Add games to Steam automatically, then close Heroic. Use Heroic only for install/update management; launch games from Steam Game Mode.",
             "launch":lambda: _launch_flatpak("com.heroicgameslauncher.hgl"),
@@ -588,6 +598,7 @@ def setup_steps():
         },
         {
             "id":"battlenet",
+            "module":"gaming",
             "title":"Battle.net / WoW",
             "description":"Install Battle.net directly through NonSteamLaunchers' supported command-line launcher selector. Press Yes to install Battle.net only; the full NSL launcher menu is not shown. Complete Battle.net's own installer/login UI, then install WoW/Diablo as desired.",
             "launch":lambda: _launch_terminal_command(shlex.quote(str(ROOT/"modules/gaming/install-battlenet.sh"))),
@@ -595,6 +606,7 @@ def setup_steps():
         },
         {
             "id":"decky",
+            "module":"decky",
             "title":"Decky Loader",
             "description":"Install the latest stable Decky Loader. Plugin selection and automated plugin reconciliation happen here in Desktop Mode afterward.",
             "launch":lambda: _launch_path(stage/"decky_installer.desktop"),
@@ -602,6 +614,7 @@ def setup_steps():
         },
         {
             "id":"decky_plugins",
+            "module":"decky",
             "title":"Choose Decky plugins",
             "description":"Choose your managed Decky plugin set using three checkbox sections: Core, Recommended, and Optional. Your choices are saved as desired state.",
             "launch":lambda: decky_select()==0,
@@ -609,6 +622,7 @@ def setup_steps():
         },
         {
             "id":"decky_plugin_install",
+            "module":"decky",
             "title":"Install selected Decky plugins",
             "description":"Install the selected plugin set from Decky's official Plugin Store artifacts. Packages are validated before an atomic install. Any plugin that cannot be safely automated is left for guided Store installation.",
             "launch":lambda: __import__('deckctl.decky_installer',fromlist=['install_selected']).install_selected()==0,
@@ -616,6 +630,7 @@ def setup_steps():
         },
         {
             "id":"decky_theme",
+            "module":"decky",
             "noninteractive":True,
             "title":"Configure CSS Loader components and palette",
             "description":"Install the real Theme Store components and configure their supported Bubble Gum Rave colors automatically in Desktop Mode. Saved settings and the native recovery profile are verified.",
@@ -624,6 +639,7 @@ def setup_steps():
         },
         {
             "id":"emudeck",
+            "module":"emulation",
             "title":"EmuDeck",
             "description":"Run the EmuDeck first-run wizard. If using split storage, choose the DECK-EMU microSD for the Emulation tree. Do not download BIOS/ROM content through deckctl.",
             "launch":lambda: _launch_path(stage/"EmuDeck.desktop"),
@@ -631,6 +647,7 @@ def setup_steps():
         },
         {
             "id":"android",
+            "module":"android",
             "title":"Android / Waydroid / Pokémon Champions",
             "description":"Install the SteamOS-specific Waydroid environment. For Pokémon Champions choose Android 13 with Google Play. Setup opens the bundled launcher when first-run user state is missing. Sign into Google Play if prompted, then close Android to resume provisioning. This is a third-party compatibility path, not an officially supported Pokémon SteamOS build.",
             "launch":lambda: __import__('deckctl.android',fromlist=['retry']).retry()==0,
@@ -639,6 +656,7 @@ def setup_steps():
         },
         {
             "id":"workspace",
+            "module":"workspace",
             "title":"Workspace apps: Notion / ChatGPT / Claude",
             "description":"Create clean Chrome app-window shortcuts for Notion, ChatGPT, and Claude. Notion MCP can later authorize ChatGPT/Codex/Claude to read or write your workspace.",
             "launch":lambda: __import__('deckctl.workspace',fromlist=['setup']).setup()==0,
@@ -647,6 +665,7 @@ def setup_steps():
         },
         {
             "id":"media",
+            "module":"media",
             "title":"Optional media apps",
             "description":"Create Netflix, Hulu, Crunchyroll, and Prime Video as real non-Steam shortcuts. The helper installs Chrome if needed and submits all four shortcuts to Steam; sign into each service from Game Mode afterward.",
             "launch":lambda: media_setup()==0,
@@ -655,6 +674,7 @@ def setup_steps():
         },
         {
             "id":"keeper",
+            "module":"media",
             "title":"Keeper password manager for Chrome",
             "description":"Install KeeperFill from Keeper Security's official Chrome Web Store listing, then sign into/unlock the extension. The Netflix/Hulu/etc. Game Mode tiles use the same normal Chrome profile so Keeper can autofill matching website records. deckctl never stores Keeper credentials.",
             "launch":lambda: media_keeper_setup()==0,
@@ -662,6 +682,7 @@ def setup_steps():
         },
         {
             "id":"controller_templates",
+            "module":"controller",
             "title":"Controller templates",
             "description":"Install our reusable Steam Input template set inline. This copies Valve's desktop/mouse layout when available plus any layouts you have captured with deckctl; it does not overwrite live per-game layouts and does not require a Steam restart during initial Desktop Mode provisioning.",
             "launch":lambda: _guided_controller_templates_install(),
@@ -670,6 +691,7 @@ def setup_steps():
         },
         {
             "id":"tailscale",
+            "module":"remote",
             "title":"Tailscale",
             "description":"Run the staged SteamOS-specific Tailscale installer. It downloads tailscale-dev/deck-tailscale, prompts for sudo, installs the persistent service, then shows a QR code for tailnet authentication.",
             "launch":lambda: _launch_path(stage/"Install-Tailscale.desktop"),
@@ -677,6 +699,7 @@ def setup_steps():
         },
         {
             "id":"moonlight",
+            "module":"remote",
             "title":"Moonlight pairing",
             "description":"Pair Moonlight with your Sunshine gaming PC(s). You can skip this now and register/test hosts later with deckctl remote.",
             "launch":lambda: _launch_flatpak("com.moonlight_stream.Moonlight"),
@@ -684,6 +707,7 @@ def setup_steps():
         },
         {
             "id":"chiaki",
+            "module":"remote",
             "title":"PlayStation / chiaki-ng",
             "description":"Register your PlayStation locally. Remote PSN testing should be done later from a phone hotspot or another non-home network.",
             "launch":lambda: _launch_flatpak("io.github.streetpea.Chiaki4deck"),
@@ -691,6 +715,7 @@ def setup_steps():
         },
         {
             "id":"codex",
+            "module":"dev",
             "title":"Codex CLI authentication",
             "description":"Codex is installed directly as a user-level Linux CLI and no longer depends on Distrobox/npm. Complete Sign in with ChatGPT here; deckctl verifies with `codex login status`.",
             "launch":lambda: _launch_terminal_command(f"{shlex.quote(str(_codex_path()))} login" if _codex_path() else f"{shlex.quote(str(ROOT/'modules/dev/install-codex.sh'))} && $HOME/.local/bin/codex login"),
@@ -719,6 +744,20 @@ def create_setup_shortcut():
     ])
     shortcut.write_text(content)
     shortcut.chmod(0o755)
+    customize=desktop/"Customize Steam Deck Workstation.desktop"
+    customize_cmd=str(Path.home()/".local/bin/deckctl")
+    customize.write_text("\n".join([
+        "[Desktop Entry]",
+        "Type=Application",
+        "Name=Customize Steam Deck Workstation",
+        "Comment=Choose optional workstation features and apps",
+        "Exec=" + desktop_icons.exec_line([customize_cmd,"setup","customize"]),
+        f"Icon={desktop_icons.install_icon('setup')}",
+        "Terminal=false",
+        "StartupNotify=true",
+        "",
+    ]))
+    customize.chmod(0o755)
     return shortcut
 
 def setup_open():

@@ -1,5 +1,14 @@
+# v0.2.33
+
+- Add a staged Steam Deck setup builder with optional feature groups, desktop app selection, a KDE chooser, terminal fallback and review screen.
+- Allow base-only or repository-default plans; skipped setup stages no longer block readiness or trigger unselected optional provisioning.
+
+See docs/RELEASE-0.2.33.md.
+
 # v0.2.32
 
+- Add a staged setup builder for optional modules and desktop apps, with a native KDE chooser, terminal fallback, review screen and base-only/full-default presets.
+- Make skipped features explicit in guided setup status and allow users to tailor a Deck later without uninstalling existing apps.
 - Install Ghostty, Neovim and OpenCode in the terminal module; keep tmux available.
 - Add an on-demand rootless Ollama/OpenCode workspace and small local coding model.
 - Add managed Moonlight and Battle.net Desktop icons.

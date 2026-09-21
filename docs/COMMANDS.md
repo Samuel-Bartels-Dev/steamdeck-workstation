@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.32
+# deckctl command manual — v0.2.33
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -2969,7 +2969,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -3042,7 +3042,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -5411,7 +5411,7 @@ SEE ALSO
 ## deckctl setup
 
 ```text
-usage: deckctl setup [-h] {run,status,report,open,cleanup,reset} ...
+usage: deckctl setup [-h] {run,customize,status,report,open,cleanup,reset} ...
 
 NAME
   deckctl setup — Manage setup operations using the commands below.
@@ -5420,8 +5420,10 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {run,status,report,open,cleanup,reset}
+  {run,customize,status,report,open,cleanup,reset}
     run                 Resume incomplete guided setup or retry a named step.
+    customize           Build a staged workstation plan with optional features and
+                        desktop apps.
     status              Show guided setup progress and how to resume.
     report              Report component readiness, interrupted operations and exact
                         retry commands.
@@ -5471,6 +5473,46 @@ options:
 
 EXAMPLES
   deckctl setup run --step android
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl setup customize
+
+```text
+usage: deckctl setup customize [-h] [--defaults | --minimal] [--module MODULE] [--app
+       APP]
+
+NAME
+  deckctl setup customize — Build a staged workstation plan with optional features and desktop apps.
+
+DESCRIPTION
+  Steam Deck Desktop Mode opens a native KDE chooser; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Selection never installs or removes software. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.
+
+options:
+  -h, --help       show this help message and exit
+  --defaults       Restore the repository’s full default module and app selection.
+  --minimal        Select only required base support and no desktop apps.
+  --module MODULE  Module root to include; repeat to set a custom feature plan.
+  --app APP        Desktop app key to include; repeat to replace the current app
+                   selection.
+
+EXAMPLES
+  deckctl setup customize
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

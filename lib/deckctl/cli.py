@@ -1,6 +1,6 @@
 from __future__ import annotations
 import argparse, json, subprocess, sys
-from . import ai_workspace, apps, containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, upgrade_plan, shortcut_ops
+from . import ai_workspace, apps, containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, setup_builder, upgrade_plan, shortcut_ops
 
 def repo_validate():
     return subprocess.run([sys.executable,str(core.ROOT/'tests/contract/test_repo.py')],cwd=core.ROOT).returncode
@@ -65,7 +65,7 @@ Tip: run `deckctl <command> -h` for command-specific help.
     decky=sp.add_parser('decky'); dkysp=decky.add_subparsers(dest='sub',required=True); dkysp.add_parser('plugins'); dkysp.add_parser('select'); dkysp.add_parser('selected'); di=dkysp.add_parser('install-selected'); di.add_argument('--reinstall',action='store_true'); di.add_argument('--dry-run',action='store_true'); di.add_argument('--yes',action='store_true'); dkysp.add_parser('receipts'); theme=dkysp.add_parser('theme'); thsp=theme.add_subparsers(dest='theme_sub',required=True); thsp.add_parser('install'); thsp.add_parser('status'); css=dkysp.add_parser('css'); csssp=css.add_subparsers(dest='css_sub',required=True); csssp.add_parser('status'); csssp.add_parser('apply'); csssp.add_parser('guide'); csssp.add_parser('profiles'); ccap=csssp.add_parser('capture'); ccap.add_argument('name',nargs='?'); crest=csssp.add_parser('restore'); crest.add_argument('name',nargs='?')
     ad=sp.add_parser('android',help='Install, retry, repair, or deliberately reinstall Waydroid'); adsp=ad.add_subparsers(dest='sub',required=True); ast=adsp.add_parser('status',help='Show real Android readiness'); ast.add_argument('--json',action='store_true'); adsp.add_parser('install',help='Fresh install; choose Android 13 with Google Play'); adsp.add_parser('retry',help='Fresh install if absent; protected repair if an image exists'); adsp.add_parser('repair',help='Protected host repair preserving Android state'); adsp.add_parser('reinstall',help='Deliberately recreate Android using upstream protected archive flow')
     ws=sp.add_parser('workspace',help='Notion/ChatGPT/Claude desktop-style Chrome apps'); wssp=ws.add_subparsers(dest='sub',required=True); wst=wssp.add_parser('status'); wst.add_argument('--json',action='store_true'); wssp.add_parser('setup'); wssp.add_parser('notion-mcp',help='Show Notion MCP agent-connection guidance')
-    setup=sp.add_parser('setup'); setupsp=setup.add_subparsers(dest='sub',required=True); srun=setupsp.add_parser('run'); srun.add_argument('--step'); setupsp.add_parser('status'); sreport=setupsp.add_parser('report'); sreport.add_argument('--json',action='store_true'); setupsp.add_parser('open'); sclean=setupsp.add_parser('cleanup'); sclean.add_argument('--dry-run',action='store_true'); srst=setupsp.add_parser('reset'); srst.add_argument('step',nargs='?')
+    setup=sp.add_parser('setup'); setupsp=setup.add_subparsers(dest='sub',required=True); srun=setupsp.add_parser('run'); srun.add_argument('--step'); sc=setupsp.add_parser('customize'); choice=sc.add_mutually_exclusive_group(); choice.add_argument('--defaults',action='store_true',help='Save the repository’s full default module plan.'); choice.add_argument('--minimal',action='store_true',help='Select only required base support and no desktop apps.'); sc.add_argument('--module',action='append',help='Selected module root; repeat to set a custom module plan.'); sc.add_argument('--app',action='append',help='Selected desktop app key; repeat to replace the app selection.'); setupsp.add_parser('status'); sreport=setupsp.add_parser('report'); sreport.add_argument('--json',action='store_true'); setupsp.add_parser('open'); sclean=setupsp.add_parser('cleanup'); sclean.add_argument('--dry-run',action='store_true'); srst=setupsp.add_parser('reset'); srst.add_argument('step',nargs='?')
     hp=sp.add_parser('help'); hp.add_argument('command',nargs='*')
     p.add_argument('--version', action='version', version=(core.ROOT/'VERSION').read_text().strip())
     from .helptext import decorate
@@ -185,6 +185,7 @@ def main(argv=None):
     if args.cmd=='workspace' and args.sub=='setup': return workspace.setup()
     if args.cmd=='workspace' and args.sub=='notion-mcp': return workspace.notion_mcp()
     if args.cmd=='setup' and args.sub=='run': return core.setup_run(args.step)
+    if args.cmd=='setup' and args.sub=='customize': return setup_builder.dispatch(args)
     if args.cmd=='setup' and args.sub=='report': return provisioning.report(args.json)
     if args.cmd=='setup' and args.sub=='status': core.setup_status(); return 0
     if args.cmd=='setup' and args.sub=='open': core.setup_open(); return 0

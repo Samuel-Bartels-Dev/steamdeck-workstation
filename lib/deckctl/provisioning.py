@@ -29,8 +29,15 @@ def record(state,sid,status,message=''):
 
 def rows():
     state=core.setup_state();completed=set(state.get('completed',[]));out=[]
+    enabled=set(core.topo(core.enabled_modules()))
     for step in core.setup_steps():
-        sid=step['id'];found,error=detected(step)
+        sid=step['id']
+        if step.get('module') and step['module'] not in enabled:
+            out.append({'id':sid,'title':step['title'],'status':'NOT_SELECTED','installed':False,
+                        'message':'Optional feature is not in the current workstation plan.',
+                        'retry':'deckctl setup customize','verification':'feature selection'})
+            continue
+        found,error=detected(step)
         previous=state.get('steps',{}).get(sid,{})
         if error: status='FAILED'
         elif found and sid in ACCOUNT_STEPS:
@@ -43,15 +50,16 @@ def rows():
         else:status='PENDING'
         out.append({'id':sid,'title':step['title'],'status':status,'installed':found,
                     'message':error or previous.get('message',''),
-                    'retry':f'deckctl setup run --step {sid}',
+                    'retry':('deckctl setup customize' if status=='NOT_SELECTED' else f'deckctl setup run --step {sid}'),
                     'verification':'user-confirmed configuration; software detected' if status=='CONFIRMED' else 'component detector'})
     return out
 
 def report(as_json=False):
     recorded=core.load_json(core.STATE/'provisioning.json',{}).get('modules',{})
-    live={mid:{**core.module_status(mid),'last_attempt':item} for mid,item in recorded.items() if mid in core.module_manifests()}
+    enabled=set(core.topo(core.enabled_modules()))
+    live={mid:{**core.module_status(mid),'last_attempt':item} for mid,item in recorded.items() if mid in enabled}
     data={'version':(core.ROOT/'VERSION').read_text().strip(),'steps':rows(),'modules':live}
-    bad=[r for r in data['steps'] if r['status'] not in ('READY','CONFIRMED')]
+    bad=[r for r in data['steps'] if r['status'] not in ('READY','CONFIRMED','NOT_SELECTED')]
     module_attention=any(x.get('status') not in ('READY','OPTIONAL') for x in data['modules'].values())
     if as_json:print(json.dumps(data,indent=2))
     else:
@@ -70,8 +78,12 @@ def report(as_json=False):
 
 def run(step_id=None):
     from . import setup_cleanup
-    steps=core.setup_steps()
-    if step_id and step_id not in {s['id'] for s in steps}:raise ValueError(f'Unknown setup step: {step_id}')
+    all_steps=core.setup_steps()
+    if step_id and step_id not in {s['id'] for s in all_steps}:raise ValueError(f'Unknown setup step: {step_id}')
+    enabled=set(core.topo(core.enabled_modules()))
+    steps=[s for s in all_steps if not s.get('module') or s['module'] in enabled]
+    if step_id and step_id not in {s['id'] for s in steps}:
+        raise ValueError(f'Setup stage {step_id} is not selected; use deckctl setup customize first.')
     if step_id:steps=[s for s in steps if s['id']==step_id]
     setup_cleanup.cleanup();core.create_setup_shortcut()
     state=core.setup_state()

@@ -57,7 +57,7 @@ PAGES = {
 'launcher install': ('Launch the established Battle.net installation workflow.', 'Installs/configures the Battle.net launcher through the project’s existing user-space path. Blizzard login, game ownership, and downloads require user interaction.', 'launcher install battlenet'),
 'channel': ('Show or select the release channel: stable, beta, or dev.', 'Without NAME, read-only. With NAME, saves the selection for future update checks; does not install a release.', 'channel stable'),
 'update check': ('Query the configured release source and display the installed and available versions.', 'Read-only except network access. With no configured source, explains how to use a local archive.', 'update check'),
-'update apply': ('Validate and install a new persistent control-plane release.', 'Uses --archive locally or downloads a release with checksum verification. Runs repository tests before installation and records rollback history. Removes its own unchanged downloaded tarball after successful promotion; keeps explicitly supplied archives and prior releases. Local archives must be trusted executable code.', 'update apply --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz'),
+ 'update apply': ('Validate and install a new persistent control-plane release.', 'Uses --archive locally or downloads a release with checksum verification. Runs repository tests before installation and records rollback history. Removes its own unchanged downloaded tarball after successful promotion; keeps explicitly supplied archives and prior releases. Local archives must be trusted executable code.', 'update apply --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz'),
 'update rollback': ('Select an available previous persistent release and reactivate its control plane.', 'Changes the current-release link and records history. Does not roll back user data, vendor packages, or external service changes.', 'update rollback'),
 'export': ('Export an inventory of the workstation configuration and registered resources.', 'Writes ~/DeckExports. This private inventory can include host addresses and personal paths; use support-bundle for sanitized diagnostics.', 'export'),
 'emulation bios-audit': ('Inspect expected BIOS locations and optionally an import source without copying firmware.', 'Read-only. Supply your own legally obtained files; the project ships no BIOS payloads.', 'emulation bios-audit --source ~/BIOS'),
@@ -108,13 +108,14 @@ PAGES = {
  'workspace setup': ('Create the optional workspace web applications and Desktop shortcuts.', 'Writes browser app launchers and intentional Desktop icons. Each service requires its own account authentication.', 'workspace setup'),
  'workspace notion-mcp': ('Print guidance for connecting a supported agent to Notion MCP.', 'Read-only. Does not create credentials or authorize account access.', 'workspace notion-mcp'),
  'setup run': ('Resume incomplete guided setup or retry a named step.', 'Rechecks actual component state before skipping. --step ID selects one step; interrupted/failed/deferred states persist. A missing component cannot be marked complete. Required account/GUI interaction remains visible. READY is detected; CONFIRMED is user-confirmed configuration. Exit 2 means incomplete setup.', 'setup run --step android'),
+ 'setup customize': ('Build a staged workstation plan with optional features and desktop apps.', 'Steam Deck Desktop Mode opens a native KDE chooser; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Selection never installs or removes software. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.', 'setup customize'),
  'setup status': ('Show guided setup progress and how to resume.', 'Read-only. Does not create a shortcut or mark steps complete.', 'setup status'),
  'setup open': ('Open the persistent setup launcher in the desktop environment.', 'May refresh the setup shortcut and launch a terminal. Requires a graphical Desktop Mode session.', 'setup open'),
  'setup cleanup': ('Remove verified, unchanged installer shortcuts staged by this project.', 'Runs automatically after module provisioning and guided steps. Rechecks actual component readiness and file hashes; keeps incomplete installs, modified/untracked files, symlinks, application launchers, recovery copies and unrelated Downloads/ZIP files. Exact legacy EmuDeck downloader copies are recognized. --dry-run reports without deleting. This is not a general disk cleaner.', 'setup cleanup --dry-run'),
  'setup reset': ('Clear recorded guided-setup completion for a named step or all steps.', 'Changes progress bookkeeping only; does not uninstall applications or delete account data.', 'setup reset'),
  'help': ('Display the full manual entry for any registered command or command group.', 'Read-only. Equivalent to adding --help at the selected command level. Unknown command paths return usage error 2.', 'help decky css apply'),
  'setup report': ('Report component readiness, interrupted operations and exact retry commands.', 'Read-only; --json gives structured output. READY requires a detector; CONFIRMED identifies user-confirmed account setup. Failed, stale or deferred steps remain visible. Exit 2 means setup needs attention, 1 means recorded module failure. Module readiness is rechecked; JSON also includes the last apply attempt.', 'setup report --json'),
- 'update preview': ('Compare a candidate release with the currently installed control plane.', 'Read-only except temporary archive extraction. Requires --archive FILE or --source DIRECTORY. Lists added/changed/removed release files, pending Decky additions and preserved user state. Does not execute candidate code, download plugins or promote releases.', 'update preview --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz'),
+ 'update preview': ('Compare a candidate release with the currently installed control plane.', 'Read-only except temporary archive extraction. Requires --archive FILE or --source DIRECTORY. Lists added/changed/removed release files, pending Decky additions and preserved user state. Does not execute candidate code, download plugins or promote releases.', 'update preview --archive ~/Downloads/steamdeck-workstation-v0.2.33.tar.gz'),
  'storage verify-migration': ('Compare preserved Emulation content with the mounted DECK-EMU destination.', 'Read-only SHA-256 comparison of all source files and directory entries, including saves, BIOS and ROMs. Extra destination files are retained. Missing cards, symlinks needing review and mismatched files return 2; --json emits results. Close emulators before verification/finalization.', 'storage verify-migration --json'),
  'library repair': ('Preview or apply backed-up repairs for known Desktop icons and exact duplicate Steam shortcuts.', 'Without --yes, preview only. --duplicates opts into removing byte-equivalent parsed records within each Steam account; --user limits those Steam repairs to one account. Steam must be closed for VDF edits. Original files are retained under state/shortcut-rollback. Missing executables are reported, never guessed. Gaming artwork remains owned by SteamGridDB.', 'library repair --duplicates --yes'),
 
@@ -150,6 +151,13 @@ ARGUMENTS = {
  'dry_run':'Show intended Decky plugin operations without installing them.',
  'step':'Guided setup step ID; omit to reset all recorded progress.',
  'command':'Command path to document, for example: decky css apply.',
+}
+
+SCOPED_ARGUMENTS = {
+    ('setup customize','defaults'):'Restore the repository’s full default module and app selection.',
+    ('setup customize','minimal'):'Select only required base support and no desktop apps.',
+    ('setup customize','module'):'Module root to include; repeat to set a custom feature plan.',
+    ('setup customize','app'):'Desktop app key to include; repeat to replace the current app selection.',
 }
 
 FILES = '''FILES
@@ -195,7 +203,7 @@ def decorate(root):
                     summary=PAGES[full][0] if full in PAGES else f'Manage {full} operations.'
                     action._choices_actions.append(action._ChoicesPseudoAction(name, [], summary))
             elif action.dest not in ('help','version'):
-                action.help=ARGUMENTS.get(action.dest, action.help)
+                action.help=SCOPED_ARGUMENTS.get((key,action.dest),ARGUMENTS.get(action.dest, action.help))
                 if not action.help: raise ValueError(f'Undocumented argument: {key} {action.dest}')
 
 # Optional container commands keep their domain documentation with the implementation.

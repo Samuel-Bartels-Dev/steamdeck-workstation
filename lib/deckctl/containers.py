@@ -523,6 +523,10 @@ def cleanup():
 
 
 def provision():
+    if 'dev' not in core.topo(core.enabled_modules()):
+        print('Optional Docker skipped: Development tools are not selected in this workstation plan.')
+        print('Run deckctl setup customize to select Development, or deckctl containers install to opt in directly.')
+        return 0
     cfg = config()
     if cfg.get('opt_in') is False:
         return 0
