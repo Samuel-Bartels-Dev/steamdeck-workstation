@@ -45,14 +45,17 @@ ApplicationWindow {
     property string notice: ""
     property string problem: ""
     property string endpoint: ""
-    readonly property var stageNames: ["Play & personalize", "Work & create", "Everyday essentials", "Desktop apps", "Review your setup", "Installation"]
+    readonly property var stageNames: ["Gaming", "Desktop apps", "Coding & work", "Remote & storage", "Review", "Install & finish"]
+    readonly property var stageHints: ["Launchers & appearance", "Everyday apps", "Editors & AI tools", "Streaming & backups", "Check your selections", "Setup & sign-in"]
+    readonly property var groupStages: [0, 2, 3]
+    readonly property var stageGroups: [0, -1, 1, 2]
     readonly property var stageDescriptions: [
-        "Make room for the way you play.",
-        "A capable workstation, on your terms.",
-        "Connect, organize, and look after your Deck.",
-        "Your everyday favorites, ready to go.",
-        "One last look before you make it yours.",
-        "Follow your setup, one feature at a time."]
+        "Choose game launchers, controller tools and Game Mode appearance.",
+        "Pick the apps you use for browsing, chat, editing and media.",
+        "Build a workspace around the tools you actually use. Each tool is optional.",
+        "Connect to other devices, watch streaming services and protect your files.",
+        "Check each selected item and its requirements before installing.",
+        "Install your choices, then finish setup, account sign-in and pairing."]
 
     function request(route, payload, callback) {
         var xhr = new XMLHttpRequest()
@@ -119,7 +122,7 @@ ApplicationWindow {
         if (defaults) values = detailPage === "plugins" ? data.defaultPlugins.slice() : detailPage === "css" ? data.defaultCss.slice() : pageItems(detailPage).map(function(x) { return x.id })
         setPageValues(detailPage, values)
     }
-    function browse(page) { if (page === "desktop-apps") { stage = 3; page = "" }; detailPage = page; searchText = ""; notice = ""; problem = "" }
+    function browse(page) { if (page === "desktop-apps") { stage = 1; page = "" }; detailPage = page; searchText = ""; notice = ""; problem = "" }
     function back() {
         if (detailPage) browse(detailPage === "css" ? "plugins" : "")
         else if (stage > 0) stage--
@@ -137,7 +140,7 @@ ApplicationWindow {
         return featureNames()[page] || page
     }
     function currentItems() {
-        var items = detailPage ? pageItems(detailPage) : stage < 3 ? (data.groups[stage] || {modules:[]}).modules : stage === 3 ? data.apps : []
+        var items = detailPage ? pageItems(detailPage) : stage === 1 ? data.apps : stage < 4 ? (data.groups[stageGroups[stage]] || {modules:[]}).modules : []
         var query = searchText.trim().toLowerCase()
         return items.filter(function(x) { return !query || (x.name + " " + x.summary).toLowerCase().indexOf(query) >= 0 })
     }
@@ -159,18 +162,19 @@ ApplicationWindow {
         }
         data.groups.forEach(function(group, index) {
             var atomic = group.modules.filter(function(x) { return !categoryPage(x.id) })
-            add(group.title, "", atomic, chosen, index)
+            add(group.title, "", atomic, chosen, groupStages[index])
             group.modules.forEach(function(m) {
                 var page = categoryPage(m.id)
-                if (page && page !== "desktop-apps") add(m.name, page, pageItems(page), pageValues(page), index)
+                if (page && page !== "desktop-apps") add(m.name, page, pageItems(page), pageValues(page), groupStages[index])
                 if (m.id === "decky") {
                     add("Decky › Plugins", "plugins", pageItems("plugins"), pageValues("plugins"), 0)
                     add("Decky › CSS Loader components", "css", pageItems("css"), pageValues("css"), 0)
                 }
             })
         })
-        add("AI workspace options", "ai-workspace", pageItems("ai-workspace"), pageValues("ai-workspace"), 1)
-        add("Desktop apps", "", data.apps, selectedApps, 3)
+        add("AI workspace options", "ai-workspace", pageItems("ai-workspace"), pageValues("ai-workspace"), 2)
+        add("Desktop apps", "", data.apps, selectedApps, 1)
+        sections.sort(function(a, b) { return a.targetStage - b.targetStage })
         return sections
     }
     function selectionCount() { return reviewSections().reduce(function(total, section) { return total + section.items.length }, 0) }
@@ -347,32 +351,36 @@ ApplicationWindow {
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 22; spacing: 8
                 Rectangle {
-                    Layout.topMargin: window.height < 620 ? 0 : 10; width: 42; height: 42; radius: 12; color: window.accent
+                    visible: window.height >= 600; Layout.topMargin: window.height < 620 ? 0 : 10; width: 42; height: 42; radius: 12; color: window.accent
                     Text { anchors.centerIn: parent; text: "W"; color: "#10251f"; font.pixelSize: 24; font.bold: true }
                 }
                 TextLabel { text: "DECK\nWORKSTATION"; font.pixelSize: 17; font.weight: Font.Bold; lineHeight: 1.18; Layout.topMargin: 10 }
-                TextLabel { text: "Make it yours."; color: window.muted; font.pixelSize: 13; Layout.bottomMargin: window.height < 620 ? 10 : 26 }
+                TextLabel { visible: window.height >= 600; text: "Make it yours."; color: window.muted; font.pixelSize: 13; Layout.bottomMargin: window.height < 620 ? 4 : 16 }
                 Repeater {
                     model: window.stageNames
                     delegate: AbstractButton {
                         id: nav
                         required property string modelData
                         required property int index
-                        Layout.fillWidth: true; implicitHeight: window.height < 620 ? 44 : 49
+                        Layout.fillWidth: true; implicitHeight: 58
                         enabled: window.loaded && !window.busy && !window.progress.running && (index !== 5 || window.saved)
                         onClicked: window.stage = index
                         background: Rectangle { radius: 10; color: window.stage === nav.index ? "#263a43" : "transparent"; border.color: nav.activeFocus ? window.accent : "transparent" }
                         contentItem: RowLayout {
                             spacing: 12
                             Text { Layout.leftMargin: 12; text: String(nav.index+1).padStart(2,"0"); color: window.stage === nav.index ? window.accent : "#7790a3"; font.pixelSize: 13 }
-                            TextLabel { text: nav.modelData; font.pixelSize: 13; color: window.stage === nav.index ? window.ink : window.muted; Layout.fillWidth: true }
+                            ColumnLayout {
+                                Layout.fillWidth: true; spacing: 4
+                                TextLabel { text: nav.modelData; font.pixelSize: 13; font.weight: Font.DemiBold; color: window.stage === nav.index ? window.ink : window.muted; Layout.fillWidth: true }
+                                TextLabel { text: window.stageHints[nav.index]; font.pixelSize: 10; color: window.muted; Layout.fillWidth: true; elide: Text.ElideRight; wrapMode: Text.NoWrap }
+                            }
                         }
                     }
                 }
                 Item { Layout.fillHeight: true }
-                Rectangle { visible: window.height >= 680; Layout.fillWidth: true; height: 1; color: "#2c3948" }
-                TextLabel { visible: window.height >= 680; text: "BUILT FOR YOUR DECK"; font.pixelSize: 10; font.letterSpacing: 1.2; color: "#8ba0b2"; Layout.topMargin: 14 }
-                TextLabel { visible: window.height >= 680; text: "Setup runs only while open.\nYour choices stay yours."; color: window.muted; font.pixelSize: 12; Layout.topMargin: 4 }
+                Rectangle { visible: window.height >= 780; Layout.fillWidth: true; height: 1; color: "#2c3948" }
+                TextLabel { visible: window.height >= 780; text: "BUILT FOR YOUR DECK"; font.pixelSize: 10; font.letterSpacing: 1.2; color: "#8ba0b2"; Layout.topMargin: 14 }
+                TextLabel { visible: window.height >= 780; text: "Setup runs only while open.\nYour choices stay yours."; color: window.muted; font.pixelSize: 12; Layout.topMargin: 4 }
             }
         }
         ColumnLayout {
@@ -405,7 +413,7 @@ ApplicationWindow {
                 TextField {
                     id: search
                     Layout.fillWidth: true; implicitHeight: 48
-                    visible: !!window.detailPage || window.stage === 3
+                    visible: !!window.detailPage || window.stage === 1
                     placeholderText: "Find an app or tool…"; placeholderTextColor: window.muted; color: window.ink
                     text: window.searchText; onTextEdited: window.searchText = text
                     leftPadding: 14; rightPadding: 14
@@ -440,10 +448,10 @@ ApplicationWindow {
                                 navigation: !window.detailPage && !!window.categoryPage(modelData.id)
                                 optionsPage: !window.detailPage && modelData.id === "decky" ? "plugins" : !window.detailPage && modelData.id === "ai-workspace" ? "ai-workspace" : window.detailPage === "plugins" && modelData.id === "SDH-CssLoader" ? "css" : ""
                                 selectedCount: navigation ? window.pageValues(window.categoryPage(modelData.id)).length : 0
-                                selected: window.detailPage ? window.pageValues(window.detailPage).indexOf(modelData.id) >= 0 : (window.stage === 3 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
+                                selected: window.detailPage ? window.pageValues(window.detailPage).indexOf(modelData.id) >= 0 : (window.stage === 1 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
                                 onClicked: {
                                     if (navigation) window.browse(window.categoryPage(modelData.id))
-                                    else window.toggle(modelData.id, window.stage === 3)
+                                    else window.toggle(modelData.id, window.stage === 1)
                                 }
                             }
                         }
@@ -481,9 +489,11 @@ ApplicationWindow {
                                     }
                                     Repeater {
                                         model: modelData.items
-                                        delegate: TextLabel {
+                                        delegate: ColumnLayout {
                                             required property var modelData
-                                            text: "✓  " + modelData.name; Layout.fillWidth: true; font.pixelSize: 14
+                                            Layout.fillWidth: true; spacing: 4
+                                            TextLabel { text: "✓  " + modelData.name; Layout.fillWidth: true; font.pixelSize: 14 }
+                                            TextLabel { text: modelData.summary; Layout.fillWidth: true; Layout.leftMargin: 20; color: window.muted; font.pixelSize: 12 }
                                         }
                                     }
                                 }
@@ -521,6 +531,7 @@ ApplicationWindow {
                                 }
                             }
                         }
+                        TextLabel { visible: window.allModules().indexOf("dev") >= 0; text: "Docker & Compose runs project databases and services in containers, keeping their dependencies separate from SteamOS. Install it if your projects need containers."; Layout.fillWidth: true; font.pixelSize: 13; color: window.muted }
                         Action { text: "Optional Docker & Compose"; visible: window.allModules().indexOf("dev") >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("docker") }
                         Action { text: "Continue setup & sign-in"; enabled: !window.progress.running && !window.busy && !window.data.planOnly; onClicked: window.startOperation("accounts") }
                     }

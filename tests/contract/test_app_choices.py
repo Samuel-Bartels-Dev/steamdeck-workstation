@@ -70,6 +70,15 @@ class Choices(unittest.TestCase):
         self.assertEqual(apps.selection(), [])
         self.assertEqual(self.calls, [])
 
+    def test_requested_apps_install_independently_and_reuse_existing(self):
+        names = ['parsec', 'slack', 'whatsapp', 'telegram', 'plex']
+        apps.save(names)
+        for _ in range(2):
+            for name in names:
+                self.assertEqual(apps.module_action('install', apps.catalog()[name]['id']), 0)
+        self.assertEqual(self.installed, {apps.catalog()[name]['id'] for name in names})
+        self.assertEqual(sum(c[1] == 'install' for c in self.calls), len(names))
+
     def test_invalid_selection_never_defaults_to_installing(self):
         core.CONFIG_HOME.mkdir()
         for value in ['{', '{"selected":null}', '{"selected":["unknown"]}', '{"selected":["zen","zen"]}']:

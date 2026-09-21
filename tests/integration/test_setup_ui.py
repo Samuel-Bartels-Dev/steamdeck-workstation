@@ -17,7 +17,7 @@ from deckctl import apps, core, setup_window, gaming_options, css_stack, compone
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
 class NativeSetup(unittest.TestCase):
     def test_real_window_saves_app_dependencies_without_installing(self):
-        for width, height in ((1120,720),(800,600)):
+        for width, height in ((1120,720),(800,600),(760,540)):
             with self.subTest(size=(width,height)):
                 self.check_flow(width,height)
 
@@ -46,10 +46,21 @@ UI.Setup {
                 if (app.currentItems().length !== 1) throw new Error("Search did not narrow results")
                 app.back()
                 app.browse("desktop-apps")
-                if (app.stage !== 3 || app.detailPage !== "") throw new Error("Desktop apps link did not open the app chooser")
+                if (app.stage !== 1 || app.detailPage !== "") throw new Error("Desktop apps link did not open the app chooser")
                 if (app.searchText !== "") throw new Error("Back retained stale search")
                 app.preset(false)
+                app.stage = 1
+                if (app.currentItems().map(function(x) { return x.id }).indexOf("zed") < 0) throw new Error("Apps are missing from their sidebar section")
+                app.stage = 2
+                if (app.currentItems().map(function(x) { return x.id }).indexOf("terminal") < 0) throw new Error("Coding section points to wrong group")
+                app.stage = 3
+                if (app.currentItems().map(function(x) { return x.id }).indexOf("remote") < 0) throw new Error("Remote section points to wrong group")
                 app.toggle("zed", true)
+                app.toggle("parsec", true)
+                app.toggle("slack", true)
+                app.toggle("whatsapp", true)
+                app.toggle("telegram", true)
+                app.toggle("plex", true)
                 app.toggle("gaming", false)
                 app.detailPage = "launchers"
                 app.toggle("heroic", false)
@@ -59,7 +70,7 @@ UI.Setup {
                 app.detailPage = "css"
                 app.detailPreset(false)
                 app.toggle("Round", false)
-                app.stage = 1
+                app.stage = 2
                 app.toggle("terminal", false)
                 app.detailPage = "terminal"
                 app.detailPreset(false)
@@ -86,7 +97,8 @@ UI.Setup {
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
             with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', side_effect=AssertionError('Smoke test must never install')):
                 self.assertEqual(setup_window.launch(), 0)
-                self.assertEqual(apps.selection(), ['zed'])
+                self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
+                self.assertEqual(component_options.selection()['remote'], [])
                 self.assertEqual(gaming_options.selection(), ['heroic'])
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
                 self.assertEqual(css_stack.selection(), ["Round"])

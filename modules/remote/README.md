@@ -19,3 +19,12 @@ and guided setup remove unchanged installer shortcuts only after the component
 verifies. Application launchers, user edits, recovery files and unrelated archives
 are retained. Inspect with `deckctl setup cleanup --dry-run`; run
 `deckctl setup cleanup` to reconcile an existing Desktop.
+
+## Parsec
+
+Choose Parsec under **Desktop apps**, or run `deckctl apps install parsec`.
+The [community Flathub package](https://flathub.org/en/apps/com.parsecgaming.parsec)
+installs in user space. Parsec on Linux is a client for connecting to Windows or
+macOS hosts; sign in with your Parsec account from the app menu. Selecting it
+does not select Moonlight, chiaki-ng or Tailscale in the setup window.
+Verification checks installation; test sign-in and streaming on your own host.

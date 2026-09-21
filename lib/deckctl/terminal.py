@@ -303,7 +303,8 @@ def _copy_managed_config(selected=None):
     if selected is None:
         from . import component_options
         selected = set(component_options.defaults()['terminal'])
-    files = {'starship': ('starship.toml', STARSHIP_CONFIG),
+    files = {'fastfetch': ('sharingan.txt', TERM_CONFIG / 'sharingan.txt'),
+             'starship': ('starship.toml', STARSHIP_CONFIG),
              'oh-my-posh': ('bubble-gum-rave.omp.json', POSH_CONFIG),
              'shell': ('terminal.sh', SHELL_CONFIG), 'tmux': ('tmux.conf', TMUX_CONFIG)}
     for key, (source, target) in files.items():

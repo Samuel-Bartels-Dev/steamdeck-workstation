@@ -23,3 +23,10 @@ through user Flathub installs. Choose them in the installer or run
 `deckctl apps install discord slack`. Existing saved selections are preserved;
 new catalog entries are not silently added to a saved selection. Login, calls,
 screen sharing and workspace access require configuration and testing in each app.
+
+Telegram and WhatsApp are also independent choices:
+`deckctl apps install telegram whatsapp`.
+[Telegram](https://flathub.org/en/apps/org.telegram.desktop) uses its desktop client.
+[Whatsie](https://flathub.org/en/apps/com.ktechpit.whatsie) is a third-party
+WhatsApp Web client, labeled **WhatsApp (Whatsie)** in the chooser. Link your
+phone in the app; deckctl does not collect login information.

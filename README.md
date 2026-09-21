@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.36
+# Steam Deck Workstation — v0.2.37
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -67,8 +67,8 @@ For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.36.tar.gz
-cd steamdeck-workstation-0.2.36
+tar -xzf steamdeck-workstation-v0.2.37.tar.gz
+cd steamdeck-workstation-0.2.37
 chmod +x install.sh
 ./install.sh
 ```
@@ -111,8 +111,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.36.tar.gz
-cd steamdeck-workstation-0.2.36
+tar -xzf steamdeck-workstation-v0.2.37.tar.gz
+cd steamdeck-workstation-0.2.37
 chmod +x install.sh
 ./install.sh
 ```
@@ -132,8 +132,8 @@ dverify
 ![Native Steam Deck setup app](docs/screenshots/setup-features.png)
 
 The installer opens a native Qt Quick setup app in Desktop Mode. A persistent
-sidebar guides you through gaming, workstation tools, everyday essentials,
-desktop apps, review, and installation. Feature cards have large touch targets,
+sidebar guides you through Gaming, Desktop apps, Coding & work, Remote & storage,
+Review, and Install & finish. Each section explains what belongs there. Feature cards have large touch targets,
 clear selected states, and keyboard focus indicators. The window adapts to the
 Deck display with scrolling content and a fixed action bar.
 
@@ -862,7 +862,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.36.md).
+See [the latest release notes](docs/RELEASE-0.2.37.md).
 
 ## Online releases and recovery
 
@@ -903,3 +903,11 @@ Selecting CSS Loader exposes **Choose components**: choose any subset of the cur
 Software category cards open individual choices without selecting the category. Terminal tools, development tools, remote clients, workspace web apps, streaming services, and local AI downloads can be selected individually. For example, choose only Ghostty without installing tmux, Neovim, fonts or shell themes. AI workspace includes its required OpenCode client; the local model requires Ollama. Existing software is retained when unchecked.
 
 The setup UI uses **browsing cards** for categories and **checkboxes** for individual installs. Browsing never changes your plan. Fresh setups start with no optional selections; saved plans are restored when reopened. Decky Loader owns plugin choices, and CSS Loader owns its component choices. Search within a category, review the actual selected items, then save or install. Full-preset and clear-all actions ask before replacing your choices.
+
+Every curated option includes a short explanation of its purpose, benefit, and relevant requirements. The same description appears in review so you can check why you selected it before installing. Sidebar labels and review links follow the same section order.
+
+Parsec, Slack, WhatsApp (via the third-party Whatsie client), Telegram and Plex
+Desktop are independent **Desktop apps** choices. You can also install only
+those apps with `deckctl apps install parsec slack whatsapp telegram plex`.
+See [app details](docs/APPS.md). The optional fastfetch + Shell helpers selections
+give `ff` red Sharingan-inspired ASCII artwork.

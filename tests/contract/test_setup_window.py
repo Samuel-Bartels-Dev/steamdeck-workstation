@@ -90,6 +90,19 @@ class SetupWindow(unittest.TestCase):
             setup_builder.save_plan(['decky'], [], [], [], ['unknown-theme'])
         self.assertFalse(core.CONFIG_HOME.exists())
 
+    def test_every_curated_choice_has_an_explanatory_blurb(self):
+        descriptions=core.load_json(core.ROOT/'config/setup-copy.json', {})
+        snapshot=setup_window.Session().snapshot()
+        sections={key:snapshot[key] for key in ('apps','launchers','plugins','css')}
+        sections['modules']=[item for group in snapshot['groups'] for item in group['modules']]
+        sections['components']=[item for items in snapshot['components'].values() for item in items]
+        for section, items in sections.items():
+            self.assertEqual(set(descriptions[section]), {item['id'] for item in items}, section)
+            for item in items:
+                self.assertEqual(item['summary'], descriptions[section][item['id']])
+                self.assertGreater(len(item['summary']), 35, (section,item['id']))
+                self.assertLess(len(item['summary']), 200, (section,item['id']))
+
     def test_plan_only_never_starts_installer(self):
         session = setup_window.Session(plan_only=True)
         session.save({'modules': ['base'], 'apps': []})
