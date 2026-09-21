@@ -19,6 +19,17 @@ import urllib.request
 from . import core, terminal
 
 MODEL = 'qwen2.5-coder:1.5b'
+LOCAL_MODELS = {
+    MODEL: {'name': 'Qwen 2.5 Coder 1.5B', 'component': 'model'},
+    'qwen2.5-coder:7b': {'name': 'Qwen 2.5 Coder 7B', 'component': 'model-7b'},
+}
+
+
+def selected_models():
+    from . import component_options
+    selected = component_options.effective('ai-workspace')
+    return [model for model, item in LOCAL_MODELS.items() if item['component'] in selected]
+
 HOST = '127.0.0.1'
 PORT = 11435  # Dedicated endpoint; never borrow/stop another Ollama server.
 HOME = Path.home()
@@ -41,7 +52,7 @@ def config_data():
             'provider': {
                 'local-ollama': {'npm': '@ai-sdk/openai-compatible', 'name': 'Local Ollama',
                                  'options': {'baseURL': f'http://{HOST}:{PORT}/v1'},
-                                 'models': {MODEL: {'name': 'Qwen 2.5 Coder 1.5B'}}},
+                                 'models': {model: {'name': item['name']} for model, item in LOCAL_MODELS.items()}},
                 'openai': {'name': 'ChatGPT Pro (sign in with OpenAI)'}},
             'agent': {'local-coder': {'description': 'Lightweight local coding chat; no tool execution',
                                       'mode': 'primary', 'model': 'local-ollama/' + MODEL,
@@ -185,8 +196,10 @@ def install_ollama():
                                 'runtime': str(destination)})
 
 
-def model_present():
-    manifest = MODELS / 'manifests/registry.ollama.ai/library/qwen2.5-coder/1.5b'
+def model_present(model=MODEL):
+    if model not in LOCAL_MODELS:
+        raise ValueError('Unknown local model: ' + model)
+    manifest = MODELS / 'manifests/registry.ollama.ai/library' / model.replace(':', '/')
     try:
         data = json.loads(manifest.read_text())
         layers = [data['config'], *data['layers']]
@@ -321,11 +334,13 @@ def run_client(command):
             stop_group(process)
 
 
-def pull():
+def pull(model=MODEL):
+    if model not in LOCAL_MODELS:
+        raise ValueError('Unknown local model: ' + model)
     with server():
-        if run_client([str(BIN / 'ollama'), 'pull', MODEL]):
+        if run_client([str(BIN / 'ollama'), 'pull', model]):
             raise RuntimeError('Model download failed; retry deckctl ai-workspace install')
-    if not model_present():
+    if not model_present(model):
         raise RuntimeError('Model manifest/blobs are incomplete after download')
 
 
@@ -335,15 +350,18 @@ def install():
     configure()  # Validate user configuration before downloads.
     from . import component_options
     if component_options.selected('ai-workspace', 'ollama'): install_ollama()
-    if component_options.selected('ai-workspace', 'model') and not model_present():
-        pull()
+    for model in selected_models():
+        if not model_present(model):
+            pull(model)
     guide()
     return 0
 
 
 def guide():
     print('''\nON-DEMAND AI WORKSPACE
-Local: deckctl ai-workspace open
+Local (uses your selected model; prefers lightweight if both selected): deckctl ai-workspace open
+Lightweight: deckctl ai-workspace open --model qwen2.5-coder:1.5b
+Higher quality: deckctl ai-workspace open --model qwen2.5-coder:7b
 ChatGPT Pro setup: run opencode, enter /connect, choose OpenAI -> ChatGPT Plus/Pro, then finish browser sign-in.
 Then list models: opencode models openai
 Cloud: deckctl ai-workspace open --profile chatgpt-pro --model openai/MODEL_FROM_LIST
@@ -365,10 +383,11 @@ def status(as_json=False):
     from . import component_options
     required = ['opencode'] + (['ollama'] if component_options.selected('ai-workspace','ollama') else [])
     tools = {name: os.access(BIN / name, os.X_OK) for name in required}
-    loaded = model_present()
-    data = {'status': 'READY' if all(tools.values()) and config_ok and (loaded or not component_options.selected('ai-workspace','model')) else 'NOT_INSTALLED',
+    models = {model: model_present(model) for model in selected_models()}
+    loaded = bool(models) and all(models.values())
+    data = {'status': 'READY' if all(tools.values()) and config_ok and all(models.values()) else 'NOT_INSTALLED',
             'message': 'On-demand workspace installation; accounts and GUI behavior require separate checks.',
-            'tools': tools, 'config_ready': config_ok, 'model_downloaded': loaded,
+            'tools': tools, 'config_ready': config_ok, 'model_downloaded': loaded, 'selected_models': models,
             'endpoint_in_use': occupied(), 'endpoint': f'http://{HOST}:{PORT}', 'autostart': False}
     print(json.dumps(data, indent=2) if as_json else '\n'.join(f'{k}: {v}' for k, v in data.items()))
     return 0 if data['status'] == 'READY' else 1
@@ -380,7 +399,7 @@ def add_parser(subparsers):
     sp.add_parser('install'); sp.add_parser('guide')
     st = sp.add_parser('status'); st.add_argument('--json', action='store_true')
     op = sp.add_parser('open'); op.add_argument('--profile', choices=['local-ollama', 'chatgpt-pro'], default='local-ollama', help='Local owned engine or OpenAI subscription provider.')
-    op.add_argument('--model', help='OpenAI model ID from opencode models openai; required for chatgpt-pro.')
+    op.add_argument('--model', help='Local: qwen2.5-coder:1.5b or qwen2.5-coder:7b. Cloud: openai/MODEL_FROM_LIST (required).')
 
 
 def dispatch(args):
@@ -397,9 +416,13 @@ def dispatch(args):
             raise ValueError('Use --model openai/MODEL_FROM_LIST; see opencode models openai after sign-in')
         with signal_cleanup():
             return run_client([str(BIN / 'opencode'), '--model', args.model])
-    if args.model:
-        raise ValueError('Local profile uses the pre-pulled qwen2.5-coder:1.5b model')
-    if not model_present():
-        raise ValueError('Local model is missing; run deckctl ai-workspace install')
+    choices = selected_models()
+    model = args.model or (choices[0] if choices else MODEL)
+    if model.startswith('local-ollama/'):
+        model = model.removeprefix('local-ollama/')
+    if model not in LOCAL_MODELS:
+        raise ValueError('Choose qwen2.5-coder:1.5b or qwen2.5-coder:7b for the local profile')
+    if not model_present(model):
+        raise ValueError(f'{model} is missing; select it in setup, then run deckctl ai-workspace install')
     with server():
-        return run_client([str(BIN / 'opencode'), '--agent', 'local-coder', '--model', 'local-ollama/' + MODEL])
+        return run_client([str(BIN / 'opencode'), '--agent', 'local-coder', '--model', 'local-ollama/' + model])

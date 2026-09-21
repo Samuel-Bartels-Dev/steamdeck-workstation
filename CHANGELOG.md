@@ -1,5 +1,10 @@
 # v0.2.34
 
+## v0.2.38
+
+- Add independent lightweight Qwen 2.5 Coder 1.5B and higher-quality 7B model choices, selected-only downloads and explicit local model launching.
+- Preserve legacy defaults, existing model downloads and owned-process cleanup.
+
 ## v0.2.37
 
 - Add individual Parsec, Telegram and WhatsApp (Whatsie) choices alongside Slack and Plex; add Sharingan-inspired artwork to `ff`.

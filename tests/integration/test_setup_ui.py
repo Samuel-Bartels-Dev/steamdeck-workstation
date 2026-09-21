@@ -75,6 +75,10 @@ UI.Setup {
                 app.detailPage = "terminal"
                 app.detailPreset(false)
                 app.toggle("ghostty", false)
+                app.detailPage = "ai-workspace"
+                app.toggle("model-7b", false)
+                if (app.pageValues("ai-workspace").indexOf("model") >= 0) throw new Error("7B unexpectedly selected 1.5B")
+                if (app.dependencyNotes().join(" ").indexOf("Ollama") < 0) throw new Error("7B missing engine dependency note")
                 app.stage = 4
                 var names = app.reviewSections().reduce(function(out, section) { return out.concat(section.items.map(function(x) { return x.name })) }, [])
                 if (names.indexOf("Ghostty") < 0 || names.indexOf("tmux") >= 0) throw new Error("Review is not the actual item selection")
@@ -99,6 +103,7 @@ UI.Setup {
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
                 self.assertEqual(component_options.selection()['remote'], [])
+                self.assertEqual(component_options.selection()['ai-workspace'], ['model-7b'])
                 self.assertEqual(gaming_options.selection(), ['heroic'])
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
                 self.assertEqual(css_stack.selection(), ["Round"])

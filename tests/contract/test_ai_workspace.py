@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """No vendor installs: isolated config, fake engine, real process/HTTP cleanup."""
 import contextlib
+import argparse
 import hashlib
 import io
 import json
@@ -18,7 +19,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'lib'))
-from deckctl import ai_workspace as ai, core, terminal
+from deckctl import ai_workspace as ai, core, terminal, component_options
 
 
 def alive(pid):
@@ -40,7 +41,7 @@ class Workspace(unittest.TestCase):
         patches = [(ai, 'HOME', self.home), (ai, 'BIN', self.bin),
                    (ai, 'MODELS', self.home / 'models'), (ai, 'DATA', self.home / 'data'),
                    (ai, 'CONFIG', self.home / 'opencode/config.json'), (ai, 'PORT', self.port),
-                   (ai, 'RECEIPT', self.home / 'state/install.json'), (core, 'STATE', self.home / 'state')]
+                   (ai, 'RECEIPT', self.home / 'state/install.json'), (core, 'STATE', self.home / 'state'), (core, 'CONFIG_HOME', self.home / 'config')]
         for obj, name, value in patches:
             p = patch.object(obj, name, value); p.start(); self.addCleanup(p.stop)
         fake = self.bin / 'ollama'
@@ -61,7 +62,7 @@ if sys.argv[1]=='serve':
 if sys.argv[1]=='pull':
     if (root/'fail-pull').exists(): sys.exit(4)
     models=Path(os.environ['OLLAMA_MODELS']);digest='sha256:'+('a'*64)
-    manifest=models/'manifests/registry.ollama.ai/library/qwen2.5-coder/1.5b'
+    manifest=models/'manifests/registry.ollama.ai/library'/sys.argv[2].replace(':','/')
     manifest.parent.mkdir(parents=True,exist_ok=True)
     (models/'blobs').mkdir(exist_ok=True)
     (models/'blobs'/digest.replace(':','-')).write_bytes(b'test')
@@ -117,6 +118,45 @@ if sys.argv[1]=='pull':
         with self.assertRaisesRegex(RuntimeError, 'download failed'):
             ai.pull()
         self.assert_stopped()
+
+    def test_both_models_pull_once_and_status_requires_each_selected_model(self):
+        core.save_json(core.CONFIG_HOME/'components.json', {'ai-workspace':['model','model-7b']})
+        with patch.object(ai.os, 'geteuid', return_value=1000), patch.object(ai, 'install_ollama'), patch.object(ai, 'guide'), patch.object(ai, 'pull', wraps=ai.pull) as pull:
+            ai.install()
+            self.assertEqual([c.args[0] for c in pull.call_args_list], list(ai.LOCAL_MODELS))
+            ai.install()
+            self.assertEqual(pull.call_count, 2)
+        self.assert_stopped()
+        (self.bin/'opencode').write_text('#!/bin/sh\nexit 0\n'); (self.bin/'opencode').chmod(0o755)
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(ai.status(True), 0)
+            (ai.MODELS/'manifests/registry.ollama.ai/library/qwen2.5-coder/7b').unlink()
+            self.assertEqual(ai.status(True), 1)
+        self.assertFalse(ai.occupied())
+
+    def test_larger_only_is_default_and_explicit_lightweight_is_supported(self):
+        core.save_json(core.CONFIG_HOME/'components.json', {'ai-workspace':['model-7b']})
+        self.assertEqual(ai.selected_models(), ['qwen2.5-coder:7b'])
+        self.assertIn('ollama', component_options.effective('ai-workspace'))
+        ai.configure()
+        with patch.object(ai, 'model_present', return_value=True), patch.object(ai, 'server', return_value=contextlib.nullcontext()), patch.object(ai, 'run_client', return_value=0) as client:
+            ai.dispatch(argparse.Namespace(ai_command='open', profile='local-ollama', model=None))
+            self.assertEqual(client.call_args.args[0][-1], 'local-ollama/qwen2.5-coder:7b')
+            ai.dispatch(argparse.Namespace(ai_command='open', profile='local-ollama', model=ai.MODEL))
+            self.assertEqual(client.call_args.args[0][-1], 'local-ollama/' + ai.MODEL)
+            with self.assertRaises(ValueError):
+                ai.dispatch(argparse.Namespace(ai_command='open', profile='local-ollama', model='../unknown'))
+
+    def test_legacy_defaults_do_not_add_large_download(self):
+        self.assertEqual(ai.selected_models(), [ai.MODEL])
+        ai.configure()
+        config = json.loads(ai.CONFIG.read_text())
+        del config['provider']['local-ollama']['models']['qwen2.5-coder:7b']
+        config['theme'] = 'personal'
+        ai.CONFIG.write_text(json.dumps(config))
+        ai.configure()
+        self.assertEqual(json.loads(ai.CONFIG.read_text())['theme'], 'personal')
+        self.assertIn('qwen2.5-coder:7b', json.loads(ai.CONFIG.read_text())['provider']['local-ollama']['models'])
 
     def test_sigterm_cleanup_in_supervisor(self):
         code = f'''import sys,time

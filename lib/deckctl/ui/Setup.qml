@@ -148,7 +148,7 @@ ApplicationWindow {
         var notes = []
         if (chosen.indexOf("ai-workspace") >= 0) {
             if (pageValues("terminal").indexOf("opencode") < 0) notes.push("OpenCode — required by AI workspace")
-            if (pageValues("ai-workspace").indexOf("model") >= 0 && pageValues("ai-workspace").indexOf("ollama") < 0) notes.push("Ollama — required by the local model")
+            if ((pageValues("ai-workspace").indexOf("model") >= 0 || pageValues("ai-workspace").indexOf("model-7b") >= 0) && pageValues("ai-workspace").indexOf("ollama") < 0) notes.push("Ollama — required by the local model")
         }
         if (pageValues("workspace").length || pageValues("media").length) notes.push("Google Chrome — shared by your selected web apps")
         return notes
