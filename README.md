@@ -55,7 +55,15 @@ Repeatable SteamOS provisioning for a Steam Deck used as a gaming handheld, emul
 
 Finish Valve's first-run wizard first: connect Wi-Fi, sign into Steam, install all **Stable** SteamOS updates, reboot, and switch to **Desktop Mode**.
 
-If you copied the release tarball from USB into `~/Downloads`:
+Open **Konsole** and paste this one-line installer command:
+
+```bash
+curl -fL https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstation/main/bootstrap.sh -o /tmp/steamdeck-workstation-install.sh && bash /tmp/steamdeck-workstation-install.sh
+```
+
+This downloads the latest published stable release, checks its archive against the release checksums, and starts setup. Run it as your normal user, without sudo.
+
+For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
