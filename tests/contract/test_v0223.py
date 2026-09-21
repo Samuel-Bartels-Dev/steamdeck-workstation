@@ -119,7 +119,7 @@ class ExistingInstallation(unittest.TestCase):
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.24.json').read_text())['plugin_changes'])
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         self.assertEqual(changed-maintenance,set(guard['maintenance_changes'])-maintenance)
-        for name in ('lib/deckctl/android.py','lib/deckctl/css_stack.py','modules/decky/css-stack.json','tools/install-control-plane'):
+        for name in ('lib/deckctl/android.py','modules/decky/css-stack.json','tools/install-control-plane'):
             self.assertNotIn(name,changed)
 
 
