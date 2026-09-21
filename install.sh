@@ -46,6 +46,11 @@ fi
 printf '\nPersistent command installed: %s\n' "$HOME/.local/bin/deckctl"
 printf 'Open a new terminal after setup for aliases: dplan, dverify, dsetup, dplugins, etc.\n'
 
+if [[ -n "${DISPLAY:-}${WAYLAND_DISPLAY:-}" ]] && { command -v qml6 >/dev/null || command -v qml >/dev/null; }; then
+  ./bin/deckctl detect
+  ./bin/deckctl profile auto || true
+  exec ./bin/deckctl setup customize
+fi
 ./bin/deckctl setup customize
 
 ./bin/deckctl detect

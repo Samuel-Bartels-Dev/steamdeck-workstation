@@ -11,6 +11,13 @@ ACCOUNT_STEPS={'heroic','battlenet','keeper','tailscale','moonlight','chiaki'}
 AUTO_STEPS={'decky','emudeck','android','decky_plugins','decky_plugin_install',
             'decky_theme','workspace','media','controller_templates','codex'}
 
+def selected(step, enabled):
+    from . import gaming_options
+    if step.get('module') and step['module'] not in enabled:
+        return False
+    return step['id'] not in ('heroic', 'battlenet') or gaming_options.selected(step['id'])
+
+
 def detected(step):
     try:
         with contextlib.redirect_stdout(io.StringIO()):
@@ -32,7 +39,7 @@ def rows():
     enabled=set(core.topo(core.enabled_modules()))
     for step in core.setup_steps():
         sid=step['id']
-        if step.get('module') and step['module'] not in enabled:
+        if not selected(step, enabled):
             out.append({'id':sid,'title':step['title'],'status':'NOT_SELECTED','installed':False,
                         'message':'Optional feature is not in the current workstation plan.',
                         'retry':'deckctl setup customize','verification':'feature selection'})
@@ -81,7 +88,7 @@ def run(step_id=None):
     all_steps=core.setup_steps()
     if step_id and step_id not in {s['id'] for s in all_steps}:raise ValueError(f'Unknown setup step: {step_id}')
     enabled=set(core.topo(core.enabled_modules()))
-    steps=[s for s in all_steps if not s.get('module') or s['module'] in enabled]
+    steps=[s for s in all_steps if selected(s, enabled)]
     if step_id and step_id not in {s['id'] for s in steps}:
         raise ValueError(f'Setup stage {step_id} is not selected; use deckctl setup customize first.')
     if step_id:steps=[s for s in steps if s['id']==step_id]

@@ -32,11 +32,37 @@ class CSSError(RuntimeError):
     pass
 
 
-def _stack():
+def _stack(unfiltered=False):
     data = json.loads(STACK_PATH.read_text())
     if data.get('schema_version') != 3 or not data.get('required'):
         raise CSSError('Invalid CSS stack manifest')
+    if not unfiltered:
+        names = selection()
+        items = data['required'] + data['recommended'] + data.get('optional', [])
+        data['required'] = [item for item in items if item['name'] in names]
+        data['recommended'] = []
     return data
+
+
+def selection():
+    data = _stack(unfiltered=True)
+    state = core.load_json(core.CONFIG_HOME/'css-selection.json', None)
+    defaults = [item['name'] for item in data['required'] + data['recommended']]
+    return validate_selection(state['selected']) if state is not None else defaults
+
+
+def validate_selection(values):
+    data = _stack(unfiltered=True)
+    known = {item['name'] for category in ('required', 'recommended', 'optional') for item in data.get(category, [])}
+    if not isinstance(values, (list, set, tuple)) or any(not isinstance(x,str) or x not in known for x in values):
+        raise ValueError('Invalid CSS Loader component selection')
+    return sorted(set(values))
+
+
+def selection_items():
+    data = _stack(unfiltered=True)
+    return [{'id': item['name'], 'name': item['name'], 'summary': item.get('reason', '')}
+            for category in ('required', 'recommended', 'optional') for item in data.get(category, [])]
 
 
 def _read(path):
@@ -313,13 +339,18 @@ def _migrate_legacy():
 
 
 def _manifest_hash():
-    return hashlib.sha256(STACK_PATH.read_bytes()).hexdigest()
+    raw = STACK_PATH.read_bytes()
+    if (core.CONFIG_HOME/'css-selection.json').exists():
+        raw += json.dumps(sorted(selection())).encode()
+    return hashlib.sha256(raw).hexdigest()
 
 
 def readiness():
     """Read-only, persisted-state verification; never treats a receipt alone as proof."""
     try:
         stack = _stack()
+        if not stack['required'] and not stack['recommended']:
+            return True, 'No CSS components selected; existing themes are unchanged'
         if not core._decky_loader_present():
             return False, 'Decky Loader is missing'
         plugin = core._decky_installed_plugins().get('SDH-CssLoader', {})

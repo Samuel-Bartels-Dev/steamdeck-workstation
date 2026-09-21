@@ -13,7 +13,7 @@
 3. Reboot after updates.
 4. Switch to **Desktop Mode**.
 5. Connect a keyboard/mouse if convenient.
-6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.33`).
+6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.34`).
 7. Extract it if needed.
 8. Open Konsole in the project folder.
 9. Run:
@@ -24,7 +24,7 @@ chmod +x install.sh
 ```
 
 10. The installer opens the setup builder. Choose optional feature stages and desktop apps, review your plan, and confirm. The shipped defaults are preselected; you can clear anything you do not need. This saves choices only.
-11. Review the selected modules with `./bin/deckctl plan`, then continue through the installer to install only that plan.
+11. Review selected features and included dependencies. Choose **Save for later** or **Save & install**. Follow real module results on the installation page; vendor prompts open in Konsole.
 12. Complete the displayed checklist for selected features:
    - Tailscale authentication/install flow.
    - Decky stable installer, then curated plugins.

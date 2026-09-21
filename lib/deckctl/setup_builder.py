@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
-from . import apps, core
+from . import apps, core, gaming_options, css_stack
 
 
 def catalog():
@@ -40,18 +40,6 @@ def save_modules(names):
     return _ordered(chosen)
 
 
-def _dialog(title,prompt,items,selected):
-    cmd=['kdialog','--title',title,'--geometry','1080x680','--separate-output','--checklist',prompt]
-    for item in items:
-        key=item['id']
-        label=f"{item['name']}  ·  {item.get('summary','')}"
-        cmd.extend([key,label,'on' if key in selected else 'off'])
-    result=subprocess.run(cmd,text=True,capture_output=True)
-    if result.returncode:
-        return None
-    return {line.strip().strip('"') for line in result.stdout.splitlines() if line.strip()}
-
-
 def _terminal_checklist(title,description,items,selected):
     print(f'\n{title}\n{description}')
     for item in items:
@@ -74,9 +62,12 @@ def _app_items():
 
 
 def _app_module_roots(module_roots,selected_apps):
-    owners={item['id']:item.get('module') for item in apps.catalog().values()}
+    owners={key:item.get('module') for key,item in apps.catalog().items()}
     roots=set(module_roots)
-    for app in selected_apps:
+    unknown=roots-set(core.module_manifests())
+    if unknown:
+        raise ValueError('Unknown module: '+', '.join(sorted(unknown)))
+    for app in apps.known(selected_apps):
         owner=owners.get(app)
         if owner: roots.add(owner)
     return _ordered(roots)
@@ -102,79 +93,77 @@ def _summary(modules,selected_apps,app_added_modules=()):
     return '\n'.join(lines)
 
 
-def configure_ui():
-    data=catalog(); module_roots=set(core.enabled_modules()); app_selection=set(apps.selection())
-    graphical=bool(shutil.which('kdialog') and (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')))
-    if not graphical and not sys.stdin.isatty():
-        print('Setup chooser needs Steam Deck Desktop Mode or an interactive terminal.',file=sys.stderr)
-        return 2
+def plugin_items():
+    items=core._decky_item_map()
+    for key in core._decky_selected_folders():
+        items.setdefault(key, {'name': key, 'reason': 'Existing custom plugin selection'})
+    return [{'id': key, 'name': item['name'], 'summary': item.get('reason', '')}
+            for key, item in items.items()]
+
+
+def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None):
+    if css is not None: css=css_stack.validate_selection(css)
+    if launchers is not None: launchers=gaming_options.validate(launchers)
+    if plugins is not None:
+        known={item['id'] for item in plugin_items()}
+        if not isinstance(plugins, (list, set, tuple)) or any(not isinstance(x,str) or x not in known for x in plugins):
+            raise ValueError('Invalid Decky plugin selection')
+    files=[core.CONFIG_HOME/'modules.json', core.CONFIG_HOME/'apps.json']
+    if launchers is not None: files.append(core.CONFIG_HOME/'gaming-selection.json')
+    if plugins is not None: files.append(core._decky_selection_path())
+    if css is not None: files.append(core.CONFIG_HOME/'css-selection.json')
+    previous=[p.read_bytes() if p.exists() else None for p in files]
     try:
-        if graphical:
-            intro=('BUILD YOUR STEAM DECK WORKSTATION\n\n'
-                   'Choose the features and apps that fit how you use your Deck. Base support stays enabled; '
-                   'dependencies are included automatically.\n\n'
-                   'This is a plan builder. It does not install or remove anything. You can change these choices later.\n\n'
-                   'The current repository defaults are preselected. Clear any stage you do not want, or use '
-                   '`deckctl setup customize --minimal` for a base-only setup.')
-            if subprocess.run(['kdialog','--title','Steam Deck Workstation · Build your setup',
-                               '--geometry','900x520','--msgbox',intro]).returncode:
-                return 0
-            for index,group in enumerate(data['groups'],start=1):
-                chosen=_dialog(f"{index:02d} / {len(data['groups'])}  ·  {group['title']}",
-                               group['description']+'\n\nSelect the features you want. Checked items are in your plan.',
-                               group['modules'],module_roots)
-                if chosen is None:
-                    print('Setup choices cancelled; previous settings were kept.')
-                    return 0
-                module_roots.difference_update(x['id'] for x in group['modules'])
-                module_roots.update(chosen)
-            selected=_dialog(f"{len(data['groups'])+1:02d}  ·  Desktop apps",
-                             'Choose optional desktop apps. Existing installations are kept when deselected.',
-                             _app_items(),app_selection)
-            if selected is None:
-                print('Setup choices cancelled; previous settings were kept.')
-                return 0
-            app_selection=selected
-        else:
-            print('Steam Deck Workstation setup builder')
-            print('Choose the pieces you want. Choices are saved only after the final review.')
-            for group in data['groups']:
-                module_roots=_terminal_checklist(group['title'],group['description'],group['modules'],module_roots)
-            app_selection=_terminal_checklist('Desktop apps','Optional Flatpak apps; existing installations are kept.',
-                                              _app_items(),app_selection)
-    except (KeyboardInterrupt,EOFError):
-        print('\nSetup choices cancelled; previous settings were kept.')
-        return 0
-    chosen_roots=set(module_roots)|set(data['required_modules'])
-    module_roots=set(_app_module_roots(chosen_roots,app_selection))
-    app_added_modules=module_roots-chosen_roots
-    normalized=_ordered(module_roots)
-    modules_file=core.CONFIG_HOME/'modules.json'; apps_file=core.CONFIG_HOME/'apps.json'
-    old_modules=modules_file.read_bytes() if modules_file.exists() else None
-    old_apps=apps_file.read_bytes() if apps_file.exists() else None
-    if graphical:
-        if subprocess.run(['kdialog','--defaultno','--title','Review your workstation plan','--geometry','1080x680',
-                           '--yesno',_summary(normalized,sorted(app_selection),app_added_modules)]).returncode:
-            print('Setup choices cancelled; previous settings were kept.')
-            return 0
-    else:
-        print('\n'+_summary(normalized,sorted(app_selection),app_added_modules))
-        if input('\nSave this setup plan? [Y/n] ').strip().lower() in ('n','no'):
-            print('Setup choices cancelled; previous settings were kept.')
-            return 0
-    try:
-        save_modules(normalized)
-        apps.save(app_selection)
-    except (OSError,ValueError) as exc:
-        for path,old in ((modules_file,old_modules),(apps_file,old_apps)):
+        save_modules(modules)
+        apps.save(apps.known(selected_apps))
+        if launchers is not None:
+            core.save_json(core.CONFIG_HOME/'gaming-selection.json', {'selected': launchers})
+        if plugins is not None:
+            state=core.load_json(core._decky_selection_path(), {})
+            items=core._decky_item_map()
+            state.update(schema_version=1, explicit_selection=True,
+                         manifest_schema_version=core._decky_manifest()['schema_version'],
+                         selected_folders=sorted(set(plugins)),
+                         selected_plugins=[items.get(x,{}).get('name',x) for x in sorted(set(plugins))])
+            core.save_json(core._decky_selection_path(), state)
+        if css is not None:
+            core.save_json(core.CONFIG_HOME/'css-selection.json', {'selected': css})
+    except (OSError,ValueError):
+        for path,old in zip(files,previous):
             if old is None: path.unlink(missing_ok=True)
             else: path.write_bytes(old)
-        print(f'Could not save the complete setup plan: {exc}',file=sys.stderr)
-        return 1
-    print('Setup plan saved. Review with `deckctl plan`, then run `deckctl apply`.')
-    print('Selected desktop apps are installed by their modules during `deckctl apply`.')
-    print('Use `deckctl setup run` for the selected, individually skippable sign-in and pairing stages.')
-    return 0
+        raise
+
+
+def configure_ui():
+    if (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')) and (shutil.which('qml6') or shutil.which('qml')):
+        from . import setup_window
+        return setup_window.launch(os.environ.get('DECKCTL_SETUP_PLAN_ONLY')=='1')
+    if not sys.stdin.isatty():
+        print('Open setup in Desktop Mode or an interactive terminal.',file=sys.stderr)
+        return 2
+    data=catalog(); roots=set(core.enabled_modules()); selected=set(apps.selection())
+    try:
+        for group in data['groups']:
+            roots=_terminal_checklist(group['title'],group['description'],group['modules'],roots)
+        selected=_terminal_checklist('Desktop apps','Optional apps; existing installations are kept.',_app_items(),selected)
+        launchers=set(gaming_options.selection()); plugins=set(core._decky_selected_folders()); css=set(css_stack.selection())
+        if 'gaming' in roots:
+            launchers=_terminal_checklist('Launchers and tools','Choose each item independently.',gaming_options.ITEMS,launchers)
+        if 'decky' in roots:
+            plugins=_terminal_checklist('Decky plugins','Every plugin is optional.',plugin_items(),plugins)
+        if 'decky' in roots and 'SDH-CssLoader' in plugins:
+            css=_terminal_checklist('CSS Loader components','Every component is optional.',css_stack.selection_items(),css)
+        normalized=_app_module_roots(roots,selected)
+        print(_summary(normalized,sorted(selected),set(normalized)-roots-{'base'}))
+        if input('Save this plan? [y/N] ').strip().lower() not in ('y','yes'):
+            return 0
+        save_plan(normalized,selected,launchers,plugins,css)
+        print('Plan saved. Run deckctl apply, then deckctl setup run.')
+        return 0
+    except (KeyboardInterrupt,EOFError):
+        print('Cancelled. Your previous plan is unchanged.')
+        return 0
 
 
 def configure_defaults(minimal=False,module_names=None,app_names=None):
@@ -188,8 +177,7 @@ def configure_defaults(minimal=False,module_names=None,app_names=None):
     else:
         selected=apps.known(app_names)
     modules=_app_module_roots(modules,selected)
-    save_modules(modules)
-    apps.save(selected)
+    save_plan(modules, selected)
     print(_summary(modules,selected))
     print('Setup plan saved. Review with `deckctl plan`, then run `deckctl apply`.')
     return 0

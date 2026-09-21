@@ -131,7 +131,7 @@ class SelectionUpgrade(unittest.TestCase):
         delegated=set(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         changed-=delegated
         self.assertEqual(changed,set(guard['plugin_changes'])-delegated)
-        for name in ['lib/deckctl/android.py','lib/deckctl/css_stack.py','modules/decky/css-stack.json',
+        for name in ['lib/deckctl/android.py','modules/decky/css-stack.json',
                      'lib/deckctl/setup_cleanup.py','lib/deckctl/reliability.py','install.sh','tools/install-control-plane']:
             self.assertNotIn(name,changed)
 
