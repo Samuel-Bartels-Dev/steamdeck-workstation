@@ -11,6 +11,8 @@ Describe the scope, including any provisioning or stored-state changes.
 - [ ] `python3 tools/lint-repo.py` passes.
 - [ ] `./bin/deckctl repo validate` passes.
 - [ ] PR regression and package verification jobs pass on Python 3.12 and 3.13.
+- [ ] Security/dependency checks and installer UI smoke pass.
+- [ ] Space checks, current-version skips and failed-update recovery are covered when downloads change.
 - [ ] New behavior has a regression test that checks resulting state.
 
 ## Upgrade and recovery review

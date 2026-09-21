@@ -22,6 +22,8 @@ sys.path.insert(0, str(ROOT / 'lib'))
 from deckctl import ai_workspace as ai, core, terminal, component_options
 
 
+REAL_OLLAMA_PLAN = ai.ollama_release_plan
+
 def alive(pid):
     try:
         # A reparented zombie is no longer executing or retaining model memory.
@@ -44,6 +46,12 @@ class Workspace(unittest.TestCase):
                    (ai, 'RECEIPT', self.home / 'state/install.json'), (core, 'STATE', self.home / 'state'), (core, 'CONFIG_HOME', self.home / 'config')]
         for obj, name, value in patches:
             p = patch.object(obj, name, value); p.start(); self.addCleanup(p.stop)
+        p = patch.object(ai.shutil, 'disk_usage', return_value=type('Usage', (), {'free': 32 * 1024**3})())
+        p.start(); self.addCleanup(p.stop)
+        p = patch.object(ai, 'ollama_release_plan', return_value=None)
+        p.start(); self.addCleanup(p.stop)
+        p = patch.object(ai.terminal, '_request', side_effect=OSError('offline fixture'))
+        p.start(); self.addCleanup(p.stop)
         fake = self.bin / 'ollama'
         fake.write_text(f'''#!{sys.executable}
 import json,os,sys,time,subprocess
@@ -146,6 +154,45 @@ if sys.argv[1]=='pull':
             self.assertEqual(client.call_args.args[0][-1], 'local-ollama/' + ai.MODEL)
             with self.assertRaises(ValueError):
                 ai.dispatch(argparse.Namespace(ai_command='open', profile='local-ollama', model='../unknown'))
+
+    def test_low_space_stops_before_config_or_download_and_complete_models_are_free(self):
+        core.save_json(core.CONFIG_HOME/'components.json', {'ai-workspace':['model','model-7b']})
+        with patch.object(ai.os, 'geteuid', return_value=1000), patch.object(ai, '_storage_info', return_value=(self.home, 1, 2*1024**3)), patch.object(ai, 'install_ollama') as runtime, patch.object(ai, 'pull') as pull:
+            with self.assertRaisesRegex(RuntimeError, 'free at least'):
+                ai.install()
+            runtime.assert_not_called(); pull.assert_not_called()
+            self.assertFalse(ai.CONFIG.exists())
+            with patch.object(ai, 'model_present', return_value=True):
+                self.assertEqual(ai.check_space(ai.LOCAL_MODELS), {})
+
+    def test_space_budgets_combine_same_volume_and_check_external_model_store(self):
+        gib = 1024**3
+        with patch.object(ai, 'model_present', return_value=False), patch.object(ai, '_storage_info', return_value=(self.home, 1, 32*gib)):
+            plan = ai.check_space(ai.LOCAL_MODELS, runtime=True)
+            self.assertEqual(plan[1]['needed'], int(16.75*gib))
+        def storage(path):
+            return (path, 2, 2*gib) if path == ai.MODELS else (path, 1, 32*gib)
+        with patch.object(ai, '_storage_info', side_effect=storage):
+            with self.assertRaisesRegex(RuntimeError, 'qwen2.5-coder:7b'):
+                ai.check_space(['qwen2.5-coder:7b'], runtime=True)
+
+    def test_model_update_uses_manifest_metadata_and_handles_offline(self):
+        ai.pull()
+        local=json.loads((ai.MODELS/'manifests/registry.ollama.ai/library/qwen2.5-coder/1.5b').read_text())
+        with patch.object(ai.terminal, '_request', return_value=json.dumps(local).encode()):
+            self.assertFalse(ai.model_update_needed(ai.MODEL))
+        remote=dict(local, layers=[{'digest':'sha256:'+'b'*64,'size':5}])
+        with patch.object(ai.terminal, '_request', return_value=json.dumps(remote).encode()):
+            self.assertTrue(ai.model_update_needed(ai.MODEL))
+        with patch.object(ai.terminal, '_request', side_effect=OSError('offline')):
+            self.assertFalse(ai.model_update_needed(ai.MODEL))
+
+    def test_ollama_version_metadata_never_downloads_same_or_older_release(self):
+        library=ai.HOME/'.local/lib/ollama'; library.mkdir(parents=True)
+        core.save_json(ai.RECEIPT, {'binary_sha256':terminal._sha256_file(self.bin/'ollama'), 'version':'v1.2.0'})
+        for version, expected in [('v1.2.0', False), ('v1.1.0', False), ('v1.3.0', True)]:
+            with patch.object(terminal, '_github_asset', return_value=({'tag_name':version}, {'name':'runtime'})):
+                self.assertEqual(REAL_OLLAMA_PLAN() is not None, expected)
 
     def test_legacy_defaults_do_not_add_large_download(self):
         self.assertEqual(ai.selected_models(), [ai.MODEL])

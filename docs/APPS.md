@@ -80,3 +80,11 @@ WhatsApp uses [Whatsie](https://flathub.org/en/apps/com.ktechpit.whatsie), a
 third-party web client requiring phone linking. Parsec requires an account and
 a Windows/macOS host. Plex Desktop plays from an existing Plex server; it does
 not install a Plex server on the Deck.
+
+## Repeat installs and upgrades
+
+Selected apps already installed in user scope run `flatpak update --user` for
+that app. Flatpak checks repository metadata and transfers updates only when
+needed; a missing app uses the normal install command. System-wide installs are
+reused, with their updates managed separately in Discover. Verification remains
+a read-only local presence check.

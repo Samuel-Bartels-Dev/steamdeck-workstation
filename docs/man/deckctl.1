@@ -140,7 +140,7 @@ NAME
   deckctl ai\-workspace install — Install user\-space Ollama, configure OpenCode and pre\-pull your selected Qwen coding models.
 
 DESCRIPTION
-  Downloads the upstream Linux archive and libraries without sudo, validates its SHA\-256 and installs the raw executable in ~/.local/bin. Choose lightweight 1.5B, higher\-quality 7B, or both in setup. Existing complete models are skipped. Temporarily starts an owned local server for each model pull and stops it afterward. Preserves unrelated configuration; conflicts fail before mutation. Terminal tools are installed by the terminal module.
+  Downloads the upstream Linux archive and libraries without sudo, validates its SHA\-256 and installs the raw executable in ~/.local/bin. Choose lightweight 1.5B, higher\-quality 7B, or both in setup. Complete models are compared with upstream manifest metadata; unchanged models are skipped. Disk space is checked per destination filesystem before runtime/model downloads. Temporarily starts an owned local server for each model pull and stops it afterward. Preserves unrelated configuration; conflicts fail before mutation. Terminal tools are installed by the terminal module.
 
 options:
   \-h, \-\-help  show this help message and exit
@@ -3430,13 +3430,13 @@ NAME
   deckctl terminal apply — Install the user\-space terminal stack and apply managed shell, prompt, font, and tmux configuration.
 
 DESCRIPTION
-  May download tools and fonts and update managed configuration. \-\-config\-only avoids tool downloads; \-\-refresh rechecks/downloads upstream assets.
+  May download tools and fonts and update managed configuration. \-\-config\-only avoids tool downloads; \-\-refresh rechecks upstream versions; current versions are not downloaded again.
 
 options:
   \-h, \-\-help     show this help message and exit
   \-\-config\-only  Apply managed configuration without downloading terminal tools.
-  \-\-refresh      Refresh upstream terminal tool assets instead of relying on the
-                 existing installation.
+  \-\-refresh      Check upstream terminal tool versions while preserving the existing
+                 installation.
 
 EXAMPLES
   deckctl terminal apply \-\-config\-only

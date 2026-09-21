@@ -117,3 +117,22 @@ are selected. Existing installations retain the lightweight default; 7B is not
 silently added to legacy selections. The full preset includes both.
 Deselecting a model keeps its downloaded files, and an explicit launch can still
 use it. Neither model is loaded by installation verification.
+
+## Storage and smart updates
+
+Before downloads, the installer checks the actual destination filesystem,
+including model directories moved to another drive. It combines costs on the
+same drive and includes 1 GiB of free-space headroom per drive. Conservative
+budgets are 1.5 GiB for the light model, 6 GiB for the larger model, 8 GiB for
+Ollama runtime staging and 256 MiB for its executable. A fresh installation
+of both on one drive requires 16.75 GiB free. Complete, unchanged models do
+not consume another download budget. Insufficient space stops the operation
+with available, required and additional space figures; no automatic deletion
+is performed. Space can still change while other programs write to the disk.
+
+Installed Qwen tags are compared with upstream manifest metadata; only changed
+or incomplete models are pulled. Ollama compares numbered release versions,
+skips the same/older release and stages a newer runtime before switching.
+If an update check is offline, a working installed version is retained with a
+warning; this does not claim it is current. Model files and previous runtime
+payloads remain available on disk. Read-only status does not check the network.

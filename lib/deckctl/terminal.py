@@ -54,6 +54,18 @@ def _sha256_file(path: Path) -> str:
     return h.hexdigest()
 
 
+
+def newer_version(remote, installed):
+    """Compare numbered release tags; do not downgrade or guess unfamiliar versions."""
+    def parts(value):
+        match = re.fullmatch(r'v?(\d+(?:\.\d+){0,3})', str(value or '').strip())
+        return tuple(int(x) for x in match[1].split('.')) if match else None
+    latest, current = parts(remote), parts(installed)
+    if latest is None or current is None:
+        return None
+    return latest + (0,)*(4-len(latest)) > current + (0,)*(4-len(current))
+
+
 def _request(url: str, timeout: int = 60) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "deckctl-terminal/" + (core.ROOT / "VERSION").read_text().strip()})
     with urllib.request.urlopen(req, timeout=timeout) as r:
@@ -217,24 +229,33 @@ def _ghostty_desktop(create=True):
 
 def _run_official_installer(name: str, url: str, args: list[str]) -> dict:
     data = _request(url, 30)
-    with tempfile.NamedTemporaryFile(prefix=f"deckctl-{name}-", suffix=".sh", delete=False) as f:
-        f.write(data)
-        script = Path(f.name)
-    try:
-        r = subprocess.run(["sh", str(script), *args], text=True, capture_output=True)
-        if r.returncode:
-            raise RuntimeError(f"{name} installer failed ({r.returncode}): {(r.stderr or r.stdout).strip()[-800:]}")
-    finally:
-        script.unlink(missing_ok=True)
-    dest = BIN_DIR / name
-    if not dest.exists():
-        raise RuntimeError(f"{name} installer completed but {dest} is missing")
-    return {
-        "source": url,
-        "installer_sha256": _sha256_bytes(data),
-        "path": str(dest),
-        "binary_sha256": _sha256_file(dest),
-    }
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=f'deckctl-{name}-') as folder:
+        staging = Path(folder)
+        script = staging/'install.sh'; script.write_bytes(data)
+        output = staging/'bin'; output.mkdir()
+        install_args = [str(output) if arg == str(BIN_DIR) else arg for arg in args]
+        result = subprocess.run(['sh', str(script), *install_args], text=True, capture_output=True)
+        if result.returncode:
+            raise RuntimeError(f'{name} installer failed ({result.returncode}): {(result.stderr or result.stdout).strip()[-800:]}')
+        candidate = output/name
+        if not candidate.is_file() or candidate.is_symlink():
+            raise RuntimeError(f'{name} installer did not produce a regular executable')
+        version = subprocess.run([str(candidate), '--version'], text=True, capture_output=True, timeout=15)
+        if version.returncode:
+            raise RuntimeError(f'{name} failed its staged version check')
+        match = re.search(r'\d+\.\d+(?:\.\d+)?', version.stdout)
+        fd, filename = tempfile.mkstemp(prefix='.' + name + '-', dir=BIN_DIR)
+        os.close(fd)
+        temporary = Path(filename)
+        try:
+            shutil.copy2(candidate, temporary)
+            temporary.replace(BIN_DIR/name)
+        finally:
+            temporary.unlink(missing_ok=True)
+    return {'source': url, 'version': match[0] if match else None,
+            'installer_sha256': _sha256_bytes(data), 'path': str(BIN_DIR/name),
+            'binary_sha256': _sha256_file(BIN_DIR/name)}
 
 
 def _install_oh_my_posh() -> dict:
@@ -266,7 +287,8 @@ def _install_zoxide() -> dict:
 
 
 def _install_fonts() -> dict:
-    url = "https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.tar.xz"
+    release, asset = _github_asset("ryanoasis/nerd-fonts", r"^JetBrainsMono\.tar\.xz$")
+    url = asset["browser_download_url"]
     data = _request(url, 90)
     wanted = {
         "JetBrainsMonoNerdFontMono-Regular.ttf",
@@ -292,7 +314,7 @@ def _install_fonts() -> dict:
             installed.append({"path": str(dest), "sha256": _sha256_file(dest)})
     if shutil.which("fc-cache"):
         subprocess.run(["fc-cache", "-f", str(FONT_DIR)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return {"source": url, "archive_sha256": _sha256_bytes(data), "files": installed}
+    return {"source": url, "version": release.get("tag_name"), "archive_sha256": _sha256_bytes(data), "files": installed}
 
 
 def _copy_managed_config(selected=None):
@@ -430,6 +452,39 @@ def _fonts_ok(receipts: dict) -> bool:
     return bool(files) and all(Path(x.get("path", "")).exists() and x.get("sha256") and _sha256_file(Path(x["path"])) == x["sha256"] for x in files)
 
 
+
+UPDATE_REPOS = {
+    'oh-my-posh': 'JanDeDobbeleer/oh-my-posh', 'starship': 'starship/starship',
+    'zoxide': 'ajeetdsouza/zoxide', 'fzf': 'junegunn/fzf', 'eza': 'eza-community/eza',
+    'bat': 'sharkdp/bat', 'fastfetch': 'fastfetch-cli/fastfetch', 'tmux': 'tmux/tmux-builds',
+    'ghostty': 'pkgforge-dev/ghostty-appimage', 'nvim': 'neovim/neovim',
+    'opencode': 'anomalyco/opencode', 'fonts': 'ryanoasis/nerd-fonts',
+}
+
+
+def _tool_update_available(name, receipt):
+    try:
+        release = _github_latest(UPDATE_REPOS[name])
+        current = receipt.get('version')
+        if not current and name != 'fonts':
+            result = subprocess.run([str(BIN_DIR/name), '--version'], capture_output=True, text=True, timeout=15)
+            match = re.search(r'\d+\.\d+(?:\.\d+)?', result.stdout)
+            current = match[0] if match else None
+        newer = newer_version(release.get('tag_name'), current)
+        if newer is None:
+            if name == 'fonts' and not current:
+                asset = next((a for a in release.get('assets', []) if a['name'] == 'JetBrainsMono.tar.xz'), {})
+                digest = asset.get('digest')
+                if digest and receipt.get('archive_sha256'):
+                    return digest != 'sha256:' + receipt['archive_sha256']
+            print(f'    cannot compare {name} release versions; existing tool retained')
+            return False
+        return newer
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+        print(f'    update check unavailable; installed {name} retained: {exc}')
+        return False
+
+
 def apply(config_only: bool = False, refresh: bool = False) -> int:
     if os.geteuid() == 0 and os.environ.get("DECKCTL_ALLOW_ROOT_TEST") != "1":
         print("Do not run terminal setup as root. Everything is installed in the deck user's home directory.")
@@ -459,11 +514,11 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
             try:
                 print(f"==> terminal: {name}")
                 if name == "fonts":
-                    if not refresh and _fonts_ok(receipts):
+                    if _fonts_ok(receipts) and not _tool_update_available(name, receipts.get(name, {})):
                         print("    healthy; skipped")
                         continue
                 else:
-                    if not refresh and _receipt_binary_ok(name, receipts):
+                    if _receipt_binary_ok(name, receipts) and not _tool_update_available(name, receipts.get(name, {})):
                         print("    healthy; skipped")
                         continue
                     if _unmanaged_local_binary(name, receipts):

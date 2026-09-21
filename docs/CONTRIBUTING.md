@@ -68,3 +68,24 @@ alone does not enforce that policy. GitHub-hosted tests cannot prove SteamOS
 hardware behavior or live vendor availability: changes to Android initialization,
 Decky APIs, storage migration or controller integration still need a documented
 Deck smoke test. Keep release publishing separate from PR checks.
+
+## Security and UI checks
+
+- **CodeQL (python/actions):** scan Python and workflow code on PRs, main and
+  weekly. Findings appear in GitHub code scanning; a successful scan is not
+  proof there are no vulnerabilities.
+- **Dependency vulnerability review:** fail PRs introducing known high/critical
+  dependency vulnerabilities. Requires GitHub's dependency graph.
+- **Python tool vulnerability audit:** check CI Python requirements against
+  vulnerability advisories, including on the weekly schedule.
+- **Installer UI smoke:** exercise the real Qt window offscreen at three sizes,
+  including individual app/model selections and saving; no vendor installations.
+- **Dependabot:** propose weekly updates for pinned actions and Python CI tools.
+
+Actions are commit-pinned, checkout does not retain credentials, and untrusted PR
+code does not run through `pull_request_target`. CodeQL alone receives permission
+to upload security results. Existing lint, Docker, regression and archive
+verification checks remain. Branch protection/required checks are repository
+settings; these workflows do not change them. Enable the desired required checks
+after their first successful run. The scans cover this repository and declared
+dependencies, not every vendor binary downloaded later on a Deck.
