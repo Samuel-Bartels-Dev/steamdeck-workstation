@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from . import apps, core, setup_builder, gaming_options
+from . import apps, core, setup_builder, gaming_options, css_stack
 
 
 APP_DESCRIPTIONS = {
@@ -41,6 +41,8 @@ class Session:
                 'launchers': gaming_options.ITEMS, 'selectedLaunchers': gaming_options.selection(),
                 'plugins': setup_builder.plugin_items(), 'selectedPlugins': sorted(core._decky_selected_folders()),
                 'defaultPlugins': core._decky_default_selection(),
+                'css': css_stack.selection_items(), 'selectedCss': css_stack.selection(),
+                'defaultCss': [item['name'] for category in ('required','recommended') for item in css_stack._stack(unfiltered=True)[category]],
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
                 'planOnly': self.plan_only}
 
@@ -55,7 +57,7 @@ class Session:
                 or any(not isinstance(x, str) or x not in apps.catalog() for x in selected)):
             raise ValueError('Invalid feature or app selection. Reopen setup and try again.')
         normalized = setup_builder._app_module_roots(roots, selected)
-        setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"))
+        setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"), payload.get("css"))
         self.selected = core.topo(normalized)
         return {'saved': True, 'modules': self.selected}
 

@@ -29,6 +29,7 @@ ApplicationWindow {
     property string detailPage: ""
     property var selectedLaunchers: []
     property var selectedPlugins: []
+    property var selectedCss: []
     property var chosen: []
     property var selectedApps: []
     property var progress: ({running: false, modules: [], operation: null})
@@ -65,16 +66,18 @@ ApplicationWindow {
         xhr.send(payload === null ? null : JSON.stringify(payload))
     }
     function toggle(key, isApp) {
-        var values = (detailPage === "launchers" ? selectedLaunchers : detailPage === "plugins" ? selectedPlugins : isApp ? selectedApps : chosen).slice()
+        var values = (detailPage === "css" ? selectedCss : detailPage === "launchers" ? selectedLaunchers : detailPage === "plugins" ? selectedPlugins : isApp ? selectedApps : chosen).slice()
         var index = values.indexOf(key)
         if (index < 0) values.push(key); else values.splice(index, 1)
-        if (detailPage === "launchers") selectedLaunchers = values
+        if (detailPage === "css") selectedCss = values
+        else if (detailPage === "launchers") selectedLaunchers = values
         else if (detailPage === "plugins") selectedPlugins = values
         else if (isApp) selectedApps = values; else chosen = values
         saved = false; dirty = true; notice = ""; problem = ""
     }
     function detailPreset(defaults) {
-        if (detailPage === "plugins") selectedPlugins = defaults ? data.defaultPlugins.slice() : []
+        if (detailPage === "css") selectedCss = defaults ? data.defaultCss.slice() : []
+        else if (detailPage === "plugins") selectedPlugins = defaults ? data.defaultPlugins.slice() : []
         else selectedLaunchers = defaults ? data.launchers.map(function(x) { return x.id }) : []
         saved = false; dirty = true
     }
@@ -103,11 +106,12 @@ ApplicationWindow {
         selectedApps = full ? data.apps.map(function(app) { return app.id }) : []
         selectedLaunchers = full ? data.launchers.map(function(x) { return x.id }) : []
         selectedPlugins = full ? data.defaultPlugins.slice() : []
+        selectedCss = full ? data.defaultCss.slice() : []
         saved = false; dirty = true; notice = full ? "Full workstation selected. Make it your own below." : "Starting small. Add only what you need."
     }
     function savePlan(install) {
         busy = true; problem = ""
-        request("save", {modules: chosen, apps: selectedApps, launchers: selectedLaunchers, plugins: selectedPlugins}, function(result) {
+        request("save", {modules: chosen, apps: selectedApps, launchers: selectedLaunchers, plugins: selectedPlugins, css: selectedCss}, function(result) {
             saved = true; dirty = false; busy = false; notice = "Your setup plan is saved."
             if (install) startOperation("install")
             else if (data.planOnly) window.close()
@@ -141,7 +145,7 @@ ApplicationWindow {
         for (var i=0; i<args.length; i++) if (args[i].indexOf("http://127.0.0.1:") === 0) endpoint = args[i]
         if (!endpoint) { problem = "Open this app with deckctl setup customize."; return }
         request("catalog", null, function(result) {
-            data = result; selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
+            data = result; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
         })
     }
     Timer {
@@ -256,7 +260,7 @@ ApplicationWindow {
                 Item { Layout.fillWidth: true }
                 TextLabel { text: window.selectedApps.length + " apps  ·  " + Math.max(0,window.allModules().length-1) + " features"; color: window.muted; font.pixelSize: 12 }
             }
-            TextLabel { text: window.detailPage === "launchers" ? "Choose your launchers" : window.detailPage === "plugins" ? "Choose your Decky plugins" : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
+            TextLabel { text: window.detailPage === "css" ? "Choose your CSS components" : window.detailPage === "launchers" ? "Choose your launchers" : window.detailPage === "plugins" ? "Choose your Decky plugins" : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
             TextLabel { text: window.detailPage ? "Every item is optional. Leaving it unchecked keeps it out of your installation plan." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
             RowLayout {
                 visible: window.stage < 4 && !window.detailPage; spacing: 10; Layout.bottomMargin: 1
@@ -269,8 +273,9 @@ ApplicationWindow {
                 visible: window.stage === 0
                 Action { visible: !window.detailPage && window.chosen.indexOf("gaming") >= 0; text: "Choose launchers · " + window.selectedLaunchers.length; onClicked: window.detailPage = "launchers" }
                 Action { visible: !window.detailPage && window.chosen.indexOf("decky") >= 0; text: "Choose plugins · " + window.selectedPlugins.length; onClicked: window.detailPage = "plugins" }
+                Action { visible: window.detailPage === "plugins" && window.selectedPlugins.indexOf("SDH-CssLoader") >= 0; text: "CSS components · " + window.selectedCss.length; onClicked: window.detailPage = "css" }
                 Action { visible: !!window.detailPage; text: "Clear all"; onClicked: window.detailPreset(false) }
-                Action { visible: !!window.detailPage; text: window.detailPage === "plugins" ? "Use recommended" : "Select all"; onClicked: window.detailPreset(true) }
+                Action { visible: !!window.detailPage; text: window.detailPage !== "launchers" ? "Use recommended" : "Select all"; onClicked: window.detailPreset(true) }
             }
             Rectangle {
                 visible: !!window.problem || !!window.notice
@@ -289,12 +294,12 @@ ApplicationWindow {
                         visible: window.stage < 4
                         Layout.fillWidth: true; columns: window.width < 1000 ? 1 : 2; columnSpacing: 12; rowSpacing: 12
                         Repeater {
-                            model: window.detailPage === "launchers" ? window.data.launchers : window.detailPage === "plugins" ? window.data.plugins : window.stage < 3 ? (window.data.groups[window.stage] || {modules:[]}).modules : (window.stage === 3 ? window.data.apps : [])
+                            model: window.detailPage === "css" ? window.data.css : window.detailPage === "launchers" ? window.data.launchers : window.detailPage === "plugins" ? window.data.plugins : window.stage < 3 ? (window.data.groups[window.stage] || {modules:[]}).modules : (window.stage === 3 ? window.data.apps : [])
                             delegate: ChoiceCard {
                                 required property var modelData
                                 Layout.fillWidth: true
                                 heading: modelData.name; detail: modelData.summary
-                                selected: (window.detailPage === "launchers" ? window.selectedLaunchers : window.detailPage === "plugins" ? window.selectedPlugins : window.stage === 3 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
+                                selected: (window.detailPage === "css" ? window.selectedCss : window.detailPage === "launchers" ? window.selectedLaunchers : window.detailPage === "plugins" ? window.selectedPlugins : window.stage === 3 ? window.selectedApps : window.chosen).indexOf(modelData.id) >= 0
                                 onClicked: window.toggle(modelData.id, window.stage === 3)
                             }
                         }
@@ -331,6 +336,8 @@ ApplicationWindow {
                         TextLabel { visible: window.allModules().indexOf("gaming") >= 0; text: window.selectedNames(window.data.launchers, window.selectedLaunchers); Layout.fillWidth: true }
                         TextLabel { text: "DECKY PLUGINS"; visible: window.allModules().indexOf("decky") >= 0; color: window.muted; font.pixelSize: 11 }
                         TextLabel { visible: window.allModules().indexOf("decky") >= 0; text: window.selectedNames(window.data.plugins, window.selectedPlugins); Layout.fillWidth: true }
+                        TextLabel { visible: window.allModules().indexOf("decky") >= 0 && window.selectedPlugins.indexOf("SDH-CssLoader") >= 0; text: "CSS COMPONENTS"; color: window.muted; font.pixelSize: 11 }
+                        TextLabel { visible: window.allModules().indexOf("decky") >= 0 && window.selectedPlugins.indexOf("SDH-CssLoader") >= 0; text: window.selectedNames(window.data.css, window.selectedCss); Layout.fillWidth: true }
                         TextLabel { text: "Some features download software or models and open their own setup prompts. Account sign-in and device pairing happen afterward. You can skip those stages."; color: window.muted; Layout.fillWidth: true; font.pixelSize: 13; Layout.topMargin: 10 }
                     }
                     ColumnLayout {
@@ -363,7 +370,7 @@ ApplicationWindow {
             Rectangle { Layout.fillWidth: true; height: 1; color: "#2a3848" }
             RowLayout {
                 Layout.fillWidth: true; spacing: 10
-                Action { text: "Back"; visible: !!window.detailPage || (window.stage > 0 && window.stage < 5); enabled: !window.busy; onClicked: {if (window.detailPage) window.detailPage=""; else window.stage--; window.problem=""} }
+                Action { text: "Back"; visible: !!window.detailPage || (window.stage > 0 && window.stage < 5); enabled: !window.busy; onClicked: {if (window.detailPage) window.detailPage=window.detailPage === "css" ? "plugins" : ""; else window.stage--; window.problem=""} }
                 TextLabel { visible: window.stage < 4; text: "Choose what you need.\nEverything else can wait."; font.pixelSize: 12; color: window.muted; Layout.fillWidth: true }
                 Item { visible: window.stage >= 4; Layout.fillWidth: true }
                 Action { text: "Save for later"; visible: window.stage === 4 && !window.data.planOnly; enabled: !window.busy; onClicked: window.savePlan(false) }
@@ -372,7 +379,7 @@ ApplicationWindow {
                     text: window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : "Install / retry"))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
-                        if (window.detailPage) window.detailPage = ""
+                        if (window.detailPage) window.detailPage = window.detailPage === "css" ? "plugins" : ""
                         else if (window.stage < 4) { window.stage++; window.notice="" }
                         else if (window.stage === 4) window.savePlan(!window.data.planOnly)
                         else window.startOperation("install")

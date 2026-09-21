@@ -5,7 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
-from . import apps, core, gaming_options
+from . import apps, core, gaming_options, css_stack
 
 
 def catalog():
@@ -101,7 +101,8 @@ def plugin_items():
             for key, item in items.items()]
 
 
-def save_plan(modules, selected_apps, launchers=None, plugins=None):
+def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None):
+    if css is not None: css=css_stack.validate_selection(css)
     if launchers is not None: launchers=gaming_options.validate(launchers)
     if plugins is not None:
         known={item['id'] for item in plugin_items()}
@@ -110,6 +111,7 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None):
     files=[core.CONFIG_HOME/'modules.json', core.CONFIG_HOME/'apps.json']
     if launchers is not None: files.append(core.CONFIG_HOME/'gaming-selection.json')
     if plugins is not None: files.append(core._decky_selection_path())
+    if css is not None: files.append(core.CONFIG_HOME/'css-selection.json')
     previous=[p.read_bytes() if p.exists() else None for p in files]
     try:
         save_modules(modules)
@@ -124,6 +126,8 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None):
                          selected_folders=sorted(set(plugins)),
                          selected_plugins=[items.get(x,{}).get('name',x) for x in sorted(set(plugins))])
             core.save_json(core._decky_selection_path(), state)
+        if css is not None:
+            core.save_json(core.CONFIG_HOME/'css-selection.json', {'selected': css})
     except (OSError,ValueError):
         for path,old in zip(files,previous):
             if old is None: path.unlink(missing_ok=True)
@@ -143,16 +147,18 @@ def configure_ui():
         for group in data['groups']:
             roots=_terminal_checklist(group['title'],group['description'],group['modules'],roots)
         selected=_terminal_checklist('Desktop apps','Optional apps; existing installations are kept.',_app_items(),selected)
-        launchers=set(gaming_options.selection()); plugins=set(core._decky_selected_folders())
+        launchers=set(gaming_options.selection()); plugins=set(core._decky_selected_folders()); css=set(css_stack.selection())
         if 'gaming' in roots:
             launchers=_terminal_checklist('Launchers and tools','Choose each item independently.',gaming_options.ITEMS,launchers)
         if 'decky' in roots:
             plugins=_terminal_checklist('Decky plugins','Every plugin is optional.',plugin_items(),plugins)
+        if 'decky' in roots and 'SDH-CssLoader' in plugins:
+            css=_terminal_checklist('CSS Loader components','Every component is optional.',css_stack.selection_items(),css)
         normalized=_app_module_roots(roots,selected)
         print(_summary(normalized,sorted(selected),set(normalized)-roots-{'base'}))
         if input('Save this plan? [y/N] ').strip().lower() not in ('y','yes'):
             return 0
-        save_plan(normalized,selected,launchers,plugins)
+        save_plan(normalized,selected,launchers,plugins,css)
         print('Plan saved. Run deckctl apply, then deckctl setup run.')
         return 0
     except (KeyboardInterrupt,EOFError):

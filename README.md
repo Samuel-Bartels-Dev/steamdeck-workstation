@@ -882,3 +882,5 @@ Discord and Slack are also available: `deckctl apps install discord slack`.
 The terminal module includes Ghostty, tmux, Neovim and OpenCode. `deckctl ai-workspace install` configures user-space Ollama and downloads a small local coding model; `deckctl ai-workspace open` runs a temporary server for a local coding session. See [AI workspace](modules/ai-workspace/README.md).
 
 Launcher and Decky choices are individual: open **Choose launchers** or **Choose plugins** in Play & personalize. Every plugin can be unchecked; choosing a category does not require every item. Review lists your exact selections before saving or installing.
+
+Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.

@@ -17,3 +17,5 @@ data; installation requires the explicit Save & install action.
 See the [setup builder guide](../README.md#choose-only-the-stages-you-want).
 
 - Individual launcher/tool and Decky plugin choices, including clear-all. Saved choices govern provisioning and guided setup; explicit plugin opt-outs survive future manifest updates.
+
+Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.

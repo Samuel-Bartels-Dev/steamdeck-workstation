@@ -199,3 +199,5 @@ upstream plugin.json files:
 These are install-only additions. Pair devices and choose personal music/tab
 preferences through their normal interfaces; provisioning does not overwrite
 those settings. Audio Loader remains available alongside Game Theme Music.
+
+Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.

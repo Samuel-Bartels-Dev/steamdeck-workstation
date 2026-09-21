@@ -6,7 +6,7 @@ from pathlib import Path
 from unittest.mock import patch, Mock
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'lib'))
-from deckctl import core, apps, setup_builder, setup_window, gaming_options, provisioning
+from deckctl import core, apps, setup_builder, setup_window, gaming_options, provisioning, css_stack
 
 
 class SetupWindow(unittest.TestCase):
@@ -70,6 +70,25 @@ class SetupWindow(unittest.TestCase):
             with self.assertRaises(OSError):
                 setup_builder.save_plan(['gaming'], [], ['heroic'], [])
         self.assertEqual(before, {p.name: p.read_bytes() for p in core.CONFIG_HOME.iterdir()})
+
+    def test_css_selection_filters_defaults_and_accepts_optional_components(self):
+        stack=css_stack._stack(unfiltered=True)
+        optional=stack['optional'][0]['name']
+        setup_builder.save_plan(['decky'], [], [], ['SDH-CssLoader'], [optional])
+        effective=css_stack._stack()
+        self.assertEqual([item['name'] for item in effective['required']], [optional])
+        self.assertEqual(effective['recommended'], [])
+        first_hash=css_stack._manifest_hash()
+        setup_builder.save_plan(['decky'], [], [], ['SDH-CssLoader'], [])
+        self.assertNotEqual(first_hash, css_stack._manifest_hash())
+        with patch.object(css_stack, '_backend_session', side_effect=AssertionError('No backend should start')):
+            self.assertTrue(css_stack.readiness()[0])
+            self.assertEqual(css_stack.apply(), 0)
+
+    def test_unknown_css_component_rejected_before_saving(self):
+        with self.assertRaises(ValueError):
+            setup_builder.save_plan(['decky'], [], [], [], ['unknown-theme'])
+        self.assertFalse(core.CONFIG_HOME.exists())
 
     def test_plan_only_never_starts_installer(self):
         session = setup_window.Session(plan_only=True)
