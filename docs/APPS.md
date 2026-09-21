@@ -69,7 +69,7 @@ Install Discord and Slack with `deckctl apps install discord slack`. Upgrades ke
 existing saved selections; new apps are available in the chooser but must be
 explicitly enabled when a selection already exists.
 
-Each app is a separate choice under **Desktop apps**. For just the requested
+Each app is a separate choice: everyday apps under **Apps & media**, editors under **Coding & work**, and Parsec under **Remote & storage**. For just the requested
 communication, media and streaming apps:
 
 ```bash

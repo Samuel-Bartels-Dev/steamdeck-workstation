@@ -1,5 +1,14 @@
 # v0.2.34
 
+## v0.2.39
+
+- Added an independent Claude Code CLI choice with native user-space installation, update checks and separate sign-in verification.
+
+- Add a remembered setup-window palette selector: Bubble Gum Rave, Midnight Ocean and Graphite.
+- Rebuild setup pages around grouped, individual choices with Bubble Gum Rave colors; remove cross-section category redirects.
+- Show required dependencies, preserve nested plugin/theme navigation, and return Review edits to Review.
+- Move Docker into the install plan, add section search and selected-only filtering, and retry the correct setup phase.
+
 ## v0.2.38
 
 - Add independent lightweight Qwen 2.5 Coder 1.5B and higher-quality 7B model choices, selected-only downloads and explicit local model launching.

@@ -47,7 +47,9 @@ class Session:
                 'css': css_stack.selection_items(), 'selectedCss': css_stack.selection(),
                 'defaultCss': [item['name'] for category in ('required','recommended') for item in css_stack._stack(unfiltered=True)[category]],
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
-                'planOnly': self.plan_only}
+                'planOnly': self.plan_only,
+                'palettes': core.load_json(core.ROOT/'config/setup-palettes.json', []),
+                'palette': core.load_json(core.CONFIG_HOME/'appearance.json', {}).get('palette', 'bubblegum')}
         descriptions = core.load_json(core.ROOT/'config/setup-copy.json', {})
         sections = dict(data)
         sections['modules'] = [item for group in data['groups'] for item in group['modules']]
@@ -55,7 +57,34 @@ class Session:
         for section in ('modules', 'apps', 'components', 'launchers', 'plugins', 'css'):
             for item in sections[section]:
                 item['summary'] = descriptions.get(section, {}).get(item['id'], item['summary'])
+        catalogs = {
+            'module': {item['id']: item for item in sections['modules']},
+            'app': {item['id']: item for item in data['apps']},
+            'launcher': {item['id']: item for item in data['launchers']},
+        }
+        data['layout'] = []
+        seen = set()
+        for section in core.load_json(core.ROOT/'config/setup-layout.json', []):
+            items = []
+            for reference in section['items']:
+                kind, key = reference['kind'], reference['id']
+                identity = (kind, reference.get('group'), key)
+                if identity in seen:
+                    raise ValueError('Duplicate setup choice: ' + key)
+                seen.add(identity)
+                catalog = ({item['id']: item for item in data['components'][reference['group']]}
+                           if kind == 'component' else catalogs[kind])
+                items.append({**catalog[key], **reference})
+            data['layout'].append({**section, 'items': items})
         return data
+
+    def appearance(self, payload):
+        key = payload.get('palette')
+        known = core.load_json(core.ROOT/'config/setup-palettes.json', [])
+        if not isinstance(key, str) or key not in {item['id'] for item in known}:
+            raise ValueError('Unknown color palette')
+        core.save_json(core.CONFIG_HOME/'appearance.json', {'palette': key})
+        return {'palette': key}
 
     def save(self, payload):
         if self.process and self.process.poll() is None:
@@ -69,7 +98,7 @@ class Session:
             raise ValueError('Invalid feature or app selection. Reopen setup and try again.')
         normalized = setup_builder._app_module_roots(roots, selected)
         setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"), payload.get("css"), payload.get("components"))
-        self.selected = core.topo(normalized)
+        self.selected = core.topo(core.enabled_modules())
         return {'saved': True, 'modules': self.selected}
 
     def start(self, operation):
@@ -138,6 +167,8 @@ def launch(plan_only=False):
                         raise ValueError('Expected an object')
                     if route == 'save':
                         result = session.save(payload)
+                    elif route == 'appearance':
+                        result = session.appearance(payload)
                     elif route == 'start':
                         result = session.start(payload.get('operation'))
                     else:

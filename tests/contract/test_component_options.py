@@ -95,7 +95,7 @@ class Components(unittest.TestCase):
     def test_guided_setup_skips_unselected_tools_inside_enabled_categories(self):
         self.save(remote=['moonlight'],dev=[],workspace=[],media=[])
         enabled={'remote','dev','workspace','media'}
-        for sid, module in [('tailscale','remote'),('chiaki','remote'),('codex','dev'),('keeper','media'),('workspace','workspace'),('media','media')]:
+        for sid, module in [('claude-code','dev'),('tailscale','remote'),('chiaki','remote'),('codex','dev'),('keeper','media'),('workspace','workspace'),('media','media')]:
             self.assertFalse(provisioning.selected({'id':sid,'module':module},enabled))
         self.assertTrue(provisioning.selected({'id':'moonlight','module':'remote'},enabled))
 

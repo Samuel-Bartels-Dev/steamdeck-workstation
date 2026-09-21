@@ -86,7 +86,7 @@ binaries are preserved. Terminal status executes version checks for these tools.
 AppImages live in `~/.local/share/deckctl/terminal-appimages`. Reset removes only
 unchanged managed wrappers/binaries and the unchanged managed Ghostty menu entry;
 AppImage payloads and personal editor configuration are retained for recovery.
-The desktop Flatpak chooser does not control these terminal-module tools.
+The setup window lists each tool in Coding & work, alongside the separate editor Flatpaks.
 
 See [the on-demand AI workspace](../ai-workspace/README.md) for local Ollama and
 ChatGPT subscription configuration. OpenCode provider login remains interactive.

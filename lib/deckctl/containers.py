@@ -527,6 +527,18 @@ def provision():
         print('Optional Docker skipped: Development tools are not selected in this workstation plan.')
         print('Run deckctl setup customize to select Development, or deckctl containers install to opt in directly.')
         return 0
+    # A saved per-tool choice is the user's opt-in/out. Legacy setups without
+    # that choice keep their existing one-time prompt and saved preference.
+    choices = core.load_json(core.CONFIG_HOME/'components.json', {})
+    if 'dev' in choices:
+        from . import component_options
+        if not component_options.selected('dev', 'docker'):
+            print('Docker skipped: not selected in your setup plan.')
+            return 0
+        if status_data().get('status') == 'READY':
+            print('Selected Docker engine is already verified; skipped.')
+            return 0
+        return install()
     cfg = config()
     if cfg.get('opt_in') is False:
         return 0

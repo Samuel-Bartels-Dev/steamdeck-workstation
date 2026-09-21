@@ -14,7 +14,9 @@ CATALOG = {
                      ('model', 'Qwen 2.5 Coder 1.5B — Lightweight', 'About 1 GB download; lighter coding help; requires Ollama'),
                      ('model-7b', 'Qwen 2.5 Coder 7B — Higher quality', 'About 4.7 GB download; more memory and slower responses; requires Ollama')],
     'dev': [('codex', 'Codex CLI', 'Standalone coding agent; sign-in is separate'),
-            ('distrobox', 'Development container', 'Create deck-dev using existing Distrobox and Podman')],
+            ('claude-code', 'Claude Code', 'Anthropic coding agent; sign-in is separate'),
+            ('distrobox', 'Development container', 'Create deck-dev using existing Distrobox and Podman'),
+            ('docker', 'Docker & Compose', 'Optional rootless containers for your projects')],
     'remote': [('moonlight', 'Moonlight', 'Stream from a Sunshine PC'), ('chiaki', 'chiaki-ng', 'PlayStation Remote Play'),
                ('tailscale', 'Tailscale', 'Private network access; installs a persistent service')],
     'workspace': [('notion', 'Notion', 'Workspace web app; requires Chrome'), ('chatgpt', 'ChatGPT', 'Chat web app; requires Chrome'),
@@ -48,6 +50,8 @@ def selection():
     saved = core.load_json(core.CONFIG_HOME/'components.json', {})
     legacy = defaults()
     legacy['ai-workspace'].remove('model-7b')
+    legacy['dev'].remove('docker')
+    legacy['dev'].remove('claude-code')
     return {**legacy, **validate(saved)}
 
 

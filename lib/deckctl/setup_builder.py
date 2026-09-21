@@ -109,6 +109,18 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
         known={item['id'] for item in plugin_items()}
         if not isinstance(plugins, (list, set, tuple)) or any(not isinstance(x,str) or x not in known for x in plugins):
             raise ValueError('Invalid Decky plugin selection')
+    # Normalize required owners for all frontends. An individual selection must
+    # not depend on a hidden category checkbox having been clicked first.
+    if len(modules) != len(set(modules)):
+        raise ValueError('Duplicate module selection.')
+    roots = set(modules)
+    if launchers: roots.add('gaming')
+    if css:
+        plugins = sorted(set(plugins or []) | {'SDH-CssLoader'})
+    if plugins: roots.add('decky')
+    if components is not None:
+        roots.update(group for group, names in components.items() if names)
+    modules = _app_module_roots(roots, selected_apps)
     files=[core.CONFIG_HOME/'modules.json', core.CONFIG_HOME/'apps.json']
     if launchers is not None: files.append(core.CONFIG_HOME/'gaming-selection.json')
     if plugins is not None: files.append(core._decky_selection_path())

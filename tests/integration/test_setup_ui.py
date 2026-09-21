@@ -31,61 +31,84 @@ UI.Setup {
     id: app
     width: 1120; height: 720
     property bool attempted: false
+    property bool retried: false
+    function findObject(root, name) {
+        if (root.objectName === name) return root
+        var children=root.children || []
+        for (var i=0;i<children.length;i++) { var found=findObject(children[i],name); if (found) return found }
+        return null
+    }
     Timer {
         running: app.loaded; interval: 100; repeat: true
         onTriggered: {
             if (!app.attempted) {
                 app.attempted = true
+                app.choosePalette("ocean")
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                function choose(id) {
+                    var item=app.currentItems().filter(function(x) { return x.id === id })[0]
+                    if (!item) throw new Error("Missing choice " + id)
+                    app.toggleItem(item)
+                    return item
+                }
+                function ids() { return app.currentItems().map(function(x) { return x.id }) }
+                if (ids().indexOf("heroic") < 0 || ids().indexOf("gaming") >= 0) throw new Error("Gaming still hides installs behind categories")
                 var original = JSON.stringify(app.chosen)
-                app.browse("terminal")
+                app.browse("plugins")
+                app.browse("css")
                 if (app.dirty || JSON.stringify(app.chosen) !== original) throw new Error("Browsing changed selections")
-                app.toggle("ghostty", false)
-                if (app.pageValues("terminal").join(",") !== "ghostty") throw new Error("Single choice enabled other tools")
-                app.searchText = "ghostty"
-                if (app.currentItems().length !== 1) throw new Error("Search did not narrow results")
+                choose("Round")
+                if (app.pageValues("plugins").indexOf("SDH-CssLoader") < 0 || app.chosen.indexOf("decky") < 0) throw new Error("Theme missing required parents")
                 app.back()
-                app.browse("desktop-apps")
-                if (app.stage !== 1 || app.detailPage !== "") throw new Error("Desktop apps link did not open the app chooser")
-                if (app.searchText !== "") throw new Error("Back retained stale search")
-                app.preset(false)
-                app.stage = 1
-                if (app.currentItems().map(function(x) { return x.id }).indexOf("zed") < 0) throw new Error("Apps are missing from their sidebar section")
-                app.stage = 2
-                if (app.currentItems().map(function(x) { return x.id }).indexOf("terminal") < 0) throw new Error("Coding section points to wrong group")
-                app.stage = 3
-                if (app.currentItems().map(function(x) { return x.id }).indexOf("remote") < 0) throw new Error("Remote section points to wrong group")
-                app.toggle("zed", true)
-                app.toggle("parsec", true)
-                app.toggle("slack", true)
-                app.toggle("whatsapp", true)
-                app.toggle("telegram", true)
-                app.toggle("plex", true)
-                app.toggle("gaming", false)
-                app.detailPage = "launchers"
-                app.toggle("heroic", false)
-                app.detailPage = "plugins"
-                app.detailPreset(false)
-                app.toggle("SDH-CssLoader", false)
-                app.detailPage = "css"
-                app.detailPreset(false)
-                app.toggle("Round", false)
-                app.stage = 2
-                app.toggle("terminal", false)
-                app.detailPage = "terminal"
-                app.detailPreset(false)
-                app.toggle("ghostty", false)
-                app.detailPage = "ai-workspace"
-                app.toggle("model-7b", false)
+                if (app.detailPage !== "plugins" || app.stage !== 0) throw new Error("Theme back did not return to plugins")
+                app.back()
+                if (app.detailPage !== "" || app.stage !== 0) throw new Error("Plugins back did not return to Gaming")
+                choose("heroic")
+                app.navigate(3)
+                if (ids().indexOf("utilities") >= 0 || ids().indexOf("parsec") < 0 || ids().indexOf("moonlight") < 0) throw new Error("Remote has a redirect or missing individual apps")
+                choose("parsec")
+                if (app.stage !== 3) throw new Error("Choosing a remote app changed sidebar sections")
+                app.navigate(1)
+                if (ids().indexOf("zed") >= 0 || ids().indexOf("parsec") >= 0) throw new Error("App choices duplicated across sections")
+                choose("slack"); choose("whatsapp"); choose("telegram"); choose("plex")
+                app.navigate(2)
+                choose("zed"); choose("ghostty")
+                if (app.pageValues("terminal").join(",") !== "ghostty") throw new Error("Ghostty enabled a bundle")
+                choose("model-7b")
                 if (app.pageValues("ai-workspace").indexOf("model") >= 0) throw new Error("7B unexpectedly selected 1.5B")
-                if (app.dependencyNotes().join(" ").indexOf("Ollama") < 0) throw new Error("7B missing engine dependency note")
-                app.stage = 4
+                var engine=app.currentItems().filter(function(x) { return x.id === "ollama" })[0]
+                if (!app.itemSelected(engine) || !app.requiredBy(engine)) throw new Error("Required engine is not shown as included")
+                choose("ollama")
+                if (!app.itemSelected(engine)) throw new Error("Model dependency was removed")
+                choose("docker"); choose("claude-code")
+                app.searchText="ghostty"
+                if (app.currentItems().length !== 1) throw new Error("Search did not narrow choices")
+                app.searchText=""
+                app.selectedOnly=true
+                if (ids().indexOf("tmux") >= 0 || ids().indexOf("opencode") < 0) throw new Error("Selected filter misses dependency or shows unselected item")
+                app.navigate(4)
                 var names = app.reviewSections().reduce(function(out, section) { return out.concat(section.items.map(function(x) { return x.name })) }, [])
-                if (names.indexOf("Ghostty") < 0 || names.indexOf("tmux") >= 0) throw new Error("Review is not the actual item selection")
+                if (names.indexOf("Ghostty") < 0 || names.indexOf("tmux") >= 0 || names.indexOf("Docker & Compose") < 0) throw new Error("Review is not the actual item selection")
+                var remoteSection=app.reviewSections().filter(function(x) { return x.title === "Remote connections" })[0]
+                app.editSection(remoteSection)
+                if (app.stage !== 3 || ids().indexOf("parsec") < 0) throw new Error("Review edit did not open the right group")
+                app.back()
+                if (app.stage !== 4) throw new Error("Done editing did not return to review")
                 app.progress = {running:false, operation:"install", exitCode:1, modules:[]}
                 if (app.installTitle() !== "Setup needs attention") throw new Error("Failure shown as successful")
                 app.savePlan(false)
-            } else if (app.saved) {
+            } else if (app.saved && !app.busy) {
+                if (!app.retried) {
+                    app.retried=true
+                    app.navigate(5)
+                    app.progress={running:false,operation:"accounts",exitCode:1,modules:[]}
+                    var action=app.findObject(app.contentItem,"primaryAction")
+                    if (!action || action.text !== "Retry setup") throw new Error("Failed account phase has wrong action")
+                    action.clicked()
+                    return
+                }
+                if (app.paletteId !== "ocean" || app.activePalette.name !== "Midnight Ocean") throw new Error("Palette did not apply")
+                if (app.progress.operation !== "accounts" || app.progress.exitCode !== 0) throw new Error("Retry switched to installing")
                 app.dirty = false
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
             }
@@ -98,11 +121,18 @@ UI.Setup {
             def start(args, **kwargs):
                 args[1] = str(harness)
                 return run(args, timeout=12, **kwargs).returncode
+            operations=[]
+            def fake_start(session, operation):
+                operations.append(operation)
+                self.assertEqual(operation, 'accounts', 'Retry must not install software')
+                return dict(running=False, operation=operation, exitCode=0, modules=[])
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', side_effect=AssertionError('Smoke test must never install')):
+            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start):
                 self.assertEqual(setup_window.launch(), 0)
+                self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
                 self.assertEqual(component_options.selection()['remote'], [])
+                self.assertEqual(component_options.selection()['dev'], ['claude-code', 'docker'])
                 self.assertEqual(component_options.selection()['ai-workspace'], ['model-7b'])
                 self.assertEqual(gaming_options.selection(), ['heroic'])
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
