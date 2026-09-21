@@ -137,13 +137,20 @@ desktop apps, review, and installation. Feature cards have large touch targets,
 clear selected states, and keyboard focus indicators. The window adapts to the
 Deck display with scrolling content and a fixed action bar.
 
-Choose **Start small** or **Full workstation**, adjust your selections, and review
-the dependencies included with your choices. **Save for later** keeps your plan;
-**Save & install** starts provisioning and shows real module results. Vendor
-prompts open in Konsole; sign-in, pairing, and optional Docker are separate
-explicit actions on the installation page. Nothing is installed just by selecting
-a card. Closing the app shuts down its temporary loopback connection; it adds no
-background service. A text flow remains available outside Desktop Mode.
+Fresh setups start with no optional selections. Browse category cards, then check
+individual apps or tools; browsing does not change the plan. Existing saved plans
+are restored when reopened. **Load full preset** and **Clear selections** ask before
+replacing your choices. Decky Loader has a **Choose plugins** action; CSS Loader
+has **Choose components** for its dependent themes.
+
+Search within a category, then review the actual selected items and required
+dependencies. Each review group has an **Edit** action. **Save for later** keeps
+your plan; **Save & install** starts provisioning and shows results grouped by
+setup area. Vendor prompts open in Konsole. A successful installation pass leads
+to selected setup, sign-in and pairing; failures show that attention is needed.
+Docker remains a separate explicit action. Closing the app shuts down its temporary
+loopback connection; it adds no background service. A text flow remains available
+outside Desktop Mode.
 
 ```bash
 deckctl setup customize          # reopen the visual/text setup builder
@@ -887,10 +894,12 @@ while keeping settings. See [app management](docs/APPS.md).
 
 Discord and Slack are also available: `deckctl apps install discord slack`.
 
-The terminal module includes Ghostty, tmux, Neovim and OpenCode. `deckctl ai-workspace install` configures user-space Ollama and downloads a small local coding model; `deckctl ai-workspace open` runs a temporary server for a local coding session. See [AI workspace](modules/ai-workspace/README.md).
+The terminal category offers Ghostty, tmux, Neovim and OpenCode as separate choices. `deckctl ai-workspace install` configures user-space Ollama and downloads a small local coding model; `deckctl ai-workspace open` runs a temporary server for a local coding session. See [AI workspace](modules/ai-workspace/README.md).
 
-Launcher and Decky choices are individual: open **Choose launchers** or **Choose plugins** in Play & personalize. Every plugin can be unchecked; choosing a category does not require every item. Review lists your exact selections before saving or installing.
+Launcher and Decky choices are individual: browse **Gaming launchers**, or select **Decky Loader** and open **Choose plugins**, in Play & personalize. Every plugin can be unchecked; choosing a category does not require every item. Review lists your exact selections before saving or installing.
 
-Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.
+Selecting CSS Loader exposes **Choose components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.
 
-Each software category now has **Choose tools** controls. Terminal tools, development tools, remote clients, workspace web apps, streaming services, and local AI downloads can be selected individually. For example, choose only Ghostty without installing tmux, Neovim, fonts or shell themes. AI workspace includes its required OpenCode client; the local model requires Ollama. Existing software is retained when unchecked.
+Software category cards open individual choices without selecting the category. Terminal tools, development tools, remote clients, workspace web apps, streaming services, and local AI downloads can be selected individually. For example, choose only Ghostty without installing tmux, Neovim, fonts or shell themes. AI workspace includes its required OpenCode client; the local model requires Ollama. Existing software is retained when unchecked.
+
+The setup UI uses **browsing cards** for categories and **checkboxes** for individual installs. Browsing never changes your plan. Fresh setups start with no optional selections; saved plans are restored when reopened. Decky Loader owns plugin choices, and CSS Loader owns its component choices. Search within a category, review the actual selected items, then save or install. Full-preset and clear-all actions ask before replacing your choices.

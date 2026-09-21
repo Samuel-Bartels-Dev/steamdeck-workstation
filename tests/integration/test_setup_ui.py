@@ -17,6 +17,11 @@ from deckctl import apps, core, setup_window, gaming_options, css_stack, compone
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
 class NativeSetup(unittest.TestCase):
     def test_real_window_saves_app_dependencies_without_installing(self):
+        for width, height in ((1120,720),(800,600)):
+            with self.subTest(size=(width,height)):
+                self.check_flow(width,height)
+
+    def check_flow(self, width, height):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
             harness = base/'Smoke.qml'
@@ -31,6 +36,18 @@ UI.Setup {
         onTriggered: {
             if (!app.attempted) {
                 app.attempted = true
+                if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                var original = JSON.stringify(app.chosen)
+                app.browse("terminal")
+                if (app.dirty || JSON.stringify(app.chosen) !== original) throw new Error("Browsing changed selections")
+                app.toggle("ghostty", false)
+                if (app.pageValues("terminal").join(",") !== "ghostty") throw new Error("Single choice enabled other tools")
+                app.searchText = "ghostty"
+                if (app.currentItems().length !== 1) throw new Error("Search did not narrow results")
+                app.back()
+                app.browse("desktop-apps")
+                if (app.stage !== 3 || app.detailPage !== "") throw new Error("Desktop apps link did not open the app chooser")
+                if (app.searchText !== "") throw new Error("Back retained stale search")
                 app.preset(false)
                 app.toggle("zed", true)
                 app.toggle("gaming", false)
@@ -48,6 +65,10 @@ UI.Setup {
                 app.detailPreset(false)
                 app.toggle("ghostty", false)
                 app.stage = 4
+                var names = app.reviewSections().reduce(function(out, section) { return out.concat(section.items.map(function(x) { return x.name })) }, [])
+                if (names.indexOf("Ghostty") < 0 || names.indexOf("tmux") >= 0) throw new Error("Review is not the actual item selection")
+                app.progress = {running:false, operation:"install", exitCode:1, modules:[]}
+                if (app.installTitle() !== "Setup needs attention") throw new Error("Failure shown as successful")
                 app.savePlan(false)
             } else if (app.saved) {
                 app.dirty = false
@@ -57,7 +78,7 @@ UI.Setup {
     }
     Timer { running: true; interval: 8000; onTriggered: { app.dirty=false; Qt.exit(4) } }
 }
-''')
+'''.replace('width: 1120; height: 720', f'width: {width}; height: {height}'))
             run = subprocess.run
             def start(args, **kwargs):
                 args[1] = str(harness)

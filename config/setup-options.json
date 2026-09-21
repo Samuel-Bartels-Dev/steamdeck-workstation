@@ -11,7 +11,7 @@
         {"id": "hardware", "name": "Deck hardware", "summary": "Model and device support"},
         {"id": "gaming", "name": "Gaming launchers", "summary": "Heroic, Battle.net and Steam setup"},
         {"id": "controller", "name": "Controller tools", "summary": "Steam Input templates and profiles"},
-        {"id": "decky", "name": "Decky customization", "summary": "Plugins, themes and Game Mode polish"},
+        {"id": "decky", "name": "Decky Loader", "summary": "Plugin support for Game Mode; choose add-ons separately"},
         {"id": "library", "name": "Steam library tools", "summary": "Audit and repair shortcuts"},
         {"id": "emulation", "name": "Emulation", "summary": "EmuDeck, emulator setup and storage"},
         {"id": "android", "name": "Android gaming", "summary": "Optional Waydroid support"}
@@ -25,7 +25,7 @@
         {"id": "terminal", "name": "Terminal tools", "summary": "Choose individual terminals, editors and shell tools"},
         {"id": "dev", "name": "Development tools", "summary": "Choose Codex and a development container"},
         {"id": "workspace", "name": "Workspace apps", "summary": "Notion, ChatGPT and Claude shortcuts"},
-        {"id": "ai-workspace", "name": "On-demand AI coding", "summary": "OpenCode with local Ollama model"}
+        {"id": "ai-workspace", "name": "On-demand AI coding", "summary": "OpenCode workspace; local engine and model are optional"}
       ]
     },
     {
@@ -33,11 +33,11 @@
       "title": "Everyday and connected",
       "description": "Optional media, remote access, storage and recovery features.",
       "modules": [
-        {"id": "utilities", "name": "Deck utilities", "summary": "Everyday shell and system tools"},
+        {"id": "utilities", "name": "Desktop apps", "summary": "Browse browsers, chat, editors and media players"},
         {"id": "storage", "name": "Storage setup", "summary": "Separate game and emulation libraries"},
         {"id": "remote", "name": "Remote play and access", "summary": "Tailscale, Moonlight and Chiaki"},
         {"id": "backup", "name": "Backup and recovery", "summary": "Game saves and workstation recovery"},
-        {"id": "media", "name": "Media apps", "summary": "Streaming shortcuts and media tools"}
+        {"id": "media", "name": "Streaming services", "summary": "Choose individual Game Mode web shortcuts"}
       ]
     }
   ]
