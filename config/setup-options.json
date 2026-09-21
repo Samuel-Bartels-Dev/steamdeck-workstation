@@ -1,0 +1,44 @@
+{
+  "required_modules": [
+    "base"
+  ],
+  "groups": [
+    {
+      "id": "play",
+      "title": "Play and personalize",
+      "description": "Gaming, controls, emulation, Android and Steam library tools.",
+      "modules": [
+        {"id": "hardware", "name": "Deck hardware", "summary": "Model and device support"},
+        {"id": "gaming", "name": "Gaming launchers", "summary": "Heroic, Battle.net and Steam setup"},
+        {"id": "controller", "name": "Controller tools", "summary": "Steam Input templates and profiles"},
+        {"id": "decky", "name": "Decky customization", "summary": "Plugins, themes and Game Mode polish"},
+        {"id": "library", "name": "Steam library tools", "summary": "Audit and repair shortcuts"},
+        {"id": "emulation", "name": "Emulation", "summary": "EmuDeck, emulator setup and storage"},
+        {"id": "android", "name": "Android gaming", "summary": "Optional Waydroid support"}
+      ]
+    },
+    {
+      "id": "workstation",
+      "title": "Workstation and creation",
+      "description": "Choose the tools you want available in Desktop Mode.",
+      "modules": [
+        {"id": "terminal", "name": "Modern terminal", "summary": "Ghostty, tmux, Neovim and shell polish"},
+        {"id": "dev", "name": "Development tools", "summary": "Git, Codex and optional Docker"},
+        {"id": "workspace", "name": "Workspace apps", "summary": "Notion, ChatGPT and Claude shortcuts"},
+        {"id": "ai-workspace", "name": "On-demand AI coding", "summary": "OpenCode with local Ollama model"}
+      ]
+    },
+    {
+      "id": "everyday",
+      "title": "Everyday and connected",
+      "description": "Optional media, remote access, storage and recovery features.",
+      "modules": [
+        {"id": "utilities", "name": "Deck utilities", "summary": "Everyday shell and system tools"},
+        {"id": "storage", "name": "Storage setup", "summary": "Separate game and emulation libraries"},
+        {"id": "remote", "name": "Remote play and access", "summary": "Tailscale, Moonlight and Chiaki"},
+        {"id": "backup", "name": "Backup and recovery", "summary": "Game saves and workstation recovery"},
+        {"id": "media", "name": "Media apps", "summary": "Streaming shortcuts and media tools"}
+      ]
+    }
+  ]
+}

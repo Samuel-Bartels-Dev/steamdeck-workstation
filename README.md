@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.32
+# Steam Deck Workstation — v0.2.33
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -59,8 +59,8 @@ If you copied the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.32.tar.gz
-cd steamdeck-workstation-0.2.32
+tar -xzf steamdeck-workstation-v0.2.33.tar.gz
+cd steamdeck-workstation-0.2.33
 chmod +x install.sh
 ./install.sh
 ```
@@ -103,8 +103,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.32.tar.gz
-cd steamdeck-workstation-0.2.32
+tar -xzf steamdeck-workstation-v0.2.33.tar.gz
+cd steamdeck-workstation-0.2.33
 chmod +x install.sh
 ./install.sh
 ```
@@ -118,6 +118,32 @@ source ~/.config/deckctl/shell/aliases.sh
 dhealth
 dverify
 ```
+
+## Choose only the stages you want
+
+The installer opens a setup builder before provisioning. Its three pages group
+features into **Play and personalize**, **Workstation and creation**, and
+**Everyday and connected**, followed by desktop apps. The repository defaults
+start checked; uncheck any stage or app you do not need, review the plan, and
+confirm. On Steam Deck Desktop Mode this uses KDE's native dialog UI; in a
+terminal it uses the same staged questions. The builder only saves preferences:
+it does not install, remove, or change existing apps.
+
+```bash
+deckctl setup customize          # reopen the visual/text setup builder
+deckctl plan                     # review the selected install plan
+deckctl apply                    # install/reconcile selected modules
+deckctl setup run                # walk through selected sign-in/pairing stages
+```
+
+Base support is always included. Module prerequisites are added automatically,
+and choosing an app also includes the module that installs it. Unselected
+features are marked **NOT_SELECTED** in setup status and do not block readiness;
+you can add them later with the builder. To make a clean base-only plan, run
+`deckctl setup customize --minimal`. To restore the full repository defaults,
+run `deckctl setup customize --defaults`. Advanced users can set an explicit
+plan with repeated `--module NAME` and `--app KEY` options; see `deckctl help
+setup customize` for details.
 
 ---
 
@@ -813,7 +839,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.32.md).
+See [the latest release notes](docs/RELEASE-0.2.33.md).
 
 ## Online releases and recovery
 

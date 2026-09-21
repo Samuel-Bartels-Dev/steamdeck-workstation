@@ -99,9 +99,9 @@ class ExistingInstallation(unittest.TestCase):
                 installed=self.run_tool(ROOT)
                 current=self.home/'.local/share/steamdeck-workstation/current'
                 self.assertEqual(current.resolve(),installed)
-                self.assertEqual(installed.name,'0.2.32')
+                self.assertEqual(installed.name,'0.2.33')
                 result=subprocess.run([str(self.home/'.local/bin/deckctl'),'--version'],env=self.env,capture_output=True,text=True,timeout=10)
-                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'0.2.32')
+                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'0.2.33')
                 for name,content in payloads.items():self.assertEqual((self.home/name).read_bytes(),content,name)
                 self.assertEqual(old_inventory,{str(p.relative_to(old)):hashlib.sha256(p.read_bytes()).hexdigest() for p in old.rglob('*') if p.is_file()})
                 self.assertIn('# personal shell config',bashrc.read_text())
