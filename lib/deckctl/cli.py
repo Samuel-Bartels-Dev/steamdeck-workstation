@@ -1,6 +1,6 @@
 from __future__ import annotations
 import argparse, json, subprocess, sys
-from . import apps, containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, upgrade_plan, shortcut_ops
+from . import ai_workspace, apps, containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, upgrade_plan, shortcut_ops
 
 def repo_validate():
     return subprocess.run([sys.executable,str(core.ROOT/'tests/contract/test_repo.py')],cwd=core.ROOT).returncode
@@ -31,6 +31,7 @@ Command groups:
 Tip: run `deckctl <command> -h` for command-specific help.
 """)
     sp=p.add_subparsers(dest='cmd',required=True)
+    ai_workspace.add_parser(sp)
     apps.add_parser(sp)
     containers.add_parser(sp)
     sp.add_parser('detect'); sp.add_parser('plan'); sp.add_parser('apply')
@@ -84,6 +85,7 @@ def main(argv=None):
             parser=children[word]
         parser.print_help()
         return 0
+    if args.cmd=='ai-workspace': return ai_workspace.dispatch(args)
     if args.cmd=='apps': return apps.dispatch(args)
     if args.cmd=='containers': return containers.dispatch(args)
     if args.cmd=='detect': print(json.dumps(core.detect_hardware(),indent=2)); return 0

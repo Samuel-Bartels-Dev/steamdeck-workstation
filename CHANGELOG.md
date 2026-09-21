@@ -1,3 +1,11 @@
+# v0.2.32
+
+- Install Ghostty, Neovim and OpenCode in the terminal module; keep tmux available.
+- Add an on-demand rootless Ollama/OpenCode workspace and small local coding model.
+- Add managed Moonlight and Battle.net Desktop icons.
+
+See docs/RELEASE-0.2.32.md.
+
 # v0.2.31
 
 - Add Discord and Slack to selectable desktop installs, verification and settings-preserving uninstall.

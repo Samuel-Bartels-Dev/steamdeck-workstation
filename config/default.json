@@ -16,7 +16,8 @@
     "media": true,
     "remote": true,
     "backup": true,
-    "dev": true
+    "dev": true,
+    "ai-workspace": true
   },
   "storage": {
     "games_label": "DECK-GAMES",

@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.31
+# deckctl command manual — v0.2.32
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -8,7 +8,7 @@ For setup and maintenance entry points, see [Script reference](SCRIPTS.md).
 
 ```text
 usage: deckctl [-h] [--version]
-       {apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+       {ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
        ...
 
 NAME
@@ -18,7 +18,8 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+  {ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+    ai-workspace        Manage ai-workspace operations.
     apps                Manage apps operations.
     containers          Manage containers operations.
     detect              Identify Steam Deck model, SteamOS, and battery health from
@@ -75,7 +76,193 @@ options:
   --version             show program's version number and exit
 
 EXAMPLES
-  deckctl  apps
+  deckctl  ai-workspace
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl ai-workspace
+
+```text
+usage: deckctl ai-workspace [-h] {install,guide,status,open} ...
+
+NAME
+  deckctl ai-workspace — Manage ai-workspace operations using the commands below.
+
+DESCRIPTION
+  Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
+
+positional arguments:
+  {install,guide,status,open}
+    install             Install user-space Ollama, configure OpenCode and pre-pull Qwen
+                        2.5 Coder 1.5B.
+    guide               Print workspace launch and supported ChatGPT subscription sign-
+                        in instructions.
+    status              Inspect local AI workspace installation without starting an
+                        engine.
+    open                Open a foreground, on-demand AI coding session.
+
+options:
+  -h, --help            show this help message and exit
+
+EXAMPLES
+  deckctl ai-workspace install
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl ai-workspace install
+
+```text
+usage: deckctl ai-workspace install [-h]
+
+NAME
+  deckctl ai-workspace install — Install user-space Ollama, configure OpenCode and pre-pull Qwen 2.5 Coder 1.5B.
+
+DESCRIPTION
+  Downloads the upstream Linux archive and libraries without sudo, validates its SHA-256 and installs the raw executable in ~/.local/bin. Temporarily starts an owned local server for the model pull and stops it afterward. Preserves unrelated configuration; conflicts fail before mutation. Terminal tools are installed by the terminal module.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl ai-workspace install
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl ai-workspace guide
+
+```text
+usage: deckctl ai-workspace guide [-h]
+
+NAME
+  deckctl ai-workspace guide — Print workspace launch and supported ChatGPT subscription sign-in instructions.
+
+DESCRIPTION
+  Read-only. OpenCode uses its OpenAI ChatGPT Plus/Pro browser sign-in flow. No browser access token is copied into configuration.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl ai-workspace guide
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl ai-workspace status
+
+```text
+usage: deckctl ai-workspace status [-h] [--json]
+
+NAME
+  deckctl ai-workspace status — Inspect local AI workspace installation without starting an engine.
+
+DESCRIPTION
+  Reports executables, config, model manifest/blob presence and dedicated endpoint occupancy. Occupancy is not proof of ownership or memory usage. Account authentication, model quality and GPU acceleration are not certified.
+
+options:
+  -h, --help  show this help message and exit
+  --json      Emit machine-readable JSON instead of the human-readable report.
+
+EXAMPLES
+  deckctl ai-workspace status --json
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl ai-workspace open
+
+```text
+usage: deckctl ai-workspace open [-h] [--profile {local-ollama,chatgpt-pro}] [--model
+       MODEL]
+
+NAME
+  deckctl ai-workspace open — Open a foreground, on-demand AI coding session.
+
+DESCRIPTION
+  local-ollama starts a dedicated loopback Ollama process with OLLAMA_KEEP_ALIVE=0 and stops its process group on exit or handled signals. chatgpt-pro starts no Ollama process and requires an OpenAI model ID after browser sign-in. Never borrows or stops an existing server. Closing a detached tmux client does not end its workspace; exit the session itself.
+
+options:
+  -h, --help            show this help message and exit
+  --profile {local-ollama,chatgpt-pro}
+                        Local owned engine or OpenAI subscription provider.
+  --model MODEL         OpenAI model ID from opencode models openai; required for
+                        chatgpt-pro.
+
+EXAMPLES
+  deckctl ai-workspace open
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2782,7 +2969,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.31.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -2855,7 +3042,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.31.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.32.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -4216,7 +4403,7 @@ NAME
   deckctl desktop apply — Install project-owned Desktop icons and repair known project shortcut icon references.
 
 DESCRIPTION
-  Writes user icon files and known project .desktop entries only. SteamGridDB retains Gaming Mode artwork ownership.
+  Writes user icon files and known project .desktop entries only. Repairs Moonlight and Battle.net app icons while preserving their launch commands. SteamGridDB artwork files remain untouched.
 
 options:
   -h, --help  show this help message and exit

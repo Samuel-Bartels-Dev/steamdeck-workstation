@@ -8,12 +8,14 @@ from pathlib import Path
 
 from . import core
 
-ICONS = {'setup', 'media', 'netflix', 'hulu', 'crunchyroll', 'prime-video', 'notion', 'chatgpt', 'claude'}
+ICONS = {'setup', 'media', 'netflix', 'hulu', 'crunchyroll', 'prime-video', 'notion', 'chatgpt', 'claude', 'moonlight', 'battlenet'}
 ENTRIES = {
     'Continue Steam Deck Setup.desktop': 'setup',
     'Media-Apps.desktop': 'media',
     **{f'deck-media-{sid}.desktop': sid for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video')},
     **{f'deck-workspace-{sid}.desktop': sid for sid in ('notion', 'chatgpt', 'claude')},
+    'Moonlight Game Streaming.desktop': 'moonlight',
+    'Battle.net.desktop': 'battlenet',
 }
 
 
@@ -79,7 +81,7 @@ def apply():
             path.chmod(0o755)
             # App launchers are surfaced on the Desktop too. Staged vendor installers
             # remain in their existing folder; no unrelated .desktop files are touched.
-            if name.startswith(('deck-media-', 'deck-workspace-')) and root == roots[0]:
+            if (name.startswith(('deck-media-', 'deck-workspace-')) or icon in ('moonlight', 'battlenet')) and root == roots[0]:
                 desktop.mkdir(parents=True, exist_ok=True)
                 target = desktop / name
                 if target.is_symlink():

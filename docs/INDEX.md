@@ -57,6 +57,7 @@ Each module's canonical domain documentation is `modules/<module>/README.md`.
 
 - [Docker everyday commands](DOCKER.md)
 - [App selection and removal](APPS.md)
+- [v0.2.32 release notes](RELEASE-0.2.32.md)
 - [v0.2.31 release notes](RELEASE-0.2.31.md)
 - [v0.2.30 release notes](RELEASE-0.2.30.md)
 - [v0.2.29 release notes](RELEASE-0.2.29.md)

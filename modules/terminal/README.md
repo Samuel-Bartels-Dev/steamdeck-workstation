@@ -63,3 +63,26 @@ Ctrl+A r           reload tmux config
 ```
 
 Mouse support is enabled, panes inherit the current working directory, and the status/pane borders use the Bubble Gum Rave palette. The managed config requests RGB color and OSC-52 clipboard integration where the outer terminal supports it.
+
+## Coding tools
+
+`deckctl terminal apply` also installs Ghostty, Neovim (`nvim`) and OpenCode
+(`opencode`) into user space; tmux remains included. No coding app or tmux server
+is started at login. Ghostty gets its own Desktop Mode menu entry, while Konsole
+remains available. Existing personal Ghostty/Neovim settings are not replaced.
+
+Ghostty uses the community AppImage linked by [Ghostty's Linux install docs](https://ghostty.org/docs/install/binary).
+Neovim uses its [official AppImage](https://neovim.io/doc/install/), retaining the
+full editor runtime. Both wrappers request AppImage extract-and-run mode so they
+do not require a working FUSE mount. OpenCode uses its official Linux x64 baseline
+archive from `anomalyco/opencode`. New downloads require the release asset SHA-256
+and pass a version check before replacing a managed executable. Untracked user
+binaries are preserved. Terminal status executes version checks for these tools.
+
+AppImages live in `~/.local/share/deckctl/terminal-appimages`. Reset removes only
+unchanged managed wrappers/binaries and the unchanged managed Ghostty menu entry;
+AppImage payloads and personal editor configuration are retained for recovery.
+The desktop Flatpak chooser does not control these terminal-module tools.
+
+See [the on-demand AI workspace](../ai-workspace/README.md) for local Ollama and
+ChatGPT subscription configuration. OpenCode provider login remains interactive.

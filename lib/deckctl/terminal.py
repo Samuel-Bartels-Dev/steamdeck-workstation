@@ -6,6 +6,7 @@ import json
 import os
 import re
 import shutil
+import shlex
 import subprocess
 import tarfile
 import tempfile
@@ -38,7 +39,7 @@ KONSOLE_PROFILE = "Bubble Gum Rave.profile"
 KONSOLE_SCHEME = "BubbleGumRave.colorscheme"
 TMUX_MARKER_START = "# >>> steamdeck-workstation tmux >>>"
 TMUX_MARKER_END = "# <<< steamdeck-workstation tmux <<<"
-TOOLS = ("oh-my-posh", "starship", "zoxide", "fzf", "eza", "bat", "fastfetch", "tmux")
+TOOLS = ("oh-my-posh", "starship", "zoxide", "fzf", "eza", "bat", "fastfetch", "tmux", "ghostty", "nvim", "opencode")
 
 
 def _sha256_bytes(data: bytes) -> str:
@@ -122,10 +123,12 @@ def _select_archive_binary(members, binary: str, preferred_suffixes=()):
     raise RuntimeError(f"archive contained multiple ambiguous {binary} binaries: {names}")
 
 
-def _install_binary_asset(repo: str, pattern: str, binary: str, preferred_suffixes=(), verify_args=()) -> dict:
+def _install_binary_asset(repo: str, pattern: str, binary: str, preferred_suffixes=(), verify_args=(), require_digest=False) -> dict:
     release, asset = _github_asset(repo, pattern)
     data = _request(asset["browser_download_url"], 90)
     archive_sha = _sha256_bytes(data)
+    if require_digest and asset.get("digest") != "sha256:" + archive_sha:
+        raise RuntimeError("Upstream asset SHA-256 missing or mismatched")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
         members = list(_safe_tar_members(tf))
         chosen = _select_archive_binary(members, binary, preferred_suffixes)
@@ -157,6 +160,59 @@ def _install_binary_asset(repo: str, pattern: str, binary: str, preferred_suffix
         "path": str(dest),
         "binary_sha256": _sha256_file(dest),
     }
+
+
+def _install_appimage(repo: str, pattern: str, binary: str) -> dict:
+    """Keep the full runtime; wrappers use extraction mode without requiring FUSE."""
+    release, asset = _github_asset(repo, pattern)
+    data = _request(asset["browser_download_url"], 120)
+    digest = _sha256_bytes(data)
+    if asset.get("digest") != "sha256:" + digest:
+        raise RuntimeError("Upstream AppImage SHA-256 missing or mismatched")
+    payload_dir = HOME / ".local/share/deckctl/terminal-appimages"
+    payload_dir.mkdir(parents=True, exist_ok=True)
+    payload = payload_dir / (binary + "-" + digest + ".AppImage")
+    if payload.exists():
+        if payload.is_symlink() or _sha256_file(payload) != digest:
+            raise RuntimeError(f"Modified AppImage preserved: {payload}")
+    else:
+        fd, name = tempfile.mkstemp(prefix=".download-", dir=payload_dir)
+        temp = Path(name)
+        try:
+            with os.fdopen(fd, "wb") as stream: stream.write(data)
+            temp.chmod(0o755)
+            env = {**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"}
+            result = subprocess.run([str(temp), "--version"], env=env, capture_output=True, text=True, timeout=60)
+            if result.returncode:
+                raise RuntimeError(f"{binary} failed version check: {result.stderr[-500:]}")
+            temp.replace(payload)
+        finally:
+            temp.unlink(missing_ok=True)
+    BIN_DIR.mkdir(parents=True, exist_ok=True)
+    dest = BIN_DIR / binary
+    wrapper = '#!/bin/sh\nexec env APPIMAGE_EXTRACT_AND_RUN=1 ' + shlex.quote(str(payload)) + ' "$@"\n'
+    fd, name = tempfile.mkstemp(prefix="." + binary + "-", dir=BIN_DIR)
+    temp = Path(name)
+    try:
+        with os.fdopen(fd, "w") as stream: stream.write(wrapper)
+        temp.chmod(0o755)
+        temp.replace(dest)
+    finally:
+        temp.unlink(missing_ok=True)
+    return {"source": repo, "version": release.get("tag_name"), "asset": asset["name"],
+            "path": str(dest), "binary_sha256": _sha256_file(dest),
+            "payload": str(payload), "payload_sha256": digest}
+
+
+def _ghostty_desktop(create=True):
+    # Unique deckctl entry; never replace an existing personal desktop entry.
+    path = HOME / ".local/share/applications/deckctl-ghostty.desktop"
+    executable = str(BIN_DIR / "ghostty").replace("\\", "\\\\").replace('"', '\\"').replace("`", "\\`").replace("$", "\\$").replace("%", "%%")
+    text = '[Desktop Entry]\nType=Application\nName=Ghostty\nExec="' + executable + '"\nIcon=utilities-terminal\nTerminal=false\nCategories=System;TerminalEmulator;\n'
+    if create and not path.exists() and not path.is_symlink() and (BIN_DIR / "ghostty").exists():
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text)
+    return path, text
 
 
 def _run_official_installer(name: str, url: str, args: list[str]) -> dict:
@@ -345,12 +401,17 @@ def _receipt_binary_ok(name: str, receipts: dict) -> bool:
     item = receipts.get(name, {})
     path = Path(item.get("path", "")) if item.get("path") else BIN_DIR / name
     expected = item.get("binary_sha256")
-    return bool(expected and path.exists() and _sha256_file(path) == expected)
+    payload_ok = True
+    if item.get("payload"):
+        payload = Path(item["payload"])
+        payload_ok = payload.is_file() and not payload.is_symlink() and _sha256_file(payload) == item.get("payload_sha256")
+    return bool(expected and path.exists() and _sha256_file(path) == expected and payload_ok)
 
 
 def _unmanaged_local_binary(name: str, receipts: dict) -> bool:
     path = BIN_DIR / name
-    return path.exists() and not _receipt_binary_ok(name, receipts)
+    expected = receipts.get(name, {}).get("binary_sha256")
+    return path.is_symlink() or (path.exists() and (not expected or _sha256_file(path) != expected))
 
 
 def _fonts_ok(receipts: dict) -> bool:
@@ -375,6 +436,9 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
             ("bat", lambda: _install_binary_asset("sharkdp/bat", r"^bat-v.*-x86_64-unknown-linux-gnu\.tar\.gz$", "bat")),
             ("fastfetch", lambda: _install_binary_asset("fastfetch-cli/fastfetch", r"^fastfetch-linux-amd64\.tar\.gz$", "fastfetch", ("usr/bin/fastfetch",), ("--version",))),
             ("tmux", lambda: _install_binary_asset("tmux/tmux-builds", r"^tmux-.*-linux-x86_64\.tar\.gz$", "tmux")),
+            ("ghostty", lambda: _install_appimage("pkgforge-dev/ghostty-appimage", r"^Ghostty-.*-x86_64\.AppImage$", "ghostty")),
+            ("nvim", lambda: _install_appimage("neovim/neovim", r"^nvim-linux-x86_64\.appimage$", "nvim")),
+            ("opencode", lambda: _install_binary_asset("anomalyco/opencode", r"^opencode-linux-x64-baseline\.tar\.gz$", "opencode", verify_args=("--version",), require_digest=True)),
             ("fonts", _install_fonts),
         ]
         for name, fn in installers:
@@ -401,6 +465,7 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
     _install_shell_block()
     _install_tmux_block()
     _set_konsole_default()
+    _ghostty_desktop()
     print("Applied Bubble Gum Rave terminal configuration.")
     print(f"Prompt engine: {_prompt_engine().upper()} (Oh My Posh is the default; Starship remains installed as fallback).")
     print("Open a new Konsole window (or `source ~/.config/deckctl/shell/terminal.sh`) to activate prompt/zoxide/fzf/tmux helpers.")
@@ -473,7 +538,13 @@ def status_data() -> dict:
     for tool in TOOLS:
         found = shutil.which(tool)
         p = found or (str(BIN_DIR / tool) if (BIN_DIR / tool).exists() else None)
-        command_state[tool] = {"ready": bool(p and Path(p).exists()), "path": p}
+        ready = bool(p and Path(p).exists())
+        if ready and tool in ("ghostty", "nvim", "opencode"):
+            try:
+                ready = subprocess.run([p, "--version"], capture_output=True, timeout=15).returncode == 0
+            except (OSError, subprocess.TimeoutExpired):
+                ready = False
+        command_state[tool] = {"ready": ready, "path": p}
     font = _font_match()
     data = {
         "commands": command_state,
@@ -632,5 +703,9 @@ def reset(keep_tools: bool = False) -> int:
             pass
         if shutil.which("fc-cache"):
             subprocess.run(["fc-cache", "-f"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("Terminal customization reset. Open a new Konsole window.")
+    desktop, expected = _ghostty_desktop(create=False)
+    if not keep_tools and not (BIN_DIR / "ghostty").exists() and desktop.is_file() and not desktop.is_symlink():
+        if desktop.read_text() == expected:
+            desktop.unlink()
+    print("Terminal customization reset. Personal editor settings and downloaded AppImages are retained. Open a new Konsole window.")
     return 0

@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.31
+# Steam Deck Workstation — v0.2.32
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -59,8 +59,8 @@ If you copied the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.31.tar.gz
-cd steamdeck-workstation-0.2.31
+tar -xzf steamdeck-workstation-v0.2.32.tar.gz
+cd steamdeck-workstation-0.2.32
 chmod +x install.sh
 ./install.sh
 ```
@@ -103,8 +103,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.31.tar.gz
-cd steamdeck-workstation-0.2.31
+tar -xzf steamdeck-workstation-v0.2.32.tar.gz
+cd steamdeck-workstation-0.2.32
 chmod +x install.sh
 ./install.sh
 ```
@@ -813,7 +813,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.31.md).
+See [the latest release notes](docs/RELEASE-0.2.32.md).
 
 ## Online releases and recovery
 
@@ -844,3 +844,5 @@ then install your choices with `deckctl apps install`. Use
 while keeping settings. See [app management](docs/APPS.md).
 
 Discord and Slack are also available: `deckctl apps install discord slack`.
+
+The terminal module includes Ghostty, tmux, Neovim and OpenCode. `deckctl ai-workspace install` configures user-space Ollama and downloads a small local coding model; `deckctl ai-workspace open` runs a temporary server for a local coding session. See [AI workspace](modules/ai-workspace/README.md).
