@@ -1,5 +1,9 @@
 # v0.2.34
 
+## v0.2.36
+
+- Refined setup browsing, search, item-by-item review, related Decky/CSS choices, and installation handoff. Fresh plans start with no optional selections.
+
 ## v0.2.35
 
 - Individual tool, appearance, remote-client, web-app, and AI-download selections throughout setup. Provisioning and verification honor each choice.

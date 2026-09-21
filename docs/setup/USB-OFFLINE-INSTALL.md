@@ -1,10 +1,10 @@
-# USB delivery — v0.2.35
+# USB delivery — v0.2.36
 
-Extract `STEAMDECK-SETUP-v0.2.35.zip`. The established wrapper contains:
+Extract `STEAMDECK-SETUP-v0.2.36.zip`. The established wrapper contains:
 
 - `STEAMDECK-SETUP/README-FIRST.txt`
 - `STEAMDECK-SETUP/INSTALL.sh`
-- `STEAMDECK-SETUP/steamdeck-workstation-v0.2.35.tar.gz`
+- `STEAMDECK-SETUP/steamdeck-workstation-v0.2.36.tar.gz`
 - `STEAMDECK-SETUP/SHA256SUMS` (nested repo checksum)
 
 In Desktop Mode, open Konsole in that folder and run `bash INSTALL.sh` as the normal
@@ -13,8 +13,8 @@ permissions, then runs the normal installer. The normal installer keeps a persis
 copy and `deckctl` command before guided provisioning. Using `bash` also works on
 FAT/exFAT USB media that cannot retain Unix executable bits.
 
-The separate `steamdeck-workstation-v0.2.35-SHA256SUMS.txt` verifies the two delivered
-archives. Use `sha256sum --check steamdeck-workstation-v0.2.35-SHA256SUMS.txt` with
+The separate `steamdeck-workstation-v0.2.36-SHA256SUMS.txt` verifies the two delivered
+archives. Use `sha256sum --check steamdeck-workstation-v0.2.36-SHA256SUMS.txt` with
 both archives in the same directory.
 
 Internet remains required for external packages and vendor downloads. This USB
