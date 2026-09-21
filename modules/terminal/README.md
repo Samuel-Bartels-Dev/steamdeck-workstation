@@ -1,5 +1,7 @@
 # Bubble Gum Rave Terminal
 
+Use `deckctl setup customize` to choose individual tools in this category. Selections are saved in `~/.config/deckctl/components.json` and govern installation, verification, and guided setup. Deselecting a tool preserves existing installations and personal settings. Older setups without saved component choices retain their previous defaults.
+
 A reversible user-space Konsole/Bash quality-of-life layer for the Steam Deck. It intentionally does **not** change the system shell and does not install packages with pacman.
 
 ## Managed components
@@ -66,8 +68,10 @@ Mouse support is enabled, panes inherit the current working directory, and the s
 
 ## Coding tools
 
-`deckctl terminal apply` also installs Ghostty, Neovim (`nvim`) and OpenCode
-(`opencode`) into user space; tmux remains included. No coding app or tmux server
+`deckctl terminal apply` installs only the chosen tools. Ghostty, Neovim (`nvim`),
+OpenCode (`opencode`), tmux, each prompt/helper tool, fonts, shell integration, and
+Konsole appearance are independent choices. Selecting Ghostty alone does not
+change Bash, tmux, or the Konsole default profile. No coding app or tmux server
 is started at login. Ghostty gets its own Desktop Mode menu entry, while Konsole
 remains available. Existing personal Ghostty/Neovim settings are not replaced.
 

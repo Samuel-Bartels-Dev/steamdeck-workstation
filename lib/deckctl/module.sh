@@ -24,3 +24,5 @@ flatpak_install() {
 # Desktop choices are separate from presence checks for shared app dependencies.
 desktop_app_install() { PYTHONPATH="$DECKCTL_ROOT/lib" python3 -m deckctl.apps install "$1"; }
 desktop_app_satisfied() { PYTHONPATH="$DECKCTL_ROOT/lib" python3 -m deckctl.apps verify "$1"; }
+
+component_selected() { PYTHONPATH="$DECKCTL_ROOT/lib" python3 -m deckctl.component_options "$1" "$2"; }

@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'lib'))
-from deckctl import apps, core, setup_window, gaming_options, css_stack
+from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options
 
 
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
@@ -42,6 +42,11 @@ UI.Setup {
                 app.detailPage = "css"
                 app.detailPreset(false)
                 app.toggle("Round", false)
+                app.stage = 1
+                app.toggle("terminal", false)
+                app.detailPage = "terminal"
+                app.detailPreset(false)
+                app.toggle("ghostty", false)
                 app.stage = 4
                 app.savePlan(false)
             } else if (app.saved) {
@@ -64,6 +69,7 @@ UI.Setup {
                 self.assertEqual(gaming_options.selection(), ['heroic'])
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
                 self.assertEqual(css_stack.selection(), ["Round"])
+                self.assertEqual(component_options.selection()['terminal'], ['ghostty'])
                 self.assertIn('dev', core.enabled_modules())
                 self.assertFalse((base/'state').exists())
 

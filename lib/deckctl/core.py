@@ -466,13 +466,16 @@ def _steam_shortcut_has(name: str):
 def _media_desktop_provisioned():
     appdir=Path.home()/".local/share/applications"
     bindir=Path.home()/".local/share/deckctl/media/bin"
-    services=("netflix","hulu","crunchyroll","prime-video")
+    from . import component_options
+    services=component_options.effective("media") - {"keeper"}
     return all((appdir/f"deck-media-{sid}.desktop").exists() and (bindir/sid).exists() for sid in services)
 
 def _media_configured():
     appdir=Path.home()/".local/share/applications"
     services={"netflix":"Netflix","hulu":"Hulu","crunchyroll":"Crunchyroll","prime-video":"Prime Video"}
-    return _media_desktop_provisioned() and all(_steam_shortcut_has(name) for name in services.values())
+    from . import component_options
+    selected=component_options.effective("media")
+    return _media_desktop_provisioned() and all(_steam_shortcut_has(name) for sid,name in services.items() if sid in selected)
 
 def media_status():
     appdir=Path.home()/".local/share/applications"
@@ -548,8 +551,9 @@ def media_keeper_status():
 
 def media_keeper_setup():
     if not _flatpak_installed("com.google.Chrome"):
-        print("Google Chrome is not installed yet. Run the media setup first: deckctl media setup")
-        return 2
+        print("Installing Chrome, required by the selected KeeperFill extension.")
+        result=subprocess.run(["flatpak","install","--user","-y","flathub","com.google.Chrome"])
+        if result.returncode: return result.returncode
     cmd=["flatpak","run","com.google.Chrome","--new-window",KEEPER_WEBSTORE_URL]
     try:
         subprocess.Popen(cmd,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)

@@ -333,8 +333,9 @@ def install():
     if os.geteuid() == 0:
         raise ValueError('Run workspace installation as your normal user, without sudo')
     configure()  # Validate user configuration before downloads.
-    install_ollama()
-    if not model_present():
+    from . import component_options
+    if component_options.selected('ai-workspace', 'ollama'): install_ollama()
+    if component_options.selected('ai-workspace', 'model') and not model_present():
         pull()
     guide()
     return 0
@@ -361,9 +362,11 @@ def status(as_json=False):
         config_ok = merge_config(json.loads(CONFIG.read_text()), config_data()) == json.loads(CONFIG.read_text())
     except (OSError, ValueError):
         pass
-    tools = {name: os.access(BIN / name, os.X_OK) for name in ('ollama', 'opencode', 'nvim', 'ghostty', 'tmux')}
+    from . import component_options
+    required = ['opencode'] + (['ollama'] if component_options.selected('ai-workspace','ollama') else [])
+    tools = {name: os.access(BIN / name, os.X_OK) for name in required}
     loaded = model_present()
-    data = {'status': 'READY' if all(tools.values()) and config_ok and loaded else 'NOT_INSTALLED',
+    data = {'status': 'READY' if all(tools.values()) and config_ok and (loaded or not component_options.selected('ai-workspace','model')) else 'NOT_INSTALLED',
             'message': 'On-demand workspace installation; accounts and GUI behavior require separate checks.',
             'tools': tools, 'config_ready': config_ok, 'model_downloaded': loaded,
             'endpoint_in_use': occupied(), 'endpoint': f'http://{HOST}:{PORT}', 'autostart': False}

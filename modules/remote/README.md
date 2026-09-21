@@ -1,5 +1,7 @@
 # Remote module
 
+Use `deckctl setup customize` to choose individual tools in this category. Selections are saved in `~/.config/deckctl/components.json` and govern installation, verification, and guided setup. Deselecting a tool preserves existing installations and personal settings. Older setups without saved component choices retain their previous defaults.
+
 Moonlight is the PC streaming client; Sunshine runs on home gaming PCs. Tailscale provides private reachability and **must use the SteamOS-specific `tailscale-dev/deck-tailscale` installation path**, not Discover/Flatpak, generic Arch `pacman`, or the normal Linux install script. The guided setup stages `Install-Tailscale.desktop`, which downloads the maintained upstream installer, installs the persistent system service, and then prompts for QR authentication.
 
 chiaki-ng provides PS4/PS5 Remote Play. Use PSN remote mode normally and test it away from home before travel.

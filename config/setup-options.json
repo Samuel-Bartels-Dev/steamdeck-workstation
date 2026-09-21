@@ -22,8 +22,8 @@
       "title": "Workstation and creation",
       "description": "Choose the tools you want available in Desktop Mode.",
       "modules": [
-        {"id": "terminal", "name": "Modern terminal", "summary": "Ghostty, tmux, Neovim and shell polish"},
-        {"id": "dev", "name": "Development tools", "summary": "Git, Codex and optional Docker"},
+        {"id": "terminal", "name": "Terminal tools", "summary": "Choose individual terminals, editors and shell tools"},
+        {"id": "dev", "name": "Development tools", "summary": "Choose Codex and a development container"},
         {"id": "workspace", "name": "Workspace apps", "summary": "Notion, ChatGPT and Claude shortcuts"},
         {"id": "ai-workspace", "name": "On-demand AI coding", "summary": "OpenCode with local Ollama model"}
       ]

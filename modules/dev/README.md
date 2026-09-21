@@ -1,5 +1,7 @@
 # Development
 
+Use `deckctl setup customize` to choose individual tools in this category. Selections are saved in `~/.config/deckctl/components.json` and govern installation, verification, and guided setup. Deselecting a tool preserves existing installations and personal settings. Older setups without saved component choices retain their previous defaults.
+
 Provides the lightweight local development surface for the Deck.
 
 ## Codex

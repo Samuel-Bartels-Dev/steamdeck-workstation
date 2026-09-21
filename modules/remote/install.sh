@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 source "$DECKCTL_ROOT/lib/deckctl/module.sh"
-flatpak_install com.moonlight_stream.Moonlight
-flatpak_install io.github.streetpea.Chiaki4deck
+if component_selected remote moonlight; then flatpak_install com.moonlight_stream.Moonlight; fi
+if component_selected remote chiaki; then flatpak_install io.github.streetpea.Chiaki4deck; fi
+if component_selected remote tailscale; then
 stage="$HOME/Desktop/Deck-Setup-Staged"; mkdir -p "$stage"
 
 helper="$DECKCTL_ROOT/modules/remote/install-tailscale-steamos.sh"
@@ -25,3 +26,5 @@ chiaki-ng: register PlayStation locally, then test PSN remote play from a non-ho
 EOF
 
 PYTHONPATH="$DECKCTL_ROOT/lib${PYTHONPATH:+:$PYTHONPATH}" python3 -m deckctl.setup_cleanup record tailscale
+
+fi
