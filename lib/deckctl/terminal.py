@@ -14,7 +14,7 @@ import time
 import urllib.request
 from pathlib import Path
 
-from . import core
+from . import core, install_progress, appearance
 
 HOME = Path.home()
 BIN_DIR = HOME / ".local/bin"
@@ -68,10 +68,26 @@ def newer_version(remote, installed):
 
 def _request(url: str, timeout: int = 60) -> bytes:
     req = urllib.request.Request(url, headers={"User-Agent": "deckctl-terminal/" + (core.ROOT / "VERSION").read_text().strip()})
+    phase = "Checking" if url.startswith("https://api.github.com/") else "Downloading"
+    install_progress.report(phase, "Connecting to the upstream provider.")
     with urllib.request.urlopen(req, timeout=timeout) as r:
-        data = r.read(256 * 1024 * 1024 + 1)
-        if len(data) > 256 * 1024 * 1024: raise RuntimeError("Terminal download exceeds size limit")
-        return data
+        phase = 'Checking' if url.startswith('https://api.github.com/') else 'Downloading'
+        message = 'Checking upstream release metadata.' if phase == 'Checking' else 'Downloading the selected tool.'
+        length = r.headers.get('Content-Length', '')
+        total = int(length) if length.isdigit() and int(length) > 0 else None
+        data = bytearray()
+        last = 0.0
+        while True:
+            chunk = r.read(min(1024 * 1024, 256 * 1024 * 1024 + 1 - len(data)))
+            if not chunk: break
+            data.extend(chunk)
+            if len(data) > 256 * 1024 * 1024: raise RuntimeError("Terminal download exceeds size limit")
+            now = time.monotonic()
+            if now - last >= 0.3:
+                install_progress.report(phase, message, len(data), total)
+                last = now
+        install_progress.report(phase, message, len(data), total)
+        return bytes(data)
 
 
 def _github_latest(repo: str) -> dict:
@@ -141,6 +157,7 @@ def _install_binary_asset(repo: str, pattern: str, binary: str, preferred_suffix
     archive_sha = _sha256_bytes(data)
     if require_digest and asset.get("digest") != "sha256:" + archive_sha:
         raise RuntimeError("Upstream asset SHA-256 missing or mismatched")
+    install_progress.report("Extracting", "Unpacking the downloaded archive.")
     with tarfile.open(fileobj=io.BytesIO(data), mode="r:*") as tf:
         members = list(_safe_tar_members(tf))
         chosen = _select_archive_binary(members, binary, preferred_suffixes)
@@ -194,6 +211,7 @@ def _install_appimage(repo: str, pattern: str, binary: str) -> dict:
             with os.fdopen(fd, "wb") as stream: stream.write(data)
             temp.chmod(0o755)
             env = {**os.environ, "APPIMAGE_EXTRACT_AND_RUN": "1"}
+            install_progress.report("Extracting", "Extracting the AppImage runtime and checking its version; this may take a minute.")
             result = subprocess.run([str(temp), "--version"], env=env, capture_output=True, text=True, timeout=60)
             if result.returncode:
                 raise RuntimeError(f"{binary} failed version check: {result.stderr[-500:]}")
@@ -235,6 +253,7 @@ def _run_official_installer(name: str, url: str, args: list[str]) -> dict:
         script = staging/'install.sh'; script.write_bytes(data)
         output = staging/'bin'; output.mkdir()
         install_args = [str(output) if arg == str(BIN_DIR) else arg for arg in args]
+        install_progress.report("Installing", "Running the upstream installer in staging.")
         result = subprocess.run(['sh', str(script), *install_args], text=True, capture_output=True)
         if result.returncode:
             raise RuntimeError(f'{name} installer failed ({result.returncode}): {(result.stderr or result.stdout).strip()[-800:]}')
@@ -323,7 +342,7 @@ def _ghostty_config():
     theme = directory / 'themes/deckctl-bubble-gum-rave'
     theme.parent.mkdir(parents=True, exist_ok=True)
     if not theme.is_symlink():
-        shutil.copy2(core.ROOT / 'modules/terminal/ghostty-theme', theme)
+        appearance.write(core.ROOT / 'modules/terminal/ghostty-theme', theme)
     configs = [directory / name for name in ('config', 'config.ghostty')]
     if any(path.is_symlink() or (path.exists() and path.read_text().strip()) for path in configs):
         print('Existing Ghostty settings retained. Theme available: deckctl-bubble-gum-rave')
@@ -343,20 +362,22 @@ def _copy_managed_config(selected=None):
              'oh-my-posh': ('bubble-gum-rave.omp.json', POSH_CONFIG),
              'shell': ('terminal.sh', SHELL_CONFIG), 'tmux': ('tmux.conf', TMUX_CONFIG)}
     for key, (source, target) in files.items():
-        if key in selected: shutil.copy2(src / source, target)
-    if 'ghostty' in selected:
+        if key in selected:
+            if key == 'shell': shutil.copy2(src / source, target)
+            elif appearance.enabled(key): appearance.write(src / source, target)
+    if 'ghostty' in selected and appearance.enabled('ghostty'):
         _ghostty_config()
-    if 'fastfetch' in selected:
-        shutil.copy2(src / 'fastfetch.json', TERM_CONFIG / 'fastfetch.json')
+    if 'fastfetch' in selected and appearance.enabled('fastfetch'):
+        appearance.write(src / 'fastfetch.json', TERM_CONFIG / 'fastfetch.json')
     if 'shell' in selected:
         if not PROMPT_ENGINE_FILE.exists():
             PROMPT_ENGINE_FILE.write_text('posh\n' if 'oh-my-posh' in selected else 'starship\n')
         enabled = TERM_CONFIG / 'selected-tools'
         from . import component_options
         enabled.write_text('\n'.join(sorted(component_options.effective('terminal')))+'\n')
-    if 'konsole' in selected:
-        shutil.copy2(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
-        shutil.copy2(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
+    if 'konsole' in selected and appearance.enabled('konsole'):
+        appearance.write(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
+        appearance.write(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
 
 
 def _replace_marker(path: Path, start: str, end: str, block: str):
@@ -549,10 +570,11 @@ def apply(config_only: bool = False, refresh: bool = False, only=None) -> int:
                 failures.append((name, str(exc)))
                 print(f"    WARN: {exc}")
         _save_receipts(receipts)
+    install_progress.report("Configuring", "Applying selected settings and shortcuts.")
     _copy_managed_config(selected)
     if 'shell' in selected: _install_shell_block()
-    if 'tmux' in selected: _install_tmux_block()
-    if 'konsole' in selected: _set_konsole_default()
+    if 'tmux' in selected and appearance.enabled('tmux'): _install_tmux_block()
+    if 'konsole' in selected and appearance.enabled('konsole'): _set_konsole_default()
     if 'ghostty' in selected: _ghostty_desktop()
     print("Applied selected terminal tools and configuration.")
     print("Only selected tools and appearance settings are applied.")
@@ -654,7 +676,8 @@ def status_data() -> dict:
     ready_count = sum(1 for v in command_state.values() if v["ready"])
     requirements = {'starship': ['starship_config'], 'oh-my-posh': ['posh_config'], 'shell': ['shell_config'],
                     'konsole': ['konsole_profile', 'konsole_scheme', 'konsole_default'], 'tmux': ['tmux_config']}
-    all_cfg = all(data[k] for item in selected for k in requirements.get(item, []))
+    all_cfg = all(data[k] for item in selected if item == 'shell' or item not in appearance.selection() or appearance.enabled(item)
+                  for k in requirements.get(item, []))
     if ready_count == len(command_state) and ('fonts' not in selected or data['font']['ready']) and all_cfg:
         data["status"] = "READY"
         data["message"] = "Selected terminal tools and settings are ready"
@@ -681,7 +704,7 @@ def status(as_json: bool = False) -> int:
             ('fonts','Nerd Font',data['font']['ready']), ('oh-my-posh','Oh My Posh theme',data['posh_config']),
             ('starship','Starship config',data['starship_config']), ('shell','Bash integration',data['shell_config']),
             ('tmux','tmux config',data['tmux_config'])]:
-        state = 'NOT SELECTED' if option not in selected else 'READY' if ready else 'MISSING'
+        state = 'NOT SELECTED' if option not in selected else 'PRESERVED' if option in appearance.selection() and not appearance.enabled(option) else 'READY' if ready else 'MISSING'
         print(f'{label:<20} {state}')
     print("\nTOOLS")
     for name, item in data["commands"].items():
@@ -736,7 +759,7 @@ def tmux_apply() -> int:
         print(f"tmux install failed: {exc}")
         return 1
     _copy_managed_config({"tmux"})
-    _install_tmux_block()
+    if appearance.enabled("tmux"): _install_tmux_block()
     print("tmux configuration applied. Existing tmux servers should be restarted after a tmux binary upgrade (`tmux kill-server`).")
     return 0
 

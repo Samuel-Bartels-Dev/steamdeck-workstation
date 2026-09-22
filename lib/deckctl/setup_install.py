@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan, install_log
+from . import core, setup_plan, install_log, install_progress
 
 
 class NeedsSetup(RuntimeError):
@@ -144,6 +144,9 @@ def verify(row):
     if row['kind'] == 'css':
         from . import css_stack
         return css_stack.component_ready(row['component'])
+    if row['key'] == 'terminal:konsole':
+        from . import appearance
+        if not appearance.enabled('konsole'): return True
     if row['key'] in ('terminal:shell', 'terminal:konsole'):
         from . import terminal
         state = terminal.status_data()
@@ -175,6 +178,7 @@ def run(only=None, resume=False):
             records.setdefault(row['key'], {'name': row['name'], 'status': 'PENDING', 'message': ''})
         def record(key, status, message):
             records[key].update(status=status, message=message, updatedAt=time.time())
+            if status != 'RUNNING': records[key]['finishedAt'] = time.time()
             core.save_json(state_path(), state)
         try:
             for row in rows:
@@ -184,10 +188,16 @@ def run(only=None, resume=False):
                 blockers = [parent for parent in row['requires'] if records.get(parent, {}).get('status') != 'DONE']
                 if blockers:
                     record(key, 'BLOCKED', 'Finish '+', '.join(by_key[parent]['name'] for parent in blockers)+' first.'); continue
+                records[key].update(startedAt=time.time(), finishedAt=None, phase='Checking', downloaded=None, total=None)
                 record(key, 'RUNNING', 'Checking prerequisites and available space.')
                 print('\n==> '+row['name'], flush=True)
+                def progress(phase, message, downloaded=None, total=None):
+                    changed = records[key].get('phase') != phase
+                    records[key].update(phase=phase, downloaded=downloaded, total=total)
+                    record(key, 'RUNNING', message)
+                    if changed: install_log.note(phase+': '+message)
                 try:
-                    with install_log.capture(key) as log_path:
+                    with install_log.capture(key) as log_path, install_progress.listen(progress):
                         records[key]['logPath'] = str(log_path)
                         path, budget, _ = setup_plan.storage_budget(row, False)
                         if budget is not None and not verify(row):
@@ -195,9 +205,9 @@ def run(only=None, resume=False):
                             while not anchor.exists(): anchor = anchor.parent
                             if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
                                 raise RuntimeError('Not enough free space for this item’s staging allowance plus 1 GiB headroom.')
-                        record(key, 'RUNNING', 'Installing this item; download and provider progress appear in Konsole.')
+                        install_progress.report('Installing', 'Provider is running. Use Konsole for any prompts.')
                         execute(row)
-                        record(key, 'RUNNING', 'Verifying the installed result.')
+                        install_progress.report('Verifying', 'Checking the installed result.')
                         if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')
                         record(key, 'DONE', 'Installed and verified.')
                 except NeedsSetup as exc: record(key, 'NEEDS_SETUP', str(exc))

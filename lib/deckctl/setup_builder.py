@@ -101,7 +101,9 @@ def plugin_items():
             for key, item in items.items()]
 
 
-def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None, palette=None):
+def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None, palette=None, appearance_choices=None):
+    from . import appearance
+    if appearance_choices is not None: appearance_choices = appearance.validate(appearance_choices)
     if palette is not None: palette=css_stack.validate_palette(palette)
     if components is not None: components=component_options.validate(components)
     if css is not None: css=css_stack.validate_selection(css)
@@ -127,6 +129,7 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
     if plugins is not None: files.append(core._decky_selection_path())
     if css is not None or palette is not None: files.append(core.CONFIG_HOME/'css-selection.json')
     if components is not None: files.append(core.CONFIG_HOME/'components.json')
+    if appearance_choices is not None: files.append(core.CONFIG_HOME/'appearance.json')
     previous=[p.read_bytes() if p.exists() else None for p in files]
     try:
         save_modules(modules)
@@ -148,6 +151,8 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
             core.save_json(core.CONFIG_HOME/'css-selection.json', css_state)
         if components is not None:
             core.save_json(core.CONFIG_HOME/'components.json', components)
+        if appearance_choices is not None:
+            core.save_json(core.CONFIG_HOME/'appearance.json', appearance_choices)
     except (OSError,ValueError):
         for path,old in zip(files,previous):
             if old is None: path.unlink(missing_ok=True)

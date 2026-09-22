@@ -13,7 +13,7 @@
 3. Reboot after updates.
 4. Switch to **Desktop Mode**.
 5. Connect a keyboard/mouse if convenient.
-6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.41`).
+6. Copy the release folder/archive from USB to your home directory (for example `~/Downloads/steamdeck-workstation-0.2.42`).
 7. Extract it if needed.
 8. Open Konsole in the project folder.
 9. Run:

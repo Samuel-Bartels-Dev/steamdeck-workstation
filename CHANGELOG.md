@@ -1,5 +1,10 @@
 # v0.2.34
 
+## v0.2.42
+
+- Show install phases, elapsed time, measured download progress and per-item diagnostic logs in the setup window.
+- Apply shared palettes to selected terminal themes and supported CSS Loader controls, with independent appearance switches and portable choices.
+
 ## v0.2.41
 
 - Share complete saved setup choices, with import preview, confirmation and rollback.

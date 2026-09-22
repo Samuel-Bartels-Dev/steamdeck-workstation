@@ -222,7 +222,7 @@ def _sanitize(value, support_bundle=False):
 # Portable profiles are data, never executable shell or arbitrary home content.
 PROFILE_JSON = {'settings.json', 'games.json', 'hosts.json', 'decky-selection.json',
                 'css-stack-receipt.json', 'decky-install-receipts.json', 'css-selection.json', 'modules.json', 'apps.json',
-                'components.json', 'gaming-selection.json'}
+                'components.json', 'gaming-selection.json', 'appearance.json'}
 
 def _portable_file(relative: Path):
     parts = relative.parts
@@ -237,7 +237,7 @@ def _portable_file(relative: Path):
 
 def _validate_choices(name, value):
     """Validate portable selectors before any destination is written."""
-    from . import apps, component_options, css_stack, gaming_options
+    from . import apps, component_options, css_stack, gaming_options, appearance
     if name == 'modules.json':
         names = value.get('selected') if isinstance(value, dict) else None
         if (not isinstance(names, list) or 'base' not in names or
@@ -253,6 +253,8 @@ def _validate_choices(name, value):
         names = value.get('selected_folders') if isinstance(value, dict) else None
         if not isinstance(names, list) or any(not isinstance(n, str) or n not in core._decky_item_map() for n in names):
             raise ValueError('Invalid Decky selection in profile')
+    elif name == 'appearance.json':
+        appearance.validate(value)
     elif name == 'components.json':
         component_options.validate(value)
     elif name == 'gaming-selection.json':
@@ -263,8 +265,8 @@ def _validate_choices(name, value):
 
 
 def _selection_snapshot():
-    from . import apps, component_options, css_stack, gaming_options
-    return {'modules.json': {'selected': core.enabled_modules()},
+    from . import apps, component_options, css_stack, gaming_options, appearance
+    return {'appearance.json': appearance.selection(), 'modules.json': {'selected': core.enabled_modules()},
             'apps.json': {'selected': apps.selection()},
             'decky-selection.json': {'schema_version': 1, 'explicit_selection': True,
                                      'selected_folders': sorted(core._decky_selected_folders())},
@@ -392,7 +394,7 @@ def profile_import(archive: str, preview=False):
             planned.append((relative, dest, _portable_bytes(p)))
         if preview:
             return {'files': [str(relative) for relative, _, _ in planned],
-                    'choices': {str(relative): json.loads(data) for relative, _, data in planned if str(relative) in ('modules.json', 'apps.json', 'components.json', 'gaming-selection.json', 'decky-selection.json', 'css-selection.json')}}
+                    'choices': {str(relative): json.loads(data) for relative, _, data in planned if str(relative) in ('modules.json', 'apps.json', 'components.json', 'gaming-selection.json', 'decky-selection.json', 'css-selection.json', 'appearance.json')}}
         backup = core.STATE / "profile-import-rollback" / f'{_stamp()}-{time.time_ns()}'
         backup.mkdir(parents=True, exist_ok=True)
         written = []

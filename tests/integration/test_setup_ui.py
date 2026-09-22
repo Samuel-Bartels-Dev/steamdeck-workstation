@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'lib'))
-from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options
+from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options, appearance
 
 
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
@@ -64,6 +64,9 @@ UI.Setup {
                 if (app.detailPage !== "plugins" || app.stage !== 0) throw new Error("Theme back did not return to plugins")
                 app.back()
                 if (app.detailPage !== "" || app.stage !== 0) throw new Error("Plugins back did not return to Gaming")
+                app.openAppearance()
+                app.setAppearance("ghostty", false)
+                app.closeAppearance()
                 app.choosePalette("ocean")
                 choose("heroic")
                 app.navigate(3)
@@ -110,7 +113,7 @@ UI.Setup {
                     return
                 }
                 if (app.paletteId !== "ocean" || app.activePalette.name !== "Midnight Ocean") throw new Error("Palette did not apply")
-                if (app.progress.operation !== "accounts" || app.progress.exitCode !== 0) throw new Error("Retry switched to installing")
+                if (app.experienceStage < 4 && (app.progress.operation !== "accounts" || app.progress.exitCode !== 0)) throw new Error("Retry switched to installing")
                 if (app.experienceStage === 0) {
                     app.experienceStage = 1; app.previewPlan(); return
                 }
@@ -123,7 +126,16 @@ UI.Setup {
                     if (app.finishItems[0].status !== "Needs sign-in") throw new Error("Installed app incorrectly shown as signed in")
                     app.experienceStage = 3; app.finishAction("app:slack", "confirm"); return
                 }
-                if (app.finishItems[0].status !== "Ready") throw new Error("Explicit confirmation did not update readiness")
+                if (app.experienceStage < 4 && app.finishItems[0].status !== "Ready") throw new Error("Explicit confirmation did not update readiness")
+                if (app.experienceStage === 3) {
+                    app.experienceStage = 4
+                    app.finishItems = []
+                    app.progress = {running:true, operation:"install", modules:[{id:"terminal:ghostty",name:"Ghostty",status:"RUNNING",phase:"Downloading",message:"Fetching runtime",elapsedSeconds:65,startedAt:1,total:10000000,downloaded:5000000,hasLog:true}]}
+                    app.showLog("terminal:ghostty")
+                    return
+                }
+                if (!app.logView.text || app.logView.text.indexOf("Extracting") < 0) throw new Error("Log viewer did not load diagnostics")
+                app.closeLog()
                 app.dirty = false
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
             }
@@ -152,7 +164,7 @@ UI.Setup {
                 confirmed.append(key)
                 return {'confirmed': True}
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
+            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', return_value={'item':'terminal:ghostty','text':'Extracting runtime: diagnostic test'}), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
@@ -163,6 +175,7 @@ UI.Setup {
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
                 self.assertEqual(css_stack.selection(), ["Round"])
                 self.assertEqual(css_stack.palette_id(), 'ocean')
+                self.assertFalse(appearance.selection()['ghostty'])
                 self.assertEqual(component_options.selection()['terminal'], ['ghostty'])
                 self.assertIn('dev', core.enabled_modules())
                 self.assertFalse((base/'state').exists())
