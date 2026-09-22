@@ -23,9 +23,9 @@ def rows():
         ready = installed and (not followup or confirmed or detected)
         status = 'Ready' if ready else 'Needs pairing' if installed and followup == 'pairing' else 'Needs sign-in' if installed and followup == 'signin' else 'Needs setup'
         result.append({**row, 'status': status, 'installed': installed,
-                       'note': 'Confirmed by you; checked again when you open the app.' if ready and confirmed and followup else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
+                       'note': 'Confirmed by you. Recheck after changing this installation.' if ready and confirmed and followup else 'Complete the staged installer, then confirm setup.' if installed and followup == 'setup' else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
                        'canLaunch': bool(key == 'launcher:nonsteamlaunchers' or 'flatpak' in row or key in STEPS or key in ('dev:codex', 'dev:claude-code') or row['owner'] in ('workspace', 'media')),
-                       'canConfirm': installed and followup in ('signin', 'pairing') and key not in ('dev:codex', 'dev:claude-code')})
+                       'canConfirm': installed and followup in ('signin', 'pairing', 'setup') and key not in ('dev:codex', 'dev:claude-code')})
     return result
 
 
@@ -52,7 +52,8 @@ def action(key, operation):
     elif key in ('dev:codex', 'dev:claude-code'):
         command = [setup_plan.binary('codex' if key == 'dev:codex' else 'claude')]
         if not command[0]: raise ValueError('Install this tool first.')
-        command += ['login'] if key == 'dev:codex' else ['auth', 'login']
+        logged_in = core._codex_logged_in() if key == 'dev:codex' else core._claude_logged_in()
+        if not logged_in: command += ['login'] if key == 'dev:codex' else ['auth', 'login']
     elif 'flatpak' in row:
         subprocess.Popen(['flatpak', 'run', row['flatpak']], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return {'launched': True}

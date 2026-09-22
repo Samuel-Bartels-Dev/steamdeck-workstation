@@ -56,6 +56,14 @@ class Experience(unittest.TestCase):
         self.assertEqual(result['volumes'][0]['requiredBytes'], 3*setup_plan.GIB)
         self.assertFalse(core.STATE.exists())
 
+    def test_web_services_require_sign_in_and_staged_launcher_requires_setup(self):
+        self.plan['components'] = {'media': ['netflix', 'hulu']}
+        self.plan['launchers'] = ['nonsteamlaunchers']
+        rows = {row['key']: row for row in setup_plan.items(self.plan)[1]}
+        self.assertEqual(rows['media:netflix']['followup'], 'signin')
+        self.assertEqual(rows['media:hulu']['followup'], 'signin')
+        self.assertEqual(rows['launcher:nonsteamlaunchers']['followup'], 'setup')
+
     def test_offline_model_is_not_reported_up_to_date(self):
         row = {'key': 'ai-workspace:model', 'kind': 'component', 'component': 'model'}
         with patch.object(setup_plan, 'present', return_value=(True, {'model': 'qwen2.5-coder:1.5b'})), patch.object(terminal, '_request', side_effect=OSError('offline')):

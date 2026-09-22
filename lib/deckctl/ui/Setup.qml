@@ -791,7 +791,7 @@ ApplicationWindow {
                                     Flow {
                                         Layout.fillWidth: true; spacing: 8
                                         Action { visible: modelData.canLaunch; text: modelData.status === "Ready" ? "Open" : "Open setup / sign-in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "launch") }
-                                        Action { visible: modelData.canConfirm && modelData.status !== "Ready"; text: modelData.followup === "pairing" ? "I've paired it" : "I've signed in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "confirm") }
+                                        Action { visible: modelData.canConfirm && modelData.status !== "Ready"; text: modelData.followup === "pairing" ? "I've paired it" : modelData.followup === "setup" ? "I've completed setup" : "I've signed in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "confirm") }
                                     }
                                 }
                             }

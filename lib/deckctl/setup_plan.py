@@ -90,7 +90,7 @@ def items(payload=None):
             if group == 'ai-workspace' and name.startswith('model'): deps.append('ai-workspace:ollama')
             if group in ('workspace', 'media'): deps.append('dependency:chrome')
             followup = ('pairing' if key in ('remote:moonlight', 'remote:chiaki') else
-                        'signin' if group == 'workspace' or key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'media:keeper') else '')
+                        'signin' if group in ('workspace', 'media') or key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'media:keeper') else '')
             add(key, option['name'], 'component', group, option['summary'], deps,
                 component=name, followup=followup)
     for option in gaming_options.ITEMS:
