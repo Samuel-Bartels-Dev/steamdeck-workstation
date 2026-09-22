@@ -19,7 +19,7 @@ Decky is an enhancement layer, never a core dependency. Steam, games, remote acc
 
 ### Core — install by default
 
-- CSS Loader — manages real Theme Store components and their Bubble Gum Rave color settings.
+- CSS Loader — manages real Theme Store components and their selected palette settings.
 - SteamGridDB — artwork for non-Steam/Heroic/media/emulation/remote shortcuts.
 - ProtonDB Badges — compatibility information.
 - PowerTools — installed for per-game/emulator tuning; **no global tuning is applied**.
@@ -93,8 +93,25 @@ The selector uses KDE `kdialog` checkboxes on SteamOS Desktop Mode and falls bac
 
 ## CSS component/palette convergence
 
-`Bubble Gum Rave` names the palette in `css-stack.json` and the native
-`Bubble Gum Rave - Base` recovery profile. It is not a downloadable theme.
+Choose **Theme palette** in the setup sidebar: Bubble Gum Rave (default), Midnight
+Ocean or Graphite. This controls the colors installed through CSS Loader, and the
+window provides a live preview. Review saves the choice atomically with selected
+components in `~/.config/deckctl/css-selection.json`. No live theme changes happen
+just by opening the picker. Apply the saved plan, or run `deckctl decky css apply`
+to recolor already installed, selected components without downloading them again.
+
+The palette uses only advertised color-picker controls or matching named presets.
+Components without color controls retain their vendor appearance. An incompatible
+named-color menu is reported explicitly instead of silently applying pink. Other
+Decky plugins are not individually reconfigured. This selector does not change
+terminal themes or install extra CSS components.
+
+The native recovery profile is named `<Palette name> - Base`; existing profiles
+are preserved. Verification checks the selected palette as well as actual saved
+colors, so a palette change cannot pass using an old receipt. Portable profile
+export/import includes the selected palette and CSS component list.
+
+A palette is configuration, not a downloadable Theme Store package.
 The default selection includes the four Chromahon components, Round, Full Screen
 Menus, Colored Keyboard, Centered Game Text, DellyVolume, Better Game Icons,
 Better Game Badges, Top Bar Transparency, Better Blur, Better Achievements,
@@ -117,7 +134,7 @@ Completed downloads/configuration are reused on retry.
    CSS Loader owns blob downloads and dependency installation. No raw repo cloning.
 4. Discover loaded patch options and color-picker components. Use only advertised
    activators and component names. Bright foregrounds, dark panels, and neon focus
-   accents use the existing palette. Unsupported unknown controls are reported.
+   accents use the selected palette. Unsupported unknown controls are reported.
 5. Enable components without overwriting dependency colors; verify backend state
    and actual `config_USER.json` or `config_ROOT.json` saved by the plugin.
 6. Generate a native profile containing only the managed components, verify its

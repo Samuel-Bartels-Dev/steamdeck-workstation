@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.39
+# Steam Deck Workstation — v0.2.40
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -67,8 +67,8 @@ For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.39.tar.gz
-cd steamdeck-workstation-0.2.39
+tar -xzf steamdeck-workstation-v0.2.40.tar.gz
+cd steamdeck-workstation-0.2.40
 chmod +x install.sh
 ./install.sh
 ```
@@ -111,8 +111,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.39.tar.gz
-cd steamdeck-workstation-0.2.39
+tar -xzf steamdeck-workstation-v0.2.40.tar.gz
+cd steamdeck-workstation-0.2.40
 chmod +x install.sh
 ./install.sh
 ```
@@ -135,9 +135,11 @@ The installer opens a native Qt Quick setup app in Desktop Mode. A persistent
 sidebar guides you through Gaming, Apps & media, Coding & work, Remote & storage,
 Review, and Install & finish. Each section explains what belongs there. Feature cards have large touch targets,
 clear selected states, and keyboard focus indicators. The window adapts to the
-Deck display with scrolling content and a fixed action bar. The sidebar **Palette**
-selector offers Bubble Gum Rave, Midnight Ocean and Graphite, and remembers the
-setup window colors independently of your install choices.
+Deck display with scrolling content and a fixed action bar. The sidebar **Theme palette**
+selector offers Bubble Gum Rave, Midnight Ocean and Graphite. The window previews
+your choice; saving the plan also selects the palette applied to supported color
+controls in your chosen CSS Loader themes during installation. Other Decky plugins
+keep their own appearance when they do not expose color settings.
 
 Fresh setups start with no optional selections. Browse grouped choices, then check
 individual apps or tools; browsing does not change the plan. Existing saved plans
@@ -228,7 +230,7 @@ deckctl decky install-selected --dry-run
 
 If a selected artifact cannot be safely resolved or validated, `deckctl` leaves it missing and tells you to install that item through Decky's normal Plugin Store instead of forcing it.
 
-### Bubble Gum Rave palette
+### Theme palette for Decky / CSS Loader
 
 Guided setup installs CSS Loader through the existing Decky Store installer. It then
 uses **CSS Loader's native Theme Store download mechanism** to obtain the four
@@ -864,7 +866,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.39.md).
+See [the latest release notes](docs/RELEASE-0.2.40.md).
 
 ## Online releases and recovery
 

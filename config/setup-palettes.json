@@ -34,7 +34,24 @@
       "#ffd0e9": "#ffd0e9",
       "#e3d0fa": "#e3d0fa",
       "#2a1736": "#2a1736"
-    }
+    },
+    "css_palette": {
+      "pink": "#ff4fd8",
+      "hot": "#ff2fb3",
+      "cyan": "#42f5ff",
+      "violet": "#a970ff",
+      "background": "#090612",
+      "panel": "#100a1d",
+      "text": "#fff7ff",
+      "muted": "#c9b9d8"
+    },
+    "named_presets": [
+      "pink",
+      "magenta",
+      "purple",
+      "violet",
+      "cyan"
+    ]
   },
   {
     "id": "ocean",
@@ -71,7 +88,23 @@
       "#ffd0e9": "#ffe0ec",
       "#e3d0fa": "#d7e9fa",
       "#2a1736": "#1b2e46"
-    }
+    },
+    "css_palette": {
+      "pink": "#65cfff",
+      "hot": "#45afd9",
+      "cyan": "#99edce",
+      "violet": "#b4a3ff",
+      "background": "#080f19",
+      "panel": "#101c2c",
+      "text": "#e7f3ff",
+      "muted": "#afc2d8"
+    },
+    "named_presets": [
+      "cyan",
+      "blue",
+      "teal",
+      "aqua"
+    ]
   },
   {
     "id": "graphite",
@@ -108,6 +141,23 @@
       "#ffd0e9": "#ffe0e5",
       "#e3d0fa": "#e0e6f0",
       "#2a1736": "#2a2e37"
-    }
+    },
+    "css_palette": {
+      "pink": "#d5e0f2",
+      "hot": "#b3c3dc",
+      "cyan": "#a8d7ff",
+      "violet": "#c5bcdf",
+      "background": "#101113",
+      "panel": "#191b1e",
+      "text": "#f4f4f5",
+      "muted": "#bfc2c8"
+    },
+    "named_presets": [
+      "grey",
+      "gray",
+      "white",
+      "silver",
+      "blue"
+    ]
   }
 ]

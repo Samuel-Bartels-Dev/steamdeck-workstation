@@ -221,7 +221,7 @@ def _sanitize(value, support_bundle=False):
 
 # Portable profiles are data, never executable shell or arbitrary home content.
 PROFILE_JSON = {'settings.json', 'games.json', 'hosts.json', 'decky-selection.json',
-                'css-stack-receipt.json', 'decky-install-receipts.json'}
+                'css-stack-receipt.json', 'decky-install-receipts.json', 'css-selection.json'}
 
 def _portable_file(relative: Path):
     parts = relative.parts

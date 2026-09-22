@@ -1,5 +1,11 @@
 # v0.2.34
 
+## v0.2.40
+
+- Apply the selected theme palette to CSS Loader's native color controls, with a live setup-window preview and an explicit Review summary.
+- Save palette and component choices atomically, reuse installed themes when recoloring, verify native saved colors and capture a recovery profile for the selected palette.
+- Include the palette in portable profile exports; preserve unselected components and unrelated plugin settings.
+
 ## v0.2.39
 
 - Added an independent Claude Code CLI choice with native user-space installation, update checks and separate sign-in verification.

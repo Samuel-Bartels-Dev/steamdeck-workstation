@@ -43,7 +43,6 @@ UI.Setup {
         onTriggered: {
             if (!app.attempted) {
                 app.attempted = true
-                app.choosePalette("ocean")
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
                 function choose(id) {
                     var item=app.currentItems().filter(function(x) { return x.id === id })[0]
@@ -63,6 +62,7 @@ UI.Setup {
                 if (app.detailPage !== "plugins" || app.stage !== 0) throw new Error("Theme back did not return to plugins")
                 app.back()
                 if (app.detailPage !== "" || app.stage !== 0) throw new Error("Plugins back did not return to Gaming")
+                app.choosePalette("ocean")
                 choose("heroic")
                 app.navigate(3)
                 if (ids().indexOf("utilities") >= 0 || ids().indexOf("parsec") < 0 || ids().indexOf("moonlight") < 0) throw new Error("Remote has a redirect or missing individual apps")
@@ -137,6 +137,7 @@ UI.Setup {
                 self.assertEqual(gaming_options.selection(), ['heroic'])
                 self.assertEqual(core._decky_selected_folders(), {"SDH-CssLoader"})
                 self.assertEqual(css_stack.selection(), ["Round"])
+                self.assertEqual(css_stack.palette_id(), 'ocean')
                 self.assertEqual(component_options.selection()['terminal'], ['ghostty'])
                 self.assertIn('dev', core.enabled_modules())
                 self.assertFalse((base/'state').exists())

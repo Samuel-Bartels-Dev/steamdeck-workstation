@@ -32,7 +32,9 @@ ApplicationWindow {
     readonly property var activePalette: paletteOptions.find(function(p) { return p.id === paletteId }) || ({name: "Bubble Gum Rave", colors: {}})
     function tone(original) { return activePalette.colors[original] || original }
     function choosePalette(key) {
-        request("appearance", {palette: key}, function(result) { paletteId = result.palette })
+        if (paletteId === key) return
+        paletteId = key
+        markChanged()
     }
     property var data: ({groups: [], apps: [], modules: [], selectedApps: [], dependencies: {}, defaults: []})
     property string detailPage: ""
@@ -291,7 +293,7 @@ ApplicationWindow {
         busy = true; problem = ""
         var components = {}
         Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
-        request("save", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components}, function(result) {
+        request("save", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId}, function(result) {
             saved = true; dirty = false; busy = false; notice = "Plan saved. You can close this window or install when ready."
             if (install) startOperation("install")
             else if (data.planOnly) window.close()
@@ -451,9 +453,9 @@ ApplicationWindow {
                 Action {
                     id: paletteButton
                     Layout.fillWidth: true
-                    text: "Palette ▾"
+                    text: "Theme palette ▾"
                     enabled: window.loaded
-                    Accessible.name: "Color palette: " + window.activePalette.name
+                    Accessible.name: "Theme palette for CSS Loader: " + window.activePalette.name
                     onClicked: paletteMenu.popup()
                     Menu {
                         id: paletteMenu
@@ -533,6 +535,11 @@ ApplicationWindow {
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ColumnLayout {
                     width: scroll.availableWidth; spacing: 14
+                    TextLabel {
+                        visible: window.detailPage === "css" || window.detailPage === "plugins"
+                        text: "Theme palette: " + window.activePalette.name + ". Change it with Theme palette in the sidebar. Colors apply during installation to supported CSS Loader controls; plugins without color settings keep their own appearance."
+                        color: window.muted; font.pixelSize: 13; Layout.fillWidth: true
+                    }
                     Repeater {
                         model: window.currentSections()
                         delegate: ColumnLayout {
@@ -585,6 +592,7 @@ ApplicationWindow {
                                 id: reviewIntro; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 8
                                 TextLabel { text: "A setup that fits you"; font.pixelSize: 19; font.weight: Font.DemiBold }
                                 TextLabel { text: "Save this plan for later, or install your choices. Existing apps and personal data are kept."; Layout.fillWidth: true; color: window.tone("#e2c5e6"); font.pixelSize: 14 }
+                                TextLabel { visible: window.pageValues("css").length > 0; text: "Theme palette: " + window.activePalette.name + " · for selected CSS Loader color controls"; Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
                             }
                         }
                         TextLabel { visible: window.selectionCount() === 0; text: "No optional installs selected. Only base support will be configured."; Layout.fillWidth: true; color: window.muted }
