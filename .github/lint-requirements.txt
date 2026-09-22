@@ -1,3 +1,3 @@
 # Development/CI only; never installed by the Steam Deck installer.
-ruff==0.11.13
+ruff==0.16.8
 shellcheck-py==0.11.0.1
