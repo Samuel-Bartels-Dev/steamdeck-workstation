@@ -85,7 +85,10 @@ def apply():
                 desktop.mkdir(parents=True, exist_ok=True)
                 target = desktop / name
                 if target.is_symlink():
-                    raise ValueError(f'Refusing to overwrite symlink: {target}')
+                    # A link to this managed entry already reflects its new icon.
+                    # Other links belong to the user; never replace or follow them.
+                    print(f'Keeping existing Desktop link: {target}')
+                    continue
                 if not target.is_file() or target.read_text() != new:
                     target.write_text(new)
                 target.chmod(0o755)

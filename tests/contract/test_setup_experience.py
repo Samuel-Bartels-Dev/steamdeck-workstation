@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """Portable choices, per-item dependency execution and honest preview contracts."""
 import json
+import os
+import subprocess
 from pathlib import Path
 import tempfile
 import unittest
 from unittest.mock import patch
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'lib'))
-from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder, setup_window, reliability, terminal
+from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder, setup_window, reliability, terminal, install_log
 
 
 class Experience(unittest.TestCase):
@@ -63,6 +65,22 @@ class Experience(unittest.TestCase):
         self.assertEqual(rows['media:netflix']['followup'], 'signin')
         self.assertEqual(rows['media:hulu']['followup'], 'signin')
         self.assertEqual(rows['launcher:nonsteamlaunchers']['followup'], 'setup')
+
+    def test_failure_log_captures_child_stderr_and_traceback_privately(self):
+        with self.assertRaisesRegex(RuntimeError, 'installer failed'):
+            with install_log.capture('module:base') as path:
+                subprocess.run([sys.executable, '-c', 'import sys; print("provider error: access_token=example-secret", file=sys.stderr)'], check=True)
+                raise RuntimeError('installer failed')
+        text = path.read_text()
+        self.assertIn('provider error:', text)
+        self.assertIn('RuntimeError: installer failed', text)
+        self.assertNotIn('example-secret', text)
+        self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+        self.assertLessEqual(path.stat().st_size, install_log.LIMIT)
+        with install_log.capture('module:base') as same:
+            os.write(2, b'new attempt\n')
+        self.assertEqual(path, same)
+        self.assertNotIn('installer failed', same.read_text())
 
     def test_offline_model_is_not_reported_up_to_date(self):
         row = {'key': 'ai-workspace:model', 'kind': 'component', 'component': 'model'}

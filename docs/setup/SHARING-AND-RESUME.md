@@ -43,7 +43,13 @@ deckctl setup preview --online
 **Install & finish** shows each selected item, including failed, blocked and
 interrupted work. **Resume installation** rechecks completed items before skipping
 them. **Retry this item** runs that item and required prerequisites, leaving
-unrelated selections alone. Detailed provider output stays in Konsole.
+unrelated selections alone. Detailed provider output stays in Konsole. Installer
+stderr and Python failures also save to private, bounded per-item files under
+`~/.local/state/deckctl/install-logs/`; failed-item messages include the path.
+The latest attempt replaces that item's previous log. Common token/password
+patterns are redacted, but review logs before sharing. Standard output and
+interactive input remain in the terminal; logs are not full terminal recordings
+and are not included in portable setup exports.
 
 ```bash
 deckctl setup install --resume

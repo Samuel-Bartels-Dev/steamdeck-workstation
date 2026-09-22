@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan
+from . import core, setup_plan, install_log
 
 
 class NeedsSetup(RuntimeError):
@@ -187,19 +187,24 @@ def run(only=None, resume=False):
                 record(key, 'RUNNING', 'Checking prerequisites and available space.')
                 print('\n==> '+row['name'], flush=True)
                 try:
-                    path, budget, _ = setup_plan.storage_budget(row, False)
-                    if budget is not None and not verify(row):
-                        anchor = path.resolve()
-                        while not anchor.exists(): anchor = anchor.parent
-                        if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
-                            raise RuntimeError('Not enough free space for this item’s staging allowance plus 1 GiB headroom.')
-                    record(key, 'RUNNING', 'Installing this item; download and provider progress appear in Konsole.')
-                    execute(row)
-                    record(key, 'RUNNING', 'Verifying the installed result.')
-                    if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')
-                    record(key, 'DONE', 'Installed and verified.')
+                    with install_log.capture(key) as log_path:
+                        records[key]['logPath'] = str(log_path)
+                        path, budget, _ = setup_plan.storage_budget(row, False)
+                        if budget is not None and not verify(row):
+                            anchor = path.resolve()
+                            while not anchor.exists(): anchor = anchor.parent
+                            if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
+                                raise RuntimeError('Not enough free space for this item’s staging allowance plus 1 GiB headroom.')
+                        record(key, 'RUNNING', 'Installing this item; download and provider progress appear in Konsole.')
+                        execute(row)
+                        record(key, 'RUNNING', 'Verifying the installed result.')
+                        if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')
+                        record(key, 'DONE', 'Installed and verified.')
                 except NeedsSetup as exc: record(key, 'NEEDS_SETUP', str(exc))
-                except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc: record(key, 'FAILED', str(exc))
+                except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+                    message = install_log.redact(str(exc))
+                    if records[key].get('logPath'): message += ' Error log: '+records[key]['logPath']
+                    record(key, 'FAILED', message)
         except (KeyboardInterrupt, EOFError):
             for key in wanted:
                 if records[key]['status'] == 'RUNNING': record(key, 'INTERRUPTED', 'Interrupted; resume to retry this item.')
