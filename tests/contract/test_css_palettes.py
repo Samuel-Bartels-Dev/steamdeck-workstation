@@ -61,6 +61,24 @@ class CSSPalettes(Isolated):
         with self.assertRaises(css.CSSError):
             css.palette_plan(theme, palette['css_palette'], ['unsupported'])
 
+    def test_individual_components_preserve_receipts_and_final_profile(self):
+        backend = self.fake_install()
+        names = ['Chromahon (QAM)', 'Chromahon (Steam Menu)']
+        self.choose('ocean', names)
+        self.assertEqual(css.apply(only=names[0]), 0)
+        self.assertTrue(css.component_ready(names[0]))
+        self.assertFalse(css.component_ready(names[1]))
+        self.assertFalse(css.readiness()[0])
+        self.assertEqual(css.apply(only=names[1]), 0)
+        self.assertTrue(all(css.component_ready(name) for name in names))
+        calls = copy.deepcopy(backend.calls)
+        self.assertEqual(css.apply(only=names[0]), 0)
+        self.assertEqual(calls, backend.calls)
+        self.assertEqual(css.apply(), 0)
+        self.assertTrue(css.readiness()[0])
+        write_json(core.STATE/'ui-safe.json', {'active': True})
+        self.assertFalse(css.component_ready(names[0]))
+
     def test_no_css_selection_does_not_start_backend(self):
         self.choose('graphite', [])
         self.assertEqual(css.apply(), 0)

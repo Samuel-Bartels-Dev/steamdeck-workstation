@@ -1,6 +1,11 @@
-# Steam Deck Workstation — v0.2.40
+# Steam Deck Workstation — v0.2.41
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
+
+Share a saved setup through **More → Export saved setup**, or import someone else's
+choices and review each selection before installing. Review offers **Check downloads
+& space**; **Install & finish** keeps per-item results and targeted retries across
+restarts. See [sharing and resuming setup](docs/setup/SHARING-AND-RESUME.md).
 
 ## Copy/paste quick fixes
 
@@ -67,8 +72,8 @@ For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.40.tar.gz
-cd steamdeck-workstation-0.2.40
+tar -xzf steamdeck-workstation-v0.2.41.tar.gz
+cd steamdeck-workstation-0.2.41
 chmod +x install.sh
 ./install.sh
 ```
@@ -111,8 +116,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.40.tar.gz
-cd steamdeck-workstation-0.2.40
+tar -xzf steamdeck-workstation-v0.2.41.tar.gz
+cd steamdeck-workstation-0.2.41
 chmod +x install.sh
 ./install.sh
 ```
@@ -866,7 +871,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.40.md).
+See [the latest release notes](docs/RELEASE-0.2.41.md).
 
 ## Online releases and recovery
 

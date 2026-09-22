@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from . import apps, core, setup_builder, gaming_options, css_stack, component_options
+from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability
 
 
 APP_DESCRIPTIONS = {
@@ -30,6 +30,9 @@ class Session:
         self.process = None
         self.operation = None
         self.selected = None
+        self.preview_result = {}
+        self.preview_thread = None
+        self.import_archive = None
 
     def snapshot(self):
         manifests = core.module_manifests()
@@ -79,7 +82,7 @@ class Session:
         return data
 
     def save(self, payload):
-        if self.process and self.process.poll() is None:
+        if setup_install.running() or (self.process and self.process.poll() is None):
             raise ValueError('Wait for the current operation to finish before changing your plan.')
         roots = payload.get('modules')
         selected = payload.get('apps')
@@ -93,34 +96,91 @@ class Session:
         self.selected = core.topo(core.enabled_modules())
         return {'saved': True, 'modules': self.selected}
 
-    def start(self, operation):
+    def share(self, operation):
+        if setup_install.running() or (self.process and self.process.poll() is None):
+            raise ValueError('Finish the current operation before sharing or replacing choices.')
+        if operation == 'import-confirm':
+            if not self.import_archive: raise ValueError('Choose a setup archive first.')
+            archive, digest = self.import_archive
+            import hashlib
+            if hashlib.sha256(Path(archive).read_bytes()).hexdigest() != digest:
+                raise ValueError('Archive changed since preview. Choose it again.')
+            reliability.profile_import(archive)
+            self.import_archive = None
+            self.selected = core.topo(core.enabled_modules())
+            return {'imported': True}
+        if operation == 'import-cancel':
+            self.import_archive = None
+            return {'cancelled': True}
+        if operation not in ('export', 'import'): raise ValueError('Unknown sharing action.')
+        dialog = shutil.which('kdialog')
+        if not dialog: raise ValueError('KDE file picker is unavailable. Use deckctl profile export/import in Konsole.')
+        args = ['--getsavefilename', str(Path.home()/'deck-setup.zip'), '*.zip'] if operation == 'export' else ['--getopenfilename', str(Path.home()), '*.zip']
+        chosen = subprocess.run([dialog, *args], capture_output=True, text=True)
+        if chosen.returncode or not chosen.stdout.strip(): return {'cancelled': True}
+        path = chosen.stdout.strip()
+        if operation == 'export':
+            if Path(path).exists():
+                confirm = subprocess.run([dialog, '--yesno', 'Replace the existing setup archive?'])
+                if confirm.returncode: return {'cancelled': True}
+            return {'exported': str(reliability.profile_export(path))}
+        import hashlib
+        digest = hashlib.sha256(Path(path).read_bytes()).hexdigest()
+        preview = reliability.profile_import(path, preview=True)
+        self.import_archive = (path, digest)
+        return preview
+
+    def preview(self, payload):
+        plan = setup_plan.normalize(payload)
+        if self.preview_thread and self.preview_thread.is_alive():
+            raise ValueError('A preview is already being checked. Please wait.')
+        self.preview_result = {'running': True}
+        def check():
+            try:
+                self.preview_result = {**setup_plan.preview(plan, online=True), 'running': False}
+            except (ValueError, OSError, RuntimeError, KeyError, TypeError, AttributeError) as exc:
+                self.preview_result = {'running': False, 'error': str(exc)}
+        self.preview_thread = threading.Thread(target=check, daemon=True)
+        self.preview_thread.start()
+        return self.preview_result
+
+    def start(self, operation, item=None):
         if self.plan_only:
             raise ValueError('Continue installation in the installer after saving this plan.')
         if not self.selected:
-            raise ValueError('Review and save a plan first.')
-        if self.process and self.process.poll() is None:
+            if not (core.CONFIG_HOME/'modules.json').is_file():
+                raise ValueError('Review and save a plan first.')
+            self.selected = core.topo(core.enabled_modules())
+        if setup_install.running() or (self.process and self.process.poll() is None):
             raise ValueError('An operation is already running.')
         terminal = shutil.which('konsole')
         if not terminal:
             raise ValueError('Konsole is required for interactive installer prompts.')
-        commands = {'install': ['apply'], 'accounts': ['setup', 'run'], 'docker': ['containers', 'provision']}
+        commands = {'install': ['setup', 'install'], 'resume': ['setup', 'install', '--resume'], 'accounts': ['setup', 'run'], 'docker': ['containers', 'provision']}
+        if operation == 'retry':
+            if item not in {row['key'] for row in setup_plan.items()[1]}:
+                raise ValueError('Item is not selected in the saved plan')
+            commands['retry'] = ['setup', 'install', '--item', item]
         if operation not in commands:
             raise ValueError('Unknown setup operation.')
         self.process = subprocess.Popen([terminal, '--separate', '--nofork', '-e',
                                          str(core.ROOT/'bin/deckctl'), *commands[operation]])
-        self.operation = operation
+        self.operation = "install" if operation in ("resume", "retry") else operation
         return self.progress()
 
     def progress(self):
-        records = core.load_json(core.STATE/'provisioning.json', {}).get('modules', {})
-        version = (core.ROOT/'VERSION').read_text().strip()
-        records = {mid: row for mid, row in records.items() if row.get('version') == version}
-        return {'running': bool(self.process and self.process.poll() is None),
-                'operation': self.operation,
-                'exitCode': self.process.poll() if self.process else None,
-                'modules': [{'id': mid, 'status': records.get(mid, {}).get('status', 'PENDING'),
-                             'message': records.get(mid, {}).get('message', '')}
-                            for mid in (self.selected or [])]}
+        state = setup_install.snapshot()
+        plan, rows = setup_plan.items()
+        matches = state.get('fingerprint') == setup_plan.fingerprint(plan)
+        records = state.get('items', {}) if matches else {}
+        live = state.get('running', False) or bool(self.process and self.process.poll() is None)
+        visible = [{**row, **records.get(row['key'], {'status': 'PENDING', 'message': ''}), 'id': row['key']}
+                   for row in rows if row['visible']]
+        code = self.process.poll() if self.process else None
+        if not live and records and code is None:
+            code = 0 if all(row.get('status') == 'DONE' for row in records.values()) else 2
+        return {'running': live, 'operation': self.operation or ('install' if records else None),
+                'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live}
 
 
 def launch(plan_only=False):
@@ -160,17 +220,27 @@ def launch(plan_only=False):
                     if route == 'save':
                         result = session.save(payload)
                     elif route == 'start':
-                        result = session.start(payload.get('operation'))
+                        result = session.start(payload.get('operation'), payload.get('item'))
+                    elif route == 'preview':
+                        result = session.preview(payload)
+                    elif route == 'share':
+                        result = session.share(payload.get('operation'))
+                    elif route == 'finish':
+                        result = setup_finish.action(payload.get('item'), payload.get('operation'))
                     else:
                         raise ValueError('Unknown operation')
                 elif route == 'catalog':
                     result = session.snapshot()
+                elif route == 'finish':
+                    result = {'items': setup_finish.rows()}
+                elif route == 'preview':
+                    result = session.preview_result
                 elif route == 'progress':
                     result = session.progress()
                 else:
                     raise ValueError('Unknown view')
                 self.reply(200, result)
-            except (ValueError, OSError, RuntimeError) as exc:
+            except (ValueError, OSError, RuntimeError, SystemExit) as exc:
                 self.reply(400, {'error': str(exc)})
 
         def do_GET(self):

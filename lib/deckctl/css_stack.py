@@ -412,10 +412,28 @@ def readiness():
         return False, f'CSS configuration incomplete: {exc}'
 
 
-def apply():
+def component_ready(name):
+    if (core.STATE/'ui-safe.json').exists(): return False
+    try:
+        receipt = _read(RECEIPT)
+        if receipt.get('manifest_sha256') != _manifest_hash(): return False
+        entry = receipt.get('components', {}).get(name)
+        if not entry: return False
+        relative = Path(entry['directory'])
+        if relative.is_absolute() or len(relative.parts) != 1 or relative.name in ('.', '..'): return False
+        path = THEMES_DIR/relative
+        if path.is_symlink() or entry['config_file'] not in ('config_ROOT.json', 'config_USER.json'): return False
+        return (hashlib.sha256((path/'theme.json').read_bytes()).hexdigest() == entry['manifest_sha256']
+                and _matches_config(_read(path/entry['config_file']), entry['patches']))
+    except (OSError, ValueError, KeyError, TypeError): return False
+
+
+def apply(only=None):
     try:
         if (core.STATE / 'ui-safe.json').exists():
             raise CSSError('UI safe mode is active; restore it before applying CSS')
+        if only is not None and only not in selection(): raise ValueError('CSS component is not selected')
+        if only is not None and component_ready(only): return 0
         ok, reason = readiness()
         if ok:
             print('READY — ' + reason)
@@ -424,11 +442,15 @@ def apply():
             raise CSSError('Install Decky Loader first')
         stack = _stack()
         receipt = {'schema_version': 1, 'manifest_sha256': _manifest_hash(), 'components': {}}
+        previous = core.load_json(RECEIPT, {})
+        if only is not None and previous.get('manifest_sha256') == receipt['manifest_sha256']:
+            receipt['components'] = previous.get('components', {})
         with _backend_session() as backend:
             _migrate_legacy()
             backend.call('reset')
             themes = backend.themes()
             selected = stack['required'] + stack['recommended']
+            if only is not None: selected = [item for item in selected if item['name'] == only]
             failures = []
             for item in selected:
                 try:
@@ -483,6 +505,9 @@ def apply():
                     print(f"CSS component pending: {item['name']}: {exc}", flush=True)
             if failures:
                 raise CSSError('Incomplete components:\n  ' + '\n  '.join(failures))
+            if only is not None:
+                core.save_json(RECEIPT, receipt)
+                return 0 if component_ready(only) else 2
             # Capture only the managed stack, never unrelated active third-party themes.
             profile = THEMES_DIR / (stack['preset'] + '.profile')
             if profile.exists():

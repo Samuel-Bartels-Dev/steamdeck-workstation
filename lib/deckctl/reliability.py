@@ -221,7 +221,8 @@ def _sanitize(value, support_bundle=False):
 
 # Portable profiles are data, never executable shell or arbitrary home content.
 PROFILE_JSON = {'settings.json', 'games.json', 'hosts.json', 'decky-selection.json',
-                'css-stack-receipt.json', 'decky-install-receipts.json', 'css-selection.json'}
+                'css-stack-receipt.json', 'decky-install-receipts.json', 'css-selection.json', 'modules.json', 'apps.json',
+                'components.json', 'gaming-selection.json'}
 
 def _portable_file(relative: Path):
     parts = relative.parts
@@ -234,6 +235,44 @@ def _portable_file(relative: Path):
         return parts[1].endswith('.profile') and relative.suffix.lower() in ('.json', '.png', '.jpg', '.jpeg', '.webp')
     return False
 
+def _validate_choices(name, value):
+    """Validate portable selectors before any destination is written."""
+    from . import apps, component_options, css_stack, gaming_options
+    if name == 'modules.json':
+        names = value.get('selected') if isinstance(value, dict) else None
+        if (not isinstance(names, list) or 'base' not in names or
+                any(not isinstance(n, str) or n not in core.module_manifests() for n in names) or len(names) != len(set(names))):
+            raise ValueError('Invalid module selection in profile')
+        core.topo(names)
+    elif name == 'apps.json':
+        names = value.get('selected') if isinstance(value, dict) else None
+        if not isinstance(names, list) or any(not isinstance(n, str) for n in names) or len(names) != len(set(names)):
+            raise ValueError('Invalid app selection in profile')
+        apps.known(names)
+    elif name == 'decky-selection.json':
+        names = value.get('selected_folders') if isinstance(value, dict) else None
+        if not isinstance(names, list) or any(not isinstance(n, str) or n not in core._decky_item_map() for n in names):
+            raise ValueError('Invalid Decky selection in profile')
+    elif name == 'components.json':
+        component_options.validate(value)
+    elif name == 'gaming-selection.json':
+        gaming_options.validate(value.get('selected') if isinstance(value, dict) else None)
+    elif name == 'css-selection.json':
+        css_stack.validate_selection(value.get('selected') if isinstance(value, dict) else None)
+        css_stack.validate_palette(value.get('palette', 'bubblegum'))
+
+
+def _selection_snapshot():
+    from . import apps, component_options, css_stack, gaming_options
+    return {'modules.json': {'selected': core.enabled_modules()},
+            'apps.json': {'selected': apps.selection()},
+            'decky-selection.json': {'schema_version': 1, 'explicit_selection': True,
+                                     'selected_folders': sorted(core._decky_selected_folders())},
+            'components.json': component_options.selection(),
+            'gaming-selection.json': {'selected': gaming_options.selection()},
+            'css-selection.json': {'selected': css_stack.selection(), 'palette': css_stack.palette_id()}}
+
+
 def _portable_bytes(path: Path):
     if path.stat().st_size > 16 * 1024 * 1024:
         raise ValueError(f'Profile file too large: {path.name}')
@@ -242,6 +281,7 @@ def _portable_bytes(path: Path):
     if ext == '.json':
         value = json.loads(raw)
         if not isinstance(value, (dict, list)): raise ValueError('Configuration must be an object or array')
+        _validate_choices(path.name, value)
         return (json.dumps(_sanitize(value), indent=2) + '\n').encode()
     if ext == '.vdf':
         text = raw.decode('utf-8')
@@ -291,6 +331,11 @@ def profile_export(out: str | None = None):
             target = cfgout / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(data)
+        # Materialize legacy defaults too: a recipient must not inherit a newer
+        # release's larger default selection when a source choice file is absent.
+        for name, value in _selection_snapshot().items():
+            _validate_choices(name, value)
+            (cfgout / name).write_text(json.dumps(value, indent=2) + '\n')
         with zipfile.ZipFile(dest, "w", zipfile.ZIP_DEFLATED) as z:
             for p in root.rglob("*"):
                 if p.is_file():
@@ -320,7 +365,7 @@ def _safe_zip_extract(zf: zipfile.ZipFile, dest: Path):
     zf.extractall(dest)
 
 
-def profile_import(archive: str):
+def profile_import(archive: str, preview=False):
     arc = Path(os.path.expanduser(archive)).resolve()
     if not arc.exists():
         raise SystemExit(f"Profile archive not found: {arc}")
@@ -345,6 +390,9 @@ def profile_import(archive: str):
             _no_link_path(dest, core.CONFIG_HOME)
             if dest.exists() and not dest.is_file(): raise ValueError(f'Non-file destination: {relative}')
             planned.append((relative, dest, _portable_bytes(p)))
+        if preview:
+            return {'files': [str(relative) for relative, _, _ in planned],
+                    'choices': {str(relative): json.loads(data) for relative, _, data in planned if str(relative) in ('modules.json', 'apps.json', 'components.json', 'gaming-selection.json', 'decky-selection.json', 'css-selection.json')}}
         backup = core.STATE / "profile-import-rollback" / f'{_stamp()}-{time.time_ns()}'
         backup.mkdir(parents=True, exist_ok=True)
         written = []

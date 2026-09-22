@@ -60,7 +60,7 @@ printf '\nThis provisioning pass installs safe user-space packages and stages gu
 read -r -p "Continue? [Y/n] " ans
 if [[ "${ans:-Y}" =~ ^[Nn]$ ]]; then exit 0; fi
 apply_status=0
-./bin/deckctl apply || apply_status=$?
+./bin/deckctl setup install || apply_status=$?
 printf '\nPost-install status:\n'; ./bin/deckctl verify || true
 ./bin/deckctl setup status
 printf '\nThe remaining vendor/account steps are guided. deckctl will launch each installer/app for you.\n'

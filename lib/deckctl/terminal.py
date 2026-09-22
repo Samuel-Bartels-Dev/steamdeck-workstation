@@ -337,7 +337,8 @@ def _copy_managed_config(selected=None):
         if not PROMPT_ENGINE_FILE.exists():
             PROMPT_ENGINE_FILE.write_text('posh\n' if 'oh-my-posh' in selected else 'starship\n')
         enabled = TERM_CONFIG / 'selected-tools'
-        enabled.write_text('\n'.join(sorted(selected))+'\n')
+        from . import component_options
+        enabled.write_text('\n'.join(sorted(component_options.effective('terminal')))+'\n')
     if 'konsole' in selected:
         shutil.copy2(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
         shutil.copy2(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
@@ -485,7 +486,7 @@ def _tool_update_available(name, receipt):
         return False
 
 
-def apply(config_only: bool = False, refresh: bool = False) -> int:
+def apply(config_only: bool = False, refresh: bool = False, only=None) -> int:
     if os.geteuid() == 0 and os.environ.get("DECKCTL_ALLOW_ROOT_TEST") != "1":
         print("Do not run terminal setup as root. Everything is installed in the deck user's home directory.")
         return 2
@@ -493,6 +494,9 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
     receipts = core.load_json(RECEIPTS_FILE, {}) or {}
     from . import component_options
     selected = component_options.effective('terminal')
+    if only is not None:
+        if only not in selected: raise ValueError('Terminal tool is not selected: '+only)
+        selected = {only}
     failures = []
     if not config_only:
         installers = [
