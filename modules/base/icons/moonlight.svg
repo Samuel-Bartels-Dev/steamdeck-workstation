@@ -1,1 +1,7 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"><title>Moonlight Game Streaming</title><rect x="5" y="5" width="118" height="118" rx="28" fill="#100a1d" stroke="#a970ff" stroke-width="5"/><path d="M78 22a44 44 0 1 0 31 71A38 38 0 0 1 78 22Z" fill="#d9c8ff"/><path d="m35 89 13-27 12 18 13-25 20 34Z" fill="#42f5ff"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <title>Moonlight Game Streaming</title>
+  <rect x="5" y="5" width="118" height="118" rx="28" fill="#100a1d" stroke="#a970ff" stroke-width="5"/>
+  <path d="M73 26a34 34 0 1 0 24 56A31 31 0 0 1 73 26Z" fill="#d9c8ff"/>
+  <path d="m73 43 22 14-22 14Z" fill="#42f5ff" stroke="#42f5ff" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M44 103h40" stroke="#a970ff" stroke-width="5" stroke-linecap="round"/>
+</svg>

@@ -75,6 +75,16 @@ change Bash, tmux, or the Konsole default profile. No coding app or tmux server
 is started at login. Ghostty gets its own Desktop Mode menu entry, while Konsole
 remains available. Existing personal Ghostty/Neovim settings are not replaced.
 
+New or empty Ghostty configurations receive a Bubble Gum Rave coding theme:
+an opaque dark background, readable ANSI colors, pink block cursor, purple
+selection, 12-point text and modest padding for the Deck screen. Ghostty uses
+its built-in font, so this does not require selecting the optional font download.
+Existing Ghostty settings are preserved; add `theme = deckctl-bubble-gum-rave`
+to your Ghostty config to use the installed theme. Reopen Ghostty after applying.
+The theme uses [Ghostty's native theme format](https://ghostty.org/docs/features/theme).
+Editor-specific syntax themes remain controlled by the editor.
+
+
 Ghostty uses the community AppImage linked by [Ghostty's Linux install docs](https://ghostty.org/docs/install/binary).
 Neovim uses its [official AppImage](https://neovim.io/doc/install/), retaining the
 full editor runtime. Both wrappers request AppImage extract-and-run mode so they
@@ -91,18 +101,17 @@ The setup window lists each tool in Coding & work, alongside the separate editor
 See [the on-demand AI workspace](../ai-workspace/README.md) for local Ollama and
 ChatGPT subscription configuration. OpenCode provider login remains interactive.
 
-## Sharingan Fastfetch artwork
+## Steam Deck Fastfetch artwork
 
-Selecting **fastfetch** installs a compact red Sharingan-inspired ASCII eye.
+Selecting **fastfetch** uses Fastfetch’s built-in Steam Deck artwork in hot pink and cyan.
 With **Shell helpers** enabled, `ff` displays it beside your system information.
 Run `deckctl terminal apply --config-only` to refresh an existing selection,
-then open a new shell. The managed art lives at
-`~/.config/deckctl/terminal/sharingan.txt`; personal Fastfetch configuration is
-preserved. Plain `fastfetch` keeps your own defaults, and `ff --logo small`
-overrides the eye for a single invocation. Nothing runs automatically at login.
+then open a new shell. The logo is included in Fastfetch; no extra image
+download is needed. Personal Fastfetch configuration is preserved. Plain `fastfetch` keeps your own defaults, and `ff --logo small`
+overrides the artwork for a single invocation. Nothing runs automatically at login.
 
 The **Bubble Gum Rave** Fastfetch theme pairs pink keys, cyan/purple section
-headings and pale text with the red Sharingan eye. It shows SteamOS, model,
+headings and pale text with the two-tone Steam Deck emblem. It shows SteamOS, model,
 kernel, uptime, CPU/GPU, RAM/swap, battery, available home/external storage,
 display and desktop/shell information. Hardware fields appear when detected.
 The optional Konsole appearance choice supplies the matching dark background;
@@ -111,7 +120,10 @@ the Fastfetch theme works in other terminals too.
 The managed theme is `~/.config/deckctl/terminal/fastfetch.json`.
 After updating, select fastfetch and Shell helpers, run
 `deckctl terminal apply --config-only`, then open a new shell and run `ff`.
-It is a snapshot on demand, with no background monitor.
+It is a snapshot on demand, with no background monitor. Compact hardware fields
+and a one-column logo gap keep it readable on the Deck; long values are
+shortened and line wrapping is disabled while rendering to protect the artwork.
+Run plain `fastfetch` when you need the full hardware strings.
 
 ## Repeat installs and updates
 

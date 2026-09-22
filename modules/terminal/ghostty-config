@@ -1,0 +1,8 @@
+# Starting defaults from deckctl. Personal edits are retained on reinstall.
+theme = deckctl-bubble-gum-rave
+font-size = 12
+window-padding-x = 10
+window-padding-y = 8
+background-opacity = 1
+cursor-style = block
+cursor-style-blink = false

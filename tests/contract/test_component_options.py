@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Install boundaries for individually selected tools; never runs vendor installers."""
 import contextlib
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -42,16 +43,30 @@ class Components(unittest.TestCase):
             download.assert_called_once()
             config.assert_called_once_with({'ghostty'})
 
+    def test_ghostty_theme_preserves_personal_config_on_repeat(self):
+        with patch.object(terminal, 'HOME', self.home):
+            terminal._ghostty_config()
+            config = self.home / '.config/ghostty/config.ghostty'
+            self.assertIn('theme = deckctl-bubble-gum-rave', config.read_text())
+            config.write_text('font-size = 16\n')
+            terminal._ghostty_config()
+            self.assertEqual(config.read_text(), 'font-size = 16\n')
+            config.unlink()
+            legacy = config.with_name('config')
+            legacy.write_text('theme = personal\n')
+            terminal._ghostty_config()
+            self.assertFalse(config.exists())
+            self.assertEqual(legacy.read_text(), 'theme = personal\n')
+
     def test_fastfetch_art_is_optional_and_shell_passes_arguments(self):
         config = self.home/'.config/deckctl/terminal'
         shell = self.home/'.config/deckctl/shell/terminal.sh'
         with patch.object(terminal, 'TERM_CONFIG', config), patch.object(terminal, 'SHELL_CONFIG', shell), patch.object(terminal, 'KONSOLE_DIR', self.home/'konsole'):
             terminal._copy_managed_config(set())
-            self.assertFalse((config/'sharingan.txt').exists())
             self.assertFalse((config/'fastfetch.json').exists())
             terminal._copy_managed_config({'fastfetch'})
             self.assertEqual((config/'fastfetch.json').read_bytes(), (core.ROOT/'modules/terminal/fastfetch.json').read_bytes())
-            self.assertEqual((config/'sharingan.txt').read_bytes(), (core.ROOT/'modules/terminal/sharingan.txt').read_bytes())
+            self.assertEqual(json.loads((config/'fastfetch.json').read_text())['logo']['source'], 'SteamDeck')
         bindir=self.home/'bin'; bindir.mkdir()
         fake=bindir/'fastfetch'
         fake.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n'); fake.chmod(0o755)
@@ -60,12 +75,12 @@ class Components(unittest.TestCase):
             'source "$1"; ff --logo small', 'test', str(core.ROOT/'modules/terminal/terminal.sh')],
             env=env, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(result.stdout.splitlines(), ['--config', str(config/'fastfetch.json'), '--logo', str(config/'sharingan.txt'), '--logo-color-1', 'red', '--logo', 'small'])
+        self.assertEqual(result.stdout.splitlines(), ['--config', str(config/'fastfetch.json'), '--logo', 'small'])
 
     @unittest.skipUnless(shutil.which('fastfetch'), 'Fastfetch is not installed')
     def test_real_fastfetch_parses_theme_and_renders_resource_sections(self):
         result=subprocess.run(['fastfetch', '--config', str(core.ROOT/'modules/terminal/fastfetch.json'),
-            '--logo', str(core.ROOT/'modules/terminal/sharingan.txt'), '--pipe'],
+            '--pipe'],
             capture_output=True, text=True, timeout=15)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertNotIn('JsonConfig Error', result.stdout + result.stderr)

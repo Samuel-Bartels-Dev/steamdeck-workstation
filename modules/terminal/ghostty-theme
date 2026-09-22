@@ -1,0 +1,23 @@
+# Bubble Gum Rave: opaque background, clear contrast, restrained neon accents.
+background = #090612
+foreground = #f8e7ff
+cursor-color = #ff4fd8
+cursor-text = #090612
+selection-background = #533960
+selection-foreground = #ffffff
+palette = 0=#180e20
+palette = 1=#ff5c8a
+palette = 2=#b9ff63
+palette = 3=#ffd166
+palette = 4=#42f5ff
+palette = 5=#a970ff
+palette = 6=#42f5ff
+palette = 7=#f8e7ff
+palette = 8=#9b87ad
+palette = 9=#ff2fb3
+palette = 10=#d2ff9a
+palette = 11=#ffe299
+palette = 12=#91faff
+palette = 13=#cda8ff
+palette = 14=#7ffbff
+palette = 15=#ffffff
