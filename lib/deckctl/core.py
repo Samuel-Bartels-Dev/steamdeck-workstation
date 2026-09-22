@@ -589,6 +589,14 @@ def _codex_logged_in():
     except Exception:
         return False
 
+def _claude_logged_in():
+    binary = Path.home()/".local/bin/claude"
+    try:
+        return subprocess.run([str(binary), "auth", "status"], stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=10).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+
 def setup_steps():
     stage=Path.home()/"Desktop/Deck-Setup-Staged"
     return [
@@ -716,6 +724,14 @@ def setup_steps():
             "description":"Register your PlayStation locally. Remote PSN testing should be done later from a phone hotspot or another non-home network.",
             "launch":lambda: _launch_flatpak("io.github.streetpea.Chiaki4deck"),
             "detect":lambda: _flatpak_installed("io.github.streetpea.Chiaki4deck"),
+        },
+        {
+            "id":"claude-code",
+            "module":"dev",
+            "title":"Claude Code sign-in",
+            "description":"Run Claude Code and follow the browser sign-in prompts. Requires a supported Claude account or API billing. You can skip this and run claude later.",
+            "launch":lambda: _launch_terminal_command(shlex.quote(str(Path.home()/".local/bin/claude"))),
+            "detect":lambda: _claude_logged_in(),
         },
         {
             "id":"codex",

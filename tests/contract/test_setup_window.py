@@ -18,6 +18,19 @@ class SetupWindow(unittest.TestCase):
             p = patch.object(core, name, self.home/name)
             p.start(); self.addCleanup(p.stop)
 
+    def test_palette_persists_without_changing_install_plan(self):
+        session = setup_window.Session()
+        before = session.snapshot()
+        self.assertEqual(session.appearance({'palette': 'ocean'}), {'palette': 'ocean'})
+        after = setup_window.Session().snapshot()
+        self.assertEqual(after['palette'], 'ocean')
+        self.assertEqual(before['modules'], after['modules'])
+        self.assertEqual(before['selectedComponents'], after['selectedComponents'])
+        with self.assertRaises(ValueError): session.appearance({'palette': '../bad'})
+        self.assertEqual(set(p.name for p in core.CONFIG_HOME.iterdir()), {'appearance.json'})
+        for palette in after['palettes']:
+            self.assertEqual(set(palette['colors']), set(after['palettes'][0]['colors']))
+
     def test_app_selection_includes_owning_module_and_dependencies(self):
         session = setup_window.Session()
         result = session.save({'modules': ['base'], 'apps': ['zed']})
@@ -102,6 +115,26 @@ class SetupWindow(unittest.TestCase):
                 self.assertEqual(item['summary'], descriptions[section][item['id']])
                 self.assertGreater(len(item['summary']), 35, (section,item['id']))
                 self.assertLess(len(item['summary']), 200, (section,item['id']))
+
+    def test_layout_gives_each_download_one_home_without_category_redirects(self):
+        snapshot=setup_window.Session().snapshot()
+        choices=[item for section in snapshot['layout'] for item in section['items']]
+        identities=[(item['kind'],item.get('group'),item['id']) for item in choices]
+        self.assertEqual(len(identities),len(set(identities)))
+        for kind, items in [('app',snapshot['apps']),('launcher',snapshot['launchers'])]:
+            self.assertEqual({x['id'] for x in choices if x['kind']==kind}, {x['id'] for x in items})
+        self.assertEqual({(x['group'],x['id']) for x in choices if x['kind']=='component'},
+                         {(group,x['id']) for group,items in snapshot['components'].items() for x in items})
+        remote=[x for section in snapshot['layout'] if section['stage']==3 for x in section['items']]
+        self.assertNotIn('utilities',{x['id'] for x in remote})
+        self.assertIn('parsec',{x['id'] for x in remote})
+        self.assertNotIn('parsec',{x['id'] for section in snapshot['layout'] if section['stage']==1 for x in section['items']})
+
+    def test_individual_choices_include_owners_and_css_parents_without_hidden_checks(self):
+        setup_builder.save_plan(['base'], ['parsec'], ['heroic'], [], ['Round'], {'ai-workspace':['model-7b']})
+        self.assertTrue({'gaming','decky','ai-workspace','remote'} <= set(core.enabled_modules()))
+        self.assertIn('SDH-CssLoader',core._decky_selected_folders())
+        self.assertEqual(css_stack.selection(),['Round'])
 
     def test_plan_only_never_starts_installer(self):
         session = setup_window.Session(plan_only=True)

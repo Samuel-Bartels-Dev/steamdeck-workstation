@@ -1,0 +1,367 @@
+[
+  {
+    "stage": 0,
+    "title": "Game launchers",
+    "description": "Install only the stores and compatibility tools you use.",
+    "items": [
+      {
+        "kind": "launcher",
+        "id": "heroic"
+      },
+      {
+        "kind": "launcher",
+        "id": "battlenet"
+      },
+      {
+        "kind": "launcher",
+        "id": "protonplus"
+      },
+      {
+        "kind": "launcher",
+        "id": "nonsteamlaunchers"
+      }
+    ]
+  },
+  {
+    "stage": 0,
+    "title": "Game Mode & controls",
+    "description": "Choose add-ons separately; required support is included automatically.",
+    "items": [
+      {
+        "kind": "module",
+        "id": "decky"
+      },
+      {
+        "kind": "module",
+        "id": "controller"
+      },
+      {
+        "kind": "module",
+        "id": "library"
+      },
+      {
+        "kind": "module",
+        "id": "hardware"
+      }
+    ]
+  },
+  {
+    "stage": 0,
+    "title": "More ways to play",
+    "description": "These launch their own setup wizard for game and emulator choices.",
+    "items": [
+      {
+        "kind": "module",
+        "id": "emulation"
+      },
+      {
+        "kind": "module",
+        "id": "android"
+      }
+    ]
+  },
+  {
+    "stage": 1,
+    "title": "Browser & utilities",
+    "description": "Everyday tools for Desktop Mode.",
+    "items": [
+      {
+        "kind": "app",
+        "id": "zen"
+      },
+      {
+        "kind": "app",
+        "id": "flatseal"
+      }
+    ]
+  },
+  {
+    "stage": 1,
+    "title": "Chat & communities",
+    "description": "Each app has its own account sign-in after installation.",
+    "items": [
+      {
+        "kind": "app",
+        "id": "discord"
+      },
+      {
+        "kind": "app",
+        "id": "slack"
+      },
+      {
+        "kind": "app",
+        "id": "whatsapp"
+      },
+      {
+        "kind": "app",
+        "id": "telegram"
+      }
+    ]
+  },
+  {
+    "stage": 1,
+    "title": "Music & video",
+    "description": "Desktop media players and services.",
+    "items": [
+      {
+        "kind": "app",
+        "id": "vlc"
+      },
+      {
+        "kind": "app",
+        "id": "plex"
+      },
+      {
+        "kind": "app",
+        "id": "spotify"
+      }
+    ]
+  },
+  {
+    "stage": 1,
+    "title": "Streaming in Game Mode",
+    "description": "Each selected shortcut uses the shared Chrome browser.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "netflix",
+        "group": "media"
+      },
+      {
+        "kind": "component",
+        "id": "hulu",
+        "group": "media"
+      },
+      {
+        "kind": "component",
+        "id": "crunchyroll",
+        "group": "media"
+      },
+      {
+        "kind": "component",
+        "id": "prime-video",
+        "group": "media"
+      }
+    ]
+  },
+  {
+    "stage": 1,
+    "title": "Browser add-ons",
+    "description": "Optional extensions for the shared browser.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "keeper",
+        "group": "media"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "title": "Editors & terminals",
+    "description": "Pick one or several. These are separate applications.",
+    "items": [
+      {
+        "kind": "app",
+        "id": "zed"
+      },
+      {
+        "kind": "app",
+        "id": "vscode"
+      },
+      {
+        "kind": "component",
+        "id": "ghostty",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "nvim",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "tmux",
+        "group": "terminal"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "title": "AI coding",
+    "description": "Choose your client and optional local models; required tools are included.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "opencode",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "codex",
+        "group": "dev"
+      },
+      {
+        "kind": "component",
+        "id": "claude-code",
+        "group": "dev"
+      },
+      {
+        "kind": "module",
+        "id": "ai-workspace"
+      },
+      {
+        "kind": "component",
+        "id": "ollama",
+        "group": "ai-workspace"
+      },
+      {
+        "kind": "component",
+        "id": "model",
+        "group": "ai-workspace"
+      },
+      {
+        "kind": "component",
+        "id": "model-7b",
+        "group": "ai-workspace"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "title": "Shell tools & appearance",
+    "description": "Each helper and appearance setting is optional.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "oh-my-posh",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "starship",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "zoxide",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "fzf",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "eza",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "bat",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "fastfetch",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "fonts",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "shell",
+        "group": "terminal"
+      },
+      {
+        "kind": "component",
+        "id": "konsole",
+        "group": "terminal"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "title": "Project environments",
+    "description": "Keep project dependencies separate from SteamOS.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "distrobox",
+        "group": "dev"
+      },
+      {
+        "kind": "component",
+        "id": "docker",
+        "group": "dev"
+      }
+    ]
+  },
+  {
+    "stage": 2,
+    "title": "Workspace web apps",
+    "description": "Dedicated web windows share one Chrome installation.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "notion",
+        "group": "workspace"
+      },
+      {
+        "kind": "component",
+        "id": "chatgpt",
+        "group": "workspace"
+      },
+      {
+        "kind": "component",
+        "id": "claude",
+        "group": "workspace"
+      }
+    ]
+  },
+  {
+    "stage": 3,
+    "title": "Remote connections",
+    "description": "Connect to another computer or console; pairing happens after installation.",
+    "items": [
+      {
+        "kind": "component",
+        "id": "moonlight",
+        "group": "remote"
+      },
+      {
+        "kind": "component",
+        "id": "chiaki",
+        "group": "remote"
+      },
+      {
+        "kind": "component",
+        "id": "tailscale",
+        "group": "remote"
+      },
+      {
+        "kind": "app",
+        "id": "parsec"
+      }
+    ]
+  },
+  {
+    "stage": 3,
+    "title": "Storage & recovery",
+    "description": "Organize drives and protect saves without choosing unrelated apps.",
+    "items": [
+      {
+        "kind": "module",
+        "id": "storage"
+      },
+      {
+        "kind": "module",
+        "id": "backup"
+      }
+    ]
+  }
+]

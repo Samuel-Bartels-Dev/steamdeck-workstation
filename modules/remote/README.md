@@ -22,7 +22,7 @@ are retained. Inspect with `deckctl setup cleanup --dry-run`; run
 
 ## Parsec
 
-Choose Parsec under **Desktop apps**, or run `deckctl apps install parsec`.
+Choose Parsec under **Remote & storage**, or run `deckctl apps install parsec`.
 The [community Flathub package](https://flathub.org/en/apps/com.parsecgaming.parsec)
 installs in user space. Parsec on Linux is a client for connecting to Windows or
 macOS hosts; sign in with your Parsec account from the app menu. Selecting it

@@ -249,6 +249,18 @@ class Containers(unittest.TestCase):
             self.assertEqual(c.provision(), 2)
             install.assert_called_once()
 
+    def test_saved_tool_checkbox_controls_provision_without_second_prompt(self):
+        with patch.object(c.core, 'CONFIG_HOME', self.home/'choices'), patch.object(c.core, 'enabled_modules', return_value=['dev']), patch.object(c.core, 'topo', return_value=['base','dev']), patch('builtins.input', side_effect=AssertionError('No second opt-in')):
+            c.core.save_json(c.core.CONFIG_HOME/'components.json', {'dev':[]})
+            with patch.object(c, 'install') as install:
+                self.assertEqual(c.provision(),0)
+                install.assert_not_called()
+            c.core.save_json(c.core.CONFIG_HOME/'components.json', {'dev':['docker']})
+            self.save({'opt_in':False})
+            with patch.object(c, 'install',return_value=0) as install:
+                self.assertEqual(c.provision(),0)
+                install.assert_called_once()
+
     def test_unit_escaping_and_no_system_boot_enable(self):
         text = c.unit_text(Path('/home/a space%/bin'))
         self.assertIn('a space%%/bin', text)

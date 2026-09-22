@@ -95,7 +95,7 @@ certify Steam Deck GPU inference, real account sign-in or Ghostty rendering.
 
 ## Choose your local model
 
-In **Coding & work → AI workspace → Options**, select either model or both.
+In **Coding & work → AI coding**, select either model or both.
 Each automatically includes Ollama; neither adds a background service.
 
 | Choice | Download, approximately | Tradeoff |

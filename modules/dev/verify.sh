@@ -24,9 +24,25 @@ if [[ "$login" != "logged in" ]]; then
   exit 0
 fi
 fi
+if component_selected dev claude-code; then
+  if [[ ! -x "$HOME/.local/bin/claude" ]] || ! "$HOME/.local/bin/claude" --version >/dev/null 2>&1; then
+    module_json DEGRADED "Claude Code is missing or not runnable; rerun deckctl apply"
+    exit 0
+  fi
+  if ! "$HOME/.local/bin/claude" auth status >/dev/null 2>&1; then
+    module_json CONFIG_REQUIRED "Claude Code installed; run claude to sign in"
+    exit 0
+  fi
+fi
 if component_selected dev distrobox; then
   if ! have distrobox || ! have podman || ! distrobox list 2>/dev/null | grep -Eq '(^|[[:space:]])deck-dev([[:space:]]|$)'; then
     module_json DEGRADED "Selected development container is not ready"
+    exit 0
+  fi
+fi
+if component_selected dev docker; then
+  if ! "$DECKCTL_ROOT/bin/deckctl" containers status >/dev/null 2>&1; then
+    module_json CONFIG_REQUIRED "Selected Docker engine needs setup or a live container test; run deckctl containers status"
     exit 0
   fi
 fi
