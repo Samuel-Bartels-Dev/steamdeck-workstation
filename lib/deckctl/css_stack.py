@@ -32,10 +32,29 @@ class CSSError(RuntimeError):
     pass
 
 
+def palette_catalog():
+    return core.load_json(core.ROOT/'config/setup-palettes.json', [])
+
+
+def validate_palette(key):
+    if not isinstance(key, str) or key not in {item['id'] for item in palette_catalog()}:
+        raise ValueError('Unknown theme palette')
+    return key
+
+
+def palette_id():
+    return validate_palette(core.load_json(core.CONFIG_HOME/'css-selection.json', {}).get('palette', 'bubblegum'))
+
+
 def _stack(unfiltered=False):
     data = json.loads(STACK_PATH.read_text())
     if data.get('schema_version') != 3 or not data.get('required'):
         raise CSSError('Invalid CSS stack manifest')
+    palette = next(item for item in palette_catalog() if item['id'] == palette_id())
+    data['palette'] = palette['css_palette']
+    data['palette_name'] = palette['name']
+    data['named_presets'] = palette['named_presets']
+    data['preset'] = palette['name'] + ' - Base'
     if not unfiltered:
         names = selection()
         items = data['required'] + data['recommended'] + data.get('optional', [])
@@ -242,7 +261,7 @@ def _color_role(label):
     return None
 
 
-def palette_plan(theme, palette):
+def palette_plan(theme, palette, named_presets=None):
     """Use only controls and option values actually advertised by this backend.
 
     Prefer supported solid colors for readable dark panels; use pink/violet/cyan
@@ -255,9 +274,13 @@ def palette_plan(theme, palette):
             # Older themes expose named color presets instead of color pickers.
             if any(word in patch['name'].casefold() for word in ('color', 'colour')):
                 options_by_name = {str(v).casefold(): v for v in patch.get('options', [])}
-                choice = next((options_by_name[v] for v in ('pink', 'magenta', 'purple', 'violet', 'cyan') if v in options_by_name), None)
+                choice = next((options_by_name[v] for v in (named_presets or ('pink', 'magenta', 'purple', 'violet', 'cyan')) if v in options_by_name), None)
                 if choice is not None:
                     plan[patch['name']] = {'value': choice, 'components': {}}
+                elif named_presets is not None and set(options_by_name).intersection(
+                        {'pink', 'magenta', 'purple', 'violet', 'cyan', 'blue', 'teal', 'aqua',
+                         'grey', 'gray', 'white', 'silver', 'black', 'red', 'green', 'yellow', 'orange'}):
+                    raise CSSError(f"{theme['name']}/{patch['name']}: no named color matching the selected palette; choose another palette or deselect this component")
             continue
         options = patch.get('options', [])
         activators = list(dict.fromkeys(c['on'] for c in colors if c.get('on') in options))
@@ -342,6 +365,8 @@ def _manifest_hash():
     raw = STACK_PATH.read_bytes()
     if (core.CONFIG_HOME/'css-selection.json').exists():
         raw += json.dumps(sorted(selection())).encode()
+    palette = _stack(unfiltered=True)
+    raw += json.dumps({key: palette[key] for key in ('palette', 'palette_name', 'named_presets', 'preset')}, sort_keys=True).encode()
     return hashlib.sha256(raw).hexdigest()
 
 
@@ -382,7 +407,7 @@ def readiness():
         profile = THEMES_DIR / (stack['preset'] + '.profile')
         if hashlib.sha256((profile / 'theme.json').read_bytes()).hexdigest() != receipt['profile_sha256']:
             return False, 'Native CSS profile changed or is missing'
-        return True, f"{len(entries)} components and Bubble Gum Rave palette verified"
+        return True, f"{len(entries)} components and {stack['palette_name']} palette verified"
     except (OSError, ValueError, KeyError, TypeError, AttributeError, CSSError) as exc:
         return False, f'CSS configuration incomplete: {exc}'
 
@@ -422,7 +447,7 @@ def apply():
                         theme = _live_theme(themes, name)
                         if theme is None:
                             raise CSSError('Theme Store download did not install ' + name)
-                    plan = palette_plan(theme, stack['palette']) if item.get('configure_palette') else {}
+                    plan = palette_plan(theme, stack['palette'], stack['named_presets']) if item.get('configure_palette') else {}
                     if item.get('configure_palette') and not plan:
                         if name.startswith('Chromahon') or name == 'Focus Highlight Color':
                             raise CSSError(f'{name} exposes no supported palette controls')
@@ -502,7 +527,7 @@ def status():
         for item in _stack()[section]:
             present = _find(installed, item['name']) is not None
             print(f"{'PRESENT' if present else 'OPTIONAL' if section == 'optional' else 'MISSING':<10} {item['name']}")
-    print('Bubble Gum Rave is a palette/profile, not a Theme Store package.')
+    print(_stack()['palette_name'] + ' is the selected palette/profile, not a Theme Store package.')
     return 0 if ok else 2
 
 
@@ -510,7 +535,7 @@ def guide(write_desktop=False):
     print('CSS Loader is installed through the existing Decky plugin installer.\n'
           'Guided setup installs the required/recommended Theme Store components,\n'
           'configures their supported color controls, verifies saved state, and captures\n'
-          'a native Bubble Gum Rave - Base profile for recovery.\n'
+          f"a native {_stack()['preset']} profile for recovery.\n"
           'Retry: deckctl decky css apply | Audit: deckctl decky css status\n'
           'Optional layout components stay opt-in in CSS Loader.\n'
           'Gaming Mode artwork belongs to SteamGridDB; Desktop icons are independent.')

@@ -18,16 +18,24 @@ class SetupWindow(unittest.TestCase):
             p = patch.object(core, name, self.home/name)
             p.start(); self.addCleanup(p.stop)
 
-    def test_palette_persists_without_changing_install_plan(self):
+    def test_theme_palette_saves_with_plan_without_enabling_extra_software(self):
         session = setup_window.Session()
-        before = session.snapshot()
-        self.assertEqual(session.appearance({'palette': 'ocean'}), {'palette': 'ocean'})
+        session.save({'modules': ['base'], 'apps': [], 'css': [], 'palette': 'ocean'})
         after = setup_window.Session().snapshot()
         self.assertEqual(after['palette'], 'ocean')
-        self.assertEqual(before['modules'], after['modules'])
-        self.assertEqual(before['selectedComponents'], after['selectedComponents'])
-        with self.assertRaises(ValueError): session.appearance({'palette': '../bad'})
-        self.assertEqual(set(p.name for p in core.CONFIG_HOME.iterdir()), {'appearance.json'})
+        self.assertEqual(after['modules'], ['base'])
+        self.assertEqual(after['selectedCss'], [])
+        before = {p.name: p.read_bytes() for p in core.CONFIG_HOME.iterdir()}
+        with self.assertRaises(ValueError):
+            session.save({'modules': ['decky'], 'apps': [], 'palette': '../bad'})
+        self.assertEqual(before, {p.name: p.read_bytes() for p in core.CONFIG_HOME.iterdir()})
+        save = core.save_json
+        def fail(path, data):
+            if path.name == 'components.json': raise OSError('disk full')
+            return save(path, data)
+        with patch.object(core, 'save_json', side_effect=fail), self.assertRaises(OSError):
+            session.save({'modules': ['decky'], 'apps': [], 'css': ['Round'], 'palette': 'graphite', 'components': {}})
+        self.assertEqual(before, {p.name: p.read_bytes() for p in core.CONFIG_HOME.iterdir()})
         for palette in after['palettes']:
             self.assertEqual(set(palette['colors']), set(after['palettes'][0]['colors']))
 

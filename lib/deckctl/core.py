@@ -645,7 +645,7 @@ def setup_steps():
             "module":"decky",
             "noninteractive":True,
             "title":"Configure CSS Loader components and palette",
-            "description":"Install the real Theme Store components and configure their supported Bubble Gum Rave colors automatically in Desktop Mode. Saved settings and the native recovery profile are verified.",
+            "description":"Install the real Theme Store components and apply your selected theme palette to supported color controls automatically in Desktop Mode. Saved settings and the native recovery profile are verified.",
             "launch":lambda: _guided_decky_theme_install(),
             "detect":lambda: _guided_decky_theme_ready(),
         },

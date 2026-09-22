@@ -101,7 +101,8 @@ def plugin_items():
             for key, item in items.items()]
 
 
-def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None):
+def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None, palette=None):
+    if palette is not None: palette=css_stack.validate_palette(palette)
     if components is not None: components=component_options.validate(components)
     if css is not None: css=css_stack.validate_selection(css)
     if launchers is not None: launchers=gaming_options.validate(launchers)
@@ -124,7 +125,7 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
     files=[core.CONFIG_HOME/'modules.json', core.CONFIG_HOME/'apps.json']
     if launchers is not None: files.append(core.CONFIG_HOME/'gaming-selection.json')
     if plugins is not None: files.append(core._decky_selection_path())
-    if css is not None: files.append(core.CONFIG_HOME/'css-selection.json')
+    if css is not None or palette is not None: files.append(core.CONFIG_HOME/'css-selection.json')
     if components is not None: files.append(core.CONFIG_HOME/'components.json')
     previous=[p.read_bytes() if p.exists() else None for p in files]
     try:
@@ -140,8 +141,11 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
                          selected_folders=sorted(set(plugins)),
                          selected_plugins=[items.get(x,{}).get('name',x) for x in sorted(set(plugins))])
             core.save_json(core._decky_selection_path(), state)
-        if css is not None:
-            core.save_json(core.CONFIG_HOME/'css-selection.json', {'selected': css})
+        if css is not None or palette is not None:
+            css_state = core.load_json(core.CONFIG_HOME/'css-selection.json', {})
+            css_state['selected'] = css if css is not None else css_stack.selection()
+            if palette is not None: css_state['palette'] = palette
+            core.save_json(core.CONFIG_HOME/'css-selection.json', css_state)
         if components is not None:
             core.save_json(core.CONFIG_HOME/'components.json', components)
     except (OSError,ValueError):
