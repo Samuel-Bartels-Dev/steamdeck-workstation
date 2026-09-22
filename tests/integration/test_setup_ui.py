@@ -32,6 +32,7 @@ UI.Setup {
     width: 1120; height: 720
     property bool attempted: false
     property bool retried: false
+    property int experienceStage: 0
     function findObject(root, name) {
         if (root.objectName === name) return root
         var children=root.children || []
@@ -56,6 +57,7 @@ UI.Setup {
                 app.browse("plugins")
                 app.browse("css")
                 if (app.dirty || JSON.stringify(app.chosen) !== original) throw new Error("Browsing changed selections")
+                app.showPalettePreview = true
                 choose("Round")
                 if (app.pageValues("plugins").indexOf("SDH-CssLoader") < 0 || app.chosen.indexOf("decky") < 0) throw new Error("Theme missing required parents")
                 app.back()
@@ -109,6 +111,19 @@ UI.Setup {
                 }
                 if (app.paletteId !== "ocean" || app.activePalette.name !== "Midnight Ocean") throw new Error("Palette did not apply")
                 if (app.progress.operation !== "accounts" || app.progress.exitCode !== 0) throw new Error("Retry switched to installing")
+                if (app.experienceStage === 0) {
+                    app.experienceStage = 1; app.previewPlan(); return
+                }
+                if (app.experienceStage === 1) {
+                    if (app.previewPending) return
+                    if (!app.installPreview.items || app.installPreview.items[0].action !== "UPDATE") throw new Error("Preview did not render update evidence")
+                    app.experienceStage = 2; app.checkFinish(); return
+                }
+                if (app.experienceStage === 2) {
+                    if (app.finishItems[0].status !== "Needs sign-in") throw new Error("Installed app incorrectly shown as signed in")
+                    app.experienceStage = 3; app.finishAction("app:slack", "confirm"); return
+                }
+                if (app.finishItems[0].status !== "Ready") throw new Error("Explicit confirmation did not update readiness")
                 app.dirty = false
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
             }
@@ -122,12 +137,22 @@ UI.Setup {
                 args[1] = str(harness)
                 return run(args, timeout=12, **kwargs).returncode
             operations=[]
-            def fake_start(session, operation):
+            def fake_start(session, operation, item=None):
                 operations.append(operation)
                 self.assertEqual(operation, 'accounts', 'Retry must not install software')
                 return dict(running=False, operation=operation, exitCode=0, modules=[])
+            confirmed = []
+            def fake_preview(session, payload):
+                session.preview_result = {'running': False, 'items': [{'visible': True, 'name': 'Slack', 'action': 'UPDATE', 'updateCheck': 'Checked', 'downloadBytes': 1000000}], 'volumes': [], 'sizeNote': 'Test provider estimate'}
+                return session.preview_result
+            def fake_finish():
+                return [dict(key='app:slack', name='Slack', status='Ready' if confirmed else 'Needs sign-in', note='Test account readiness', canLaunch=True, canConfirm=True, followup='signin')]
+            def fake_action(key, operation):
+                self.assertEqual((key, operation), ('app:slack', 'confirm'))
+                confirmed.append(key)
+                return {'confirmed': True}
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start):
+            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])

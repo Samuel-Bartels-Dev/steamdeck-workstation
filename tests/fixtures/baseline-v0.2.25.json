@@ -959,6 +959,7 @@
     }
   },
   "reliability_changes": [
+    "lib/deckctl/decky_installer.py",
     ".github/workflows/validate.yml",
     "CHANGELOG.md",
     "README.md",

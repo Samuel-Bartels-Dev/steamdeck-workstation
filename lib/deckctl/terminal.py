@@ -317,6 +317,20 @@ def _install_fonts() -> dict:
     return {"source": url, "version": release.get("tag_name"), "archive_sha256": _sha256_bytes(data), "files": installed}
 
 
+def _ghostty_config():
+    directory = HOME / '.config/ghostty'
+    directory.mkdir(parents=True, exist_ok=True)
+    theme = directory / 'themes/deckctl-bubble-gum-rave'
+    theme.parent.mkdir(parents=True, exist_ok=True)
+    if not theme.is_symlink():
+        shutil.copy2(core.ROOT / 'modules/terminal/ghostty-theme', theme)
+    configs = [directory / name for name in ('config', 'config.ghostty')]
+    if any(path.is_symlink() or (path.exists() and path.read_text().strip()) for path in configs):
+        print('Existing Ghostty settings retained. Theme available: deckctl-bubble-gum-rave')
+        return
+    shutil.copy2(core.ROOT / 'modules/terminal/ghostty-config', directory / 'config.ghostty')
+
+
 def _copy_managed_config(selected=None):
     TERM_CONFIG.mkdir(parents=True, exist_ok=True)
     SHELL_CONFIG.parent.mkdir(parents=True, exist_ok=True)
@@ -325,19 +339,21 @@ def _copy_managed_config(selected=None):
     if selected is None:
         from . import component_options
         selected = set(component_options.defaults()['terminal'])
-    files = {'fastfetch': ('sharingan.txt', TERM_CONFIG / 'sharingan.txt'),
-             'starship': ('starship.toml', STARSHIP_CONFIG),
+    files = {'starship': ('starship.toml', STARSHIP_CONFIG),
              'oh-my-posh': ('bubble-gum-rave.omp.json', POSH_CONFIG),
              'shell': ('terminal.sh', SHELL_CONFIG), 'tmux': ('tmux.conf', TMUX_CONFIG)}
     for key, (source, target) in files.items():
         if key in selected: shutil.copy2(src / source, target)
+    if 'ghostty' in selected:
+        _ghostty_config()
     if 'fastfetch' in selected:
         shutil.copy2(src / 'fastfetch.json', TERM_CONFIG / 'fastfetch.json')
     if 'shell' in selected:
         if not PROMPT_ENGINE_FILE.exists():
             PROMPT_ENGINE_FILE.write_text('posh\n' if 'oh-my-posh' in selected else 'starship\n')
         enabled = TERM_CONFIG / 'selected-tools'
-        enabled.write_text('\n'.join(sorted(selected))+'\n')
+        from . import component_options
+        enabled.write_text('\n'.join(sorted(component_options.effective('terminal')))+'\n')
     if 'konsole' in selected:
         shutil.copy2(src / KONSOLE_PROFILE, KONSOLE_DIR / KONSOLE_PROFILE)
         shutil.copy2(src / KONSOLE_SCHEME, KONSOLE_DIR / KONSOLE_SCHEME)
@@ -485,7 +501,7 @@ def _tool_update_available(name, receipt):
         return False
 
 
-def apply(config_only: bool = False, refresh: bool = False) -> int:
+def apply(config_only: bool = False, refresh: bool = False, only=None) -> int:
     if os.geteuid() == 0 and os.environ.get("DECKCTL_ALLOW_ROOT_TEST") != "1":
         print("Do not run terminal setup as root. Everything is installed in the deck user's home directory.")
         return 2
@@ -493,6 +509,9 @@ def apply(config_only: bool = False, refresh: bool = False) -> int:
     receipts = core.load_json(RECEIPTS_FILE, {}) or {}
     from . import component_options
     selected = component_options.effective('terminal')
+    if only is not None:
+        if only not in selected: raise ValueError('Terminal tool is not selected: '+only)
+        selected = {only}
     failures = []
     if not config_only:
         installers = [

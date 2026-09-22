@@ -319,6 +319,23 @@ class DesktopBehavior(Isolated):
         desktop.icon_path('netflix').unlink(); self.assertEqual(desktop.status(), 2)
         self.assertEqual(desktop.apply(), 0); self.assertEqual(desktop.status(), 0)
 
+    def test_desktop_links_are_preserved_without_blocking_base(self):
+        apps = self.home/'.local/share/applications'; apps.mkdir(parents=True)
+        desk = self.home/'Desktop'; desk.mkdir()
+        source = apps/'Battle.net.desktop'
+        source.write_text('[Desktop Entry]\nExec=battlenet\nIcon=old\n')
+        linked = desk/source.name; linked.symlink_to(source)
+        self.assertEqual(desktop.apply(), 0)
+        self.assertTrue(linked.is_symlink())
+        self.assertEqual(linked.readlink(), source)
+        self.assertIn(str(desktop.icon_path('battlenet')), linked.read_text())
+        linked.unlink()
+        personal = self.home/'personal.desktop'; personal.write_text('keep this exact content')
+        linked.symlink_to(personal)
+        self.assertEqual(desktop.apply(), 0)
+        self.assertTrue(linked.is_symlink())
+        self.assertEqual(personal.read_text(), 'keep this exact content')
+
     def test_svg_assets_parse_and_have_distinct_identities(self):
         import xml.etree.ElementTree as ET
         hashes = set()
@@ -414,7 +431,7 @@ class RecoveryAndSource(Isolated):
         for name, mode in guard['executable_modes'].items():
             self.assertEqual((ROOT / name).stat().st_mode & 0o777, mode, name)
         self.assertEqual(set(core.module_manifests()), set(guard['modules']) | {'ai-workspace'})
-        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.40')
+        self.assertEqual((ROOT / 'VERSION').read_text().strip(), '0.2.41')
 
     def test_all_shell_python_json_syntax_and_entry_permissions(self):
         import ast

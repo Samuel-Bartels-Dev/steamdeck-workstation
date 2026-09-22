@@ -5,9 +5,12 @@ from . import component_options
 HOME=Path.home(); APPS=HOME/'.local/share/applications'; BINDIR=HOME/'.local/share/deckctl/workspace/bin'
 SERVICES={'notion':('Notion','https://www.notion.so/'),'chatgpt':('ChatGPT','https://chatgpt.com/'),'claude':('Claude','https://claude.ai/')}
 def _chrome(): return subprocess.run(['flatpak','info','com.google.Chrome'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode==0
-def setup():
+def setup(only=None):
     from .desktop import exec_line
     chosen=component_options.effective('workspace')
+    if only is not None:
+        if only not in chosen: raise ValueError('Workspace app is not selected')
+        chosen={only}
     if not chosen: return 0
     APPS.mkdir(parents=True,exist_ok=True); BINDIR.mkdir(parents=True,exist_ok=True)
     if not _chrome():

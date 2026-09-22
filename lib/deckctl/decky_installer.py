@@ -251,12 +251,15 @@ def _selected_items():
     return out
 
 
-def install_selected(*, reinstall: bool = False, dry_run: bool = False, assume_yes: bool = False) -> int:
+def install_selected(*, reinstall: bool = False, dry_run: bool = False, assume_yes: bool = False, only=None) -> int:
     if not core._decky_loader_present():
         print("Decky Loader is not installed. Complete the Decky Loader step first.")
         return 2
 
     selected = _selected_items()
+    if only is not None:
+        if only not in {p['folder'] for p in selected}: raise ValueError('Plugin is not selected')
+        selected = [p for p in selected if p['folder'] == only]
     installed = core._decky_installed_plugins()
     todo = [p for p in selected if reinstall or p["folder"] not in installed or not installed[p["folder"]].get("valid", False)]
     if not todo:

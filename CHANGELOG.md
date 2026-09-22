@@ -1,5 +1,13 @@
 # v0.2.34
 
+## v0.2.41
+
+- Share complete saved setup choices, with import preview, confirmation and rollback.
+- Inspect per-item dependencies, update evidence and staging allowances before installing.
+- Persist per-item results; resume after reopening and retry individual failures.
+- Compare palette swatches and menu/keyboard color illustrations, with upstream theme previews.
+- Recheck installed apps and open their setup, sign-in or pairing steps from the finish screen.
+
 ## v0.2.40
 
 - Apply the selected theme palette to CSS Loader's native color controls, with a live setup-window preview and an explicit Review summary.

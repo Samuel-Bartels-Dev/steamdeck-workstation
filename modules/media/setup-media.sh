@@ -26,6 +26,9 @@ import json,sys,os
 from pathlib import Path
 path=Path(os.environ.get('DECKCTL_CONFIG',str(Path.home()/'.config/deckctl')))/'components.json'
 choices=json.loads(path.read_text()).get('media') if path.exists() else None
+only=os.environ.get('DECKCTL_MEDIA_ITEM')
+if only:
+    choices=[only] if choices is None or only in choices else []
 for sid,data in json.load(open(sys.argv[1])).items():
     if choices is None or sid in choices:
         print(f"{sid}\t{data['name']}\t{data['url']}\t{'Y' if data.get('default',False) else 'N'}")

@@ -1,16 +1,18 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/dev/doc/json_schema.json",
   "logo": {
-    "type": "auto",
+    "type": "builtin",
     "padding": {
-      "right": 4
+      "right": 1
     },
     "color": {
-      "1": "red"
-    }
+      "1": "#ff4fd8",
+      "2": "#42f5ff"
+    },
+    "source": "SteamDeck"
   },
   "display": {
-    "separator": "  ",
+    "separator": " ",
     "color": {
       "keys": "#ff4fd8",
       "output": "#f8e7ff",
@@ -18,8 +20,9 @@
     },
     "showErrors": false,
     "key": {
-      "width": 12
-    }
+      "width": 8
+    },
+    "disableLinewrap": true
   },
   "modules": [
     {
@@ -38,7 +41,8 @@
     },
     {
       "type": "kernel",
-      "key": "Kernel"
+      "key": "Kernel",
+      "format": "{release:-28}"
     },
     {
       "type": "uptime",
@@ -54,12 +58,12 @@
     {
       "type": "cpu",
       "key": "CPU",
-      "format": "{name} / {cores-physical}C {cores-logical}T"
+      "format": "{name:-22} / {cores-physical}C {cores-logical}T"
     },
     {
       "type": "gpu",
       "key": "GPU",
-      "format": "{name} / {driver}"
+      "format": "{name:-22}"
     },
     {
       "type": "memory",
@@ -71,7 +75,8 @@
     },
     {
       "type": "battery",
-      "key": "Battery"
+      "key": "Battery",
+      "format": "{capacity} / {status:-18}"
     },
     "break",
     {
@@ -95,7 +100,8 @@
     },
     {
       "type": "display",
-      "key": "Display"
+      "key": "Display",
+      "format": "{width}x{height}{?refresh-rate} @ {refresh-rate} Hz{?}"
     },
     {
       "type": "de",

@@ -34,6 +34,7 @@ class Containers(unittest.TestCase):
         self.addCleanup(self.stack.close)
         self.stack.enter_context(patch.object(c, 'paths', return_value=(self.base, self.cfg, self.unit)))
         self.stack.enter_context(patch.object(Path, 'home', return_value=self.home))
+        self.stack.enter_context(patch.object(c.core, 'CONFIG_HOME', self.home/'choices'))
         self.stack.enter_context(patch.dict(os.environ, {'XDG_RUNTIME_DIR': str(self.home)}))
         self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
 

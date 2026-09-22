@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.40
+# deckctl command manual — v0.2.41
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 
@@ -2969,7 +2969,7 @@ options:
                      can download from the configured release source.
 
 EXAMPLES
-  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.40.tar.gz
+  deckctl update apply --archive ~/Downloads/steamdeck-workstation-v0.2.41.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -3042,7 +3042,7 @@ options:
   --json             Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.40.tar.gz
+  deckctl update preview --archive ~/Downloads/steamdeck-workstation-v0.2.41.tar.gz
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -5411,7 +5411,8 @@ SEE ALSO
 ## deckctl setup
 
 ```text
-usage: deckctl setup [-h] {run,customize,status,report,open,cleanup,reset} ...
+usage: deckctl setup [-h]
+       {run,customize,status,report,open,cleanup,reset,install,preview} ...
 
 NAME
   deckctl setup — Manage setup operations using the commands below.
@@ -5420,7 +5421,7 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {run,customize,status,report,open,cleanup,reset}
+  {run,customize,status,report,open,cleanup,reset,install,preview}
     run                 Resume incomplete guided setup or retry a named step.
     customize           Build a staged workstation plan with optional features and
                         desktop apps.
@@ -5432,6 +5433,8 @@ positional arguments:
                         project.
     reset               Clear recorded guided-setup completion for a named step or all
                         steps.
+    install             Install saved choices with persistent per-item results.
+    preview             Inspect the saved installation plan without installing software.
 
 options:
   -h, --help            show this help message and exit
@@ -5501,7 +5504,7 @@ NAME
   deckctl setup customize — Build a staged workstation plan with optional features and desktop apps.
 
 DESCRIPTION
-  Desktop Mode opens a Qt Quick setup app with a stage sidebar, feature cards, app choices, review and live module results; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Saving choices never installs or removes software. Save & install explicitly starts provisioning with Konsole handling vendor prompts. The local UI connection closes when the app exits. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.
+  Desktop Mode opens a Qt Quick setup app with a stage sidebar, feature cards, app choices, review and persistent per-item results; interactive terminals get a text fallback. Base support is always selected, module dependencies are included automatically, and app selections enable their owning module when needed. Review and confirm before the plan is saved. Saving choices never installs or removes software. Save & install explicitly starts provisioning with Konsole handling vendor prompts. The local UI connection closes when the app exits. --defaults restores the repository default plan, --minimal selects base only, and repeated --module/--app flags set a custom plan.
 
 options:
   -h, --help       show this help message and exit
@@ -5688,6 +5691,77 @@ options:
 
 EXAMPLES
   deckctl setup reset
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl setup install
+
+```text
+usage: deckctl setup install [-h] [--resume] [--item ITEM]
+
+NAME
+  deckctl setup install — Install saved choices with persistent per-item results.
+
+DESCRIPTION
+  Runs selected items and dependencies on demand. --resume rechecks completed items before skipping them. --item ID retries one selected item and its dependencies. Exit 2 means user setup is still needed. No startup service is created.
+
+options:
+  -h, --help   show this help message and exit
+  --resume     Recheck completed items and resume unfinished work.
+  --item ITEM  Retry a selected item ID and its dependencies.
+
+EXAMPLES
+  deckctl setup install --resume
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl setup preview
+
+```text
+usage: deckctl setup preview [-h] [--online]
+
+NAME
+  deckctl setup preview — Inspect the saved installation plan without installing software.
+
+DESCRIPTION
+  Reports dependencies, installed evidence and staging allowances. --online checks supported provider metadata. Unavailable update information stays unknown; provider installers check unknown sizes.
+
+options:
+  -h, --help  show this help message and exit
+  --online    Check supported providers for available updates.
+
+EXAMPLES
+  deckctl setup preview --online
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.

@@ -48,6 +48,21 @@ ApplicationWindow {
     readonly property bool componentDetail: !!(data.components && data.components[detailPage])
     property var chosen: []
     property var selectedApps: []
+    property int planRevision: 0
+    property int previewRevision: -1
+    function invalidatePreview() { planRevision++; installPreview = ({}); finishItems = [] }
+    onChosenChanged: invalidatePreview()
+    onSelectedAppsChanged: invalidatePreview()
+    onSelectedComponentsChanged: invalidatePreview()
+    onSelectedLaunchersChanged: invalidatePreview()
+    onSelectedPluginsChanged: invalidatePreview()
+    onSelectedCssChanged: invalidatePreview()
+    onPaletteIdChanged: invalidatePreview()
+    property bool showPalettePreview: false
+    property var finishItems: []
+    property var importPreview: ({})
+    property var installPreview: ({})
+    property bool previewPending: false
     property var progress: ({running: false, modules: [], operation: null})
     property int stage: 0
     property bool loaded: false
@@ -71,7 +86,7 @@ ApplicationWindow {
     function request(route, payload, callback) {
         var xhr = new XMLHttpRequest()
         xhr.open(payload === null ? "GET" : "POST", endpoint + route)
-        xhr.timeout = 10000
+        xhr.timeout = route === "share" ? 0 : route === "finish" ? 120000 : 10000
         if (payload !== null) xhr.setRequestHeader("Content-Type", "application/json")
         xhr.onreadystatechange = function() {
             if (xhr.readyState !== XMLHttpRequest.DONE) return
@@ -256,7 +271,7 @@ ApplicationWindow {
         return progress.operation === "accounts" ? "Guided setup finished" : "Installation pass finished"
     }
     function statusLabel(value) {
-        return ({PENDING:"Waiting",RUNNING:"Installing",READY:"Ready",OPTIONAL:"Ready",CONFIG_REQUIRED:"Needs setup",NOT_INSTALLED:"Not installed",DEGRADED:"Needs attention",FAILED:"Failed"})[value] || value
+        return ({PENDING:"Waiting",RUNNING:"Installing",DONE:"Installed",BLOCKED:"Waiting on dependency",INTERRUPTED:"Interrupted",NEEDS_SETUP:"Needs setup",READY:"Ready",OPTIONAL:"Ready",CONFIG_REQUIRED:"Needs setup",NOT_INSTALLED:"Not installed",DEGRADED:"Needs attention",FAILED:"Failed"})[value] || value
     }
     function selectedNames(items, values) {
         return (items || []).filter(function(x) { return values.indexOf(x.id) >= 0 }).map(function(x) { return x.name }).join(" · ") || "None selected"
@@ -299,14 +314,51 @@ ApplicationWindow {
             else if (data.planOnly) window.close()
         })
     }
-    function startOperation(name) {
+    function sharePlan(operation) {
         busy = true; problem = ""
-        request("start", {operation: name}, function(result) {
-            progress = result; stage = 5; busy = false
+        request("share", {operation: operation}, function(result) {
+            busy = false
+            if (result.exported) notice = "Setup saved to " + result.exported
+            if (result.files) { importPreview = result; importDialog.open() }
+            if (result.imported) request("catalog", null, function(catalog) {
+                data = catalog; paletteId = catalog.palette; selectedComponents = catalog.selectedComponents
+                selectedCss = catalog.selectedCss; selectedLaunchers = catalog.selectedLaunchers
+                selectedPlugins = catalog.selectedPlugins; chosen = catalog.modules; selectedApps = catalog.selectedApps
+                saved = true; dirty = false; installPreview = ({}); stage = 4
+                notice = "Setup imported. Review or remove any choices before installing."
+            })
+        })
+    }
+    function checkFinish() {
+        busy = true; problem = ""
+        request("finish", null, function(result) { finishItems = result.items; busy = false })
+    }
+    function finishAction(key, operation) {
+        busy = true; problem = ""
+        request("finish", {item: key, operation: operation}, function(result) {
+            busy = false; notice = result.confirmed ? "Marked complete by you." : "Opened. Complete setup, then use Recheck readiness."
+            if (result.confirmed) checkFinish()
+        })
+    }
+    function previewPlan() {
+        var components = {}
+        Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
+        problem = ""; previewPending = true; previewRevision = planRevision
+        request("preview", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId}, function(result) { if (previewRevision === planRevision) installPreview = result })
+    }
+    function bytesLabel(value) {
+        if (value === null || value === undefined) return "Provider checks size"
+        if (value < 1024 * 1024 * 1024) return (value / (1024 * 1024)).toFixed(1) + " MiB"
+        return (value / (1024 * 1024 * 1024)).toFixed(1) + " GiB"
+    }
+    function startOperation(name, item) {
+        busy = true; problem = ""
+        request("start", {operation: name, item: item || null}, function(result) {
+            finishItems = []; progress = result; stage = 5; busy = false
         })
     }
     function stateColor(status) {
-        if (status === "READY" || status === "OPTIONAL") return accent
+        if (status === "DONE" || status === "READY" || status === "OPTIONAL") return accent
         if (status === "FAILED" || status === "NOT_INSTALLED") return window.tone("#ff91ba")
         if (status === "RUNNING") return window.tone("#42f5ff")
         return muted
@@ -327,8 +379,15 @@ ApplicationWindow {
         for (var i=0; i<args.length; i++) if (args[i].indexOf("http://127.0.0.1:") === 0) endpoint = args[i]
         if (!endpoint) { problem = "Open this app with deckctl setup customize."; return }
         request("catalog", null, function(result) {
-            data = result; paletteId = result.palette; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
+            saved = result.hasSavedPlan; data = result; paletteId = result.palette; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
             if (!result.hasSavedPlan) { preset(false); dirty = false; notice = "Start with only what you need. Nothing installs until you review and confirm." }
+        })
+    }
+    Timer {
+        interval: 1000; running: window.previewPending; repeat: true
+        onTriggered: window.request("preview", null, function(result) {
+            if (window.previewRevision === window.planRevision) window.installPreview = result
+            if (!result.running) { window.previewPending = false; if (result.error) window.problem = result.error }
         })
     }
     Timer {
@@ -512,6 +571,9 @@ ApplicationWindow {
                     onClicked: choicesMenu.open()
                     Menu {
                         id: choicesMenu
+                        MenuItem { text: "Export saved setup…"; enabled: window.saved && !window.dirty && !window.busy; onTriggered: window.sharePlan("export") }
+                        MenuItem { text: "Import setup…"; enabled: !window.busy && !window.progress.running; onTriggered: window.sharePlan("import") }
+                        MenuSeparator {}
                         MenuItem { text: "Load full preset…"; onTriggered: { window.pendingPreset = true; presetDialog.open() } }
                         MenuItem { text: "Clear all choices…"; onTriggered: { window.pendingPreset = false; presetDialog.open() } }
                         MenuSeparator { visible: !!window.detailPage }
@@ -539,6 +601,70 @@ ApplicationWindow {
                         visible: window.detailPage === "css" || window.detailPage === "plugins"
                         text: "Theme palette: " + window.activePalette.name + ". Change it with Theme palette in the sidebar. Colors apply during installation to supported CSS Loader controls; plugins without color settings keep their own appearance."
                         color: window.muted; font.pixelSize: 13; Layout.fillWidth: true
+                    }
+                    ColumnLayout {
+                        visible: window.detailPage === "css"; Layout.fillWidth: true; spacing: 12
+                        TextLabel { text: "Choose your colors"; font.pixelSize: 18; font.weight: Font.DemiBold }
+                        Flow {
+                            Layout.fillWidth: true; spacing: 10
+                            Repeater {
+                                model: window.paletteOptions
+                                delegate: AbstractButton {
+                                    id: paletteCard
+                                    required property var modelData
+                                    width: 180; height: 76
+                                    Accessible.name: modelData.name + (window.paletteId === modelData.id ? ", selected" : "")
+                                    onClicked: window.choosePalette(modelData.id)
+                                    background: Rectangle { radius: 12; color: modelData.colors["#1a1128"]; border.width: 2; border.color: window.paletteId === modelData.id || parent.activeFocus ? modelData.colors["#ff4fd8"] : window.tone("#402c4e") }
+                                    contentItem: Column {
+                                        padding: 12; spacing: 8
+                                        Row {
+                                            spacing: 6
+                                            Repeater { model: ["#ff4fd8", "#42f5ff", "#a970ff", "#f8e7ff"]
+                                                delegate: Rectangle { required property string modelData; width: 22; height: 12; radius: 6; color: paletteCard.modelData.colors[modelData] }
+                                            }
+                                        }
+                                        Label { text: (window.paletteId === modelData.id ? "✓ " : "") + modelData.name; color: modelData.colors["#f8e7ff"]; font.pixelSize: 12 }
+                                    }
+                                }
+                            }
+                        }
+                        Action { text: window.showPalettePreview ? "Hide color preview" : "Preview menus & keyboard"; onClicked: window.showPalettePreview = !window.showPalettePreview }
+                        ColumnLayout {
+                            visible: window.showPalettePreview; Layout.fillWidth: true; spacing: 10
+                        TextLabel { text: "Menu & keyboard color study"; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        Rectangle {
+                            Layout.fillWidth: true; implicitHeight: 190; radius: 14; color: window.tone("#090612"); border.color: window.tone("#402c4e")
+                            RowLayout {
+                                anchors.fill: parent; anchors.margins: 14; spacing: 12
+                                Rectangle {
+                                    Layout.fillHeight: true; Layout.preferredWidth: 140; radius: 10; color: window.tone("#1a1128")
+                                    Column { anchors.fill: parent; anchors.margins: 12; spacing: 11
+                                        TextLabel { text: "STEAM MENU"; font.pixelSize: 10; color: window.cyan }
+                                        TextLabel { text: "Library"; color: window.accent; font.bold: true }
+                                        TextLabel { text: "Store"; font.pixelSize: 12 }
+                                        TextLabel { text: "Settings"; font.pixelSize: 12 }
+                                    }
+                                }
+                                ColumnLayout {
+                                    Layout.fillWidth: true; Layout.fillHeight: true
+                                    TextLabel { text: "QUICK ACCESS"; font.pixelSize: 10; color: window.cyan }
+                                    TextLabel { text: "Volume"; font.pixelSize: 12 }
+                                    Rectangle { Layout.fillWidth: true; height: 5; radius: 3; color: window.accent }
+                                    Item { Layout.fillHeight: true }
+                                    TextLabel { text: "KEYBOARD"; font.pixelSize: 10; color: window.cyan }
+                                    RowLayout {
+                                        Layout.fillWidth: true; spacing: 5
+                                        Repeater { model: ["Q", "W", "E", "R", "T"]
+                                            delegate: Rectangle { required property string modelData; Layout.fillWidth: true; height: 38; radius: 6; color: window.tone("#35203f"); TextLabel { anchors.centerIn: parent; text: modelData; font.pixelSize: 12 } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        TextLabel { text: "Illustration of the selected colors, not a Game Mode screenshot. Actual layouts depend on the CSS components you select. Use the theme authors’ previews to compare layouts."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
+                        Action { text: "Open CSS Loader theme previews ↗"; onClicked: Qt.openUrlExternally("https://deckthemes.com/") }
+                        }
                     }
                     Repeater {
                         model: window.currentSections()
@@ -595,6 +721,11 @@ ApplicationWindow {
                                 TextLabel { visible: window.pageValues("css").length > 0; text: "Theme palette: " + window.activePalette.name + " · for selected CSS Loader color controls"; Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
                             }
                         }
+                        Flow {
+                            Layout.fillWidth: true; spacing: 8
+                            Action { text: "Export saved setup…"; enabled: window.saved && !window.dirty && !window.busy; onClicked: window.sharePlan("export") }
+                            Action { text: "Import setup…"; enabled: !window.busy; onClicked: window.sharePlan("import") }
+                        }
                         TextLabel { visible: window.selectionCount() === 0; text: "No optional installs selected. Only base support will be configured."; Layout.fillWidth: true; color: window.muted }
                         Repeater {
                             model: window.reviewSections()
@@ -629,6 +760,16 @@ ApplicationWindow {
                             model: window.dependencyNotes()
                             delegate: TextLabel { required property string modelData; text: "↳  " + modelData; Layout.fillWidth: true; font.pixelSize: 13; color: window.muted }
                         }
+                        Action { text: window.previewPending ? "Checking installation details…" : "Check downloads & space"; enabled: !window.previewPending; onClicked: window.previewPlan() }
+                        TextLabel { visible: !!window.installPreview.sizeNote; text: window.installPreview.sizeNote || ""; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted }
+                        Repeater {
+                            model: window.installPreview.volumes || []
+                            delegate: TextLabel { required property var modelData; Layout.fillWidth: true; text: window.bytesLabel(modelData.freeBytes) + " free · " + window.bytesLabel(modelData.requiredBytes) + " known allowance" + (modelData.fits ? "" : " · Not enough space"); color: modelData.fits ? window.muted : window.accent }
+                        }
+                        Repeater {
+                            model: (window.installPreview.items || []).filter(function(item) { return item.visible })
+                            delegate: TextLabel { required property var modelData; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: modelData.name + " · " + ({NEW:"New install",INSTALLED:"Installed",UPDATE:"Update available",UP_TO_DATE:"Up to date",CONFIGURE:"Configure",PRESERVE_SYSTEM:"System app retained"}[modelData.action] || modelData.action) + " · " + modelData.updateCheck + "\n" + window.bytesLabel(modelData.downloadBytes) }
+                        }
                         TextLabel { text: "WHAT HAPPENS NEXT"; font.pixelSize: 11; color: window.muted; font.letterSpacing: 1.2; Layout.topMargin: 6 }
                         TextLabel { text: "1. Download and install your selections.\n2. Complete selected vendor setup, sign-in and pairing in Konsole.\n3. Return here to review anything that still needs attention."; Layout.fillWidth: true; font.pixelSize: 13; color: window.muted }
 
@@ -636,10 +777,30 @@ ApplicationWindow {
                     ColumnLayout {
                         visible: window.stage === 5; Layout.fillWidth: true; spacing: 12
                         TextLabel { text: window.installTitle(); font.pixelSize: 21; font.weight: Font.DemiBold }
-                        TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "The operation ended with exit code " + window.progress.exitCode + ". Check its Konsole output, then retry. Completed installs are reused." : "Results are grouped by setup area. Continue with sign-in and pairing for selected apps that need it."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
+                        Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
+                        Action { text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        Repeater {
+                            model: window.finishItems
+                            delegate: Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true; implicitHeight: finishColumn.implicitHeight + 28; radius: 12; color: window.tone("#1a1128")
+                                ColumnLayout {
+                                    id: finishColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 7
+                                    TextLabel { text: modelData.name + " · " + modelData.status; Layout.fillWidth: true; font.weight: Font.DemiBold }
+                                    TextLabel { text: modelData.note; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
+                                    Flow {
+                                        Layout.fillWidth: true; spacing: 8
+                                        Action { visible: modelData.canLaunch; text: modelData.status === "Ready" ? "Open" : "Open setup / sign-in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "launch") }
+                                        Action { visible: modelData.canConfirm && modelData.status !== "Ready"; text: modelData.followup === "pairing" ? "I've paired it" : modelData.followup === "setup" ? "I've completed setup" : "I've signed in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "confirm") }
+                                    }
+                                }
+                            }
+                        }
+
+                        TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "The operation ended with exit code " + window.progress.exitCode + ". Check its Konsole output, then retry. Completed installs are reused." : "Each selection has its own result. Resume checks completed items again and retries unfinished work."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
                         BusyIndicator { running: window.progress.running; visible: running; implicitWidth: 38; implicitHeight: 38 }
                         Repeater {
-                            model: window.progress.modules
+                            model: window.finishItems.length && !window.progress.running ? [] : window.progress.modules
                             delegate: Rectangle {
                                 required property var modelData
                                 Layout.fillWidth: true; implicitHeight: resultColumn.implicitHeight + 26
@@ -648,10 +809,11 @@ ApplicationWindow {
                                     id: resultColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 13; spacing: 5
                                     RowLayout {
                                         Layout.fillWidth: true
-                                        TextLabel { text: window.featureNames()[modelData.id] || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
+                                        TextLabel { text: modelData.name || window.featureNames()[modelData.id] || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
                                         TextLabel { text: window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
                                     }
                                     TextLabel { visible: !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                    Action { text: "Retry this item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
                                 }
                             }
                         }
@@ -669,7 +831,7 @@ ApplicationWindow {
                 Action {
                     objectName: "primaryAction"
                     primary: true
-                    text: window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Retry installation" : "Install selections")))
+                    text: window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Resume installation" : "Install selections")))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
                         if (window.detailPage || window.navigationStack.length) window.back()
@@ -677,12 +839,21 @@ ApplicationWindow {
                         else if (window.stage === 4) window.savePlan(!window.data.planOnly)
                         else if (window.progress.operation === "install" && window.progress.exitCode === 0) window.startOperation("accounts")
                         else if (window.progress.operation === "accounts" && window.progress.exitCode === 0) window.close()
-                        else window.startOperation(window.progress.operation === "accounts" ? "accounts" : "install")
+                        else window.startOperation(window.progress.operation === "accounts" ? "accounts" : window.progress.resumable ? "resume" : "install")
                     }
                 }
             }
         }
     }
+    }
+    Dialog {
+        id: importDialog
+        title: "Import this setup?"
+        anchors.centerIn: parent; width: Math.min(500, window.width - 40); modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: Label { wrapMode: Text.WordWrap; text: "Replace your saved choices with this shared setup? Nothing installs yet. Review and deselect anything afterward. Your current configuration is backed up.\n\nIncluded files:\n" + (window.importPreview.files || []).slice(0, 10).join("\n") + ((window.importPreview.files || []).length > 10 ? "\n… plus " + (window.importPreview.files.length - 10) + " more files" : "") }
+        onAccepted: window.sharePlan("import-confirm")
+        onRejected: window.sharePlan("import-cancel")
     }
     Dialog {
         id: presetDialog

@@ -46,13 +46,11 @@ if [[ $- == *i* ]]; then
       echo "fastfetch is not installed"; return 1
     fi
     local config="$HOME/.config/deckctl/terminal/fastfetch.json"
-    local logo="$HOME/.config/deckctl/terminal/sharingan.txt"
     local -a options=()
-    [[ ! -f "$config" ]] || options+=(--config "$config")
-    if [[ -f "$logo" ]]; then
-      options+=(--logo "$logo" --logo-color-1 red)
+    if [[ -f "$config" ]]; then
+      options+=(--config "$config")
     else
-      options+=(--logo small)
+      options+=(--logo SteamDeck)
     fi
     command fastfetch "${options[@]}" "$@"
   }
