@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.41
+# Steam Deck Workstation — v0.2.42
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -72,8 +72,8 @@ For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.41.tar.gz
-cd steamdeck-workstation-0.2.41
+tar -xzf steamdeck-workstation-v0.2.42.tar.gz
+cd steamdeck-workstation-0.2.42
 chmod +x install.sh
 ./install.sh
 ```
@@ -116,8 +116,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.41.tar.gz
-cd steamdeck-workstation-0.2.41
+tar -xzf steamdeck-workstation-v0.2.42.tar.gz
+cd steamdeck-workstation-0.2.42
 chmod +x install.sh
 ./install.sh
 ```
@@ -140,11 +140,15 @@ The installer opens a native Qt Quick setup app in Desktop Mode. A persistent
 sidebar guides you through Gaming, Apps & media, Coding & work, Remote & storage,
 Review, and Install & finish. Each section explains what belongs there. Feature cards have large touch targets,
 clear selected states, and keyboard focus indicators. The window adapts to the
-Deck display with scrolling content and a fixed action bar. The sidebar **Theme palette**
-selector offers Bubble Gum Rave, Midnight Ocean and Graphite. The window previews
-your choice; saving the plan also selects the palette applied to supported color
-controls in your chosen CSS Loader themes during installation. Other Decky plugins
-keep their own appearance when they do not expose color settings.
+Deck display with scrolling content and a fixed action bar. The sidebar **Theme & appearance**
+offers Bubble Gum Rave, Midnight Ocean and Graphite, with separate switches for
+Ghostty, Fastfetch, Oh My Posh, Starship, Konsole, tmux and supported CSS Loader
+themes. The window previews the palette immediately; managed tool colors apply
+when you save and install. Switches do not select extra software. Turning one off
+preserves its current appearance rather than resetting it. Personal Ghostty settings
+are retained; its config must reference the installed `deckctl-bubble-gum-rave`
+theme to follow the palette. Unsupported Decky plugins keep their own appearance.
+Palette and appearance choices travel with exported setup profiles.
 
 Fresh setups start with no optional selections. Browse grouped choices, then check
 individual apps or tools; browsing does not change the plan. Existing saved plans
@@ -155,7 +159,12 @@ has **Choose components** for its dependent themes.
 Search within a category, then review the actual selected items and required
 dependencies. Each review group has an **Edit** action. **Save for later** keeps
 your plan; **Save & install** starts provisioning and shows results grouped by
-setup area. Vendor prompts open in Konsole. A successful installation pass leads
+setup area. Each running item shows its phase and elapsed time. Terminal downloads
+show received bytes and a percentage only when the server supplies a total;
+extraction and other provider operations use an activity indicator. **View log**
+opens bounded, private phase/error diagnostics, with a refresh button. Vendor
+prompts and provider-specific output stay in Konsole. Logs are stored under
+`~/.local/state/deckctl/install-logs/`; review them before sharing. A successful installation pass leads
 to selected setup, sign-in and pairing; failures show that attention is needed.
 Docker remains a separate explicit action. Closing the app shuts down its temporary
 loopback connection; it adds no background service. A text flow remains available
@@ -871,7 +880,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.41.md).
+See [the latest release notes](docs/RELEASE-0.2.42.md).
 
 ## Online releases and recovery
 

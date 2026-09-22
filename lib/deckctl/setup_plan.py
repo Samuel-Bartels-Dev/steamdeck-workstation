@@ -8,7 +8,7 @@ import math
 from pathlib import Path
 import shutil
 import subprocess
-from . import core, apps, component_options, gaming_options, css_stack, setup_builder
+from . import core, apps, component_options, gaming_options, css_stack, setup_builder, appearance
 
 GROUPS = {'terminal', 'dev', 'remote', 'media', 'workspace', 'gaming', 'utilities'}
 FLATPAKS = {'remote:moonlight': 'com.moonlight_stream.Moonlight',
@@ -26,7 +26,7 @@ def saved():
             'launchers': gaming_options.selection() if 'gaming' in enabled else [],
             'plugins': sorted(core._decky_selected_folders()) if 'decky' in enabled else [],
             'css': css_stack.selection() if 'decky' in enabled else [],
-            'palette': css_stack.palette_id()}
+            'palette': css_stack.palette_id(), 'appearance': appearance.selection()}
 
 
 def normalize(payload):
@@ -58,7 +58,8 @@ def normalize(payload):
         components['ai-workspace'] = sorted(set(components['ai-workspace']) | {'ollama'})
     return {'modules': sorted(roots), 'apps': sorted(names), 'components': components,
             'launchers': launchers, 'plugins': plugins, 'css': css,
-            'palette': css_stack.validate_palette(payload.get('palette', 'bubblegum'))}
+            'palette': css_stack.validate_palette(payload.get('palette', 'bubblegum')),
+            'appearance': appearance.validate(payload.get('appearance', {}))}
 
 
 def fingerprint(plan):
@@ -156,6 +157,7 @@ def present(row):
         from . import terminal
         name = row['component']
         if name == 'fonts': return terminal._fonts_ok(core.load_json(terminal.RECEIPTS_FILE, {})), {}
+        if name == 'konsole' and not appearance.enabled('konsole'): return True, {'configuration': False}
         if name in ('shell', 'konsole'):
             state = terminal.status_data()
             keys = ('shell_config',) if name == 'shell' else ('konsole_profile', 'konsole_scheme', 'konsole_default')

@@ -55,6 +55,13 @@ def _stack(unfiltered=False):
     data['palette_name'] = palette['name']
     data['named_presets'] = palette['named_presets']
     data['preset'] = palette['name'] + ' - Base'
+    from . import appearance
+    data['apply_palette'] = appearance.enabled('css')
+    if not data['apply_palette']:
+        data['palette_name'] = 'Existing colors'
+        data['preset'] = 'Deckctl - Existing colors'
+        for item in data['required'] + data['recommended'] + data.get('optional', []):
+            item['configure_palette'] = False
     if not unfiltered:
         names = selection()
         items = data['required'] + data['recommended'] + data.get('optional', [])
@@ -366,7 +373,7 @@ def _manifest_hash():
     if (core.CONFIG_HOME/'css-selection.json').exists():
         raw += json.dumps(sorted(selection())).encode()
     palette = _stack(unfiltered=True)
-    raw += json.dumps({key: palette[key] for key in ('palette', 'palette_name', 'named_presets', 'preset')}, sort_keys=True).encode()
+    raw += json.dumps({key: palette[key] for key in ('palette', 'palette_name', 'named_presets', 'preset', 'apply_palette')}, sort_keys=True).encode()
     return hashlib.sha256(raw).hexdigest()
 
 

@@ -7,8 +7,9 @@ import secrets
 import shutil
 import subprocess
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability
+from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability, appearance, install_log
 
 
 APP_DESCRIPTIONS = {
@@ -52,7 +53,7 @@ class Session:
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
                 'planOnly': self.plan_only,
                 'palettes': css_stack.palette_catalog(),
-                'palette': css_stack.palette_id()}
+                'palette': css_stack.palette_id(), 'appearance': appearance.selection(), 'appearanceTargets': appearance.TARGETS}
         descriptions = core.load_json(core.ROOT/'config/setup-copy.json', {})
         sections = dict(data)
         sections['modules'] = [item for group in data['groups'] for item in group['modules']]
@@ -92,7 +93,7 @@ class Session:
                 or any(not isinstance(x, str) or x not in apps.catalog() for x in selected)):
             raise ValueError('Invalid feature or app selection. Reopen setup and try again.')
         normalized = setup_builder._app_module_roots(roots, selected)
-        setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"), payload.get("css"), payload.get("components"), payload.get("palette"))
+        setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"), payload.get("css"), payload.get("components"), payload.get("palette"), payload.get("appearance"))
         self.selected = core.topo(core.enabled_modules())
         return {'saved': True, 'modules': self.selected}
 
@@ -168,6 +169,12 @@ class Session:
         self.operation = "install" if operation in ("resume", "retry") else operation
         return self.progress()
 
+    def log(self, item):
+        if item not in {row['key'] for row in setup_plan.items()[1]}:
+            raise ValueError('Unknown installation item')
+        text = install_log.read(item)
+        return {'item': item, 'text': text[-65536:], 'truncated': len(text) > 65536}
+
     def progress(self):
         state = setup_install.snapshot()
         plan, rows = setup_plan.items()
@@ -176,6 +183,14 @@ class Session:
         live = state.get('running', False) or bool(self.process and self.process.poll() is None)
         visible = [{**row, **records.get(row['key'], {'status': 'PENDING', 'message': ''}), 'id': row['key']}
                    for row in rows if row['visible']]
+        now = time.time()
+        for row in visible:
+            start = row.get('startedAt')
+            end = now if row.get('status') == 'RUNNING' else row.get('finishedAt') or row.get('updatedAt', now)
+            row['elapsedSeconds'] = max(0, int(end-start)) if isinstance(start, (float, int)) else 0
+            path = install_log.path_for(row['key'])
+            row['hasLog'] = not path.is_symlink() and path.is_file()
+        visible.sort(key=lambda row: row.get('status') != 'RUNNING')
         code = self.process.poll() if self.process else None
         if not live and records and code is None:
             code = 0 if all(row.get('status') == 'DONE' for row in records.values()) else 2
@@ -225,6 +240,8 @@ def launch(plan_only=False):
                         result = session.preview(payload)
                     elif route == 'share':
                         result = session.share(payload.get('operation'))
+                    elif route == 'log':
+                        result = session.log(payload.get('item'))
                     elif route == 'finish':
                         result = setup_finish.action(payload.get('item'), payload.get('operation'))
                     else:
@@ -240,6 +257,8 @@ def launch(plan_only=False):
                 else:
                     raise ValueError('Unknown view')
                 self.reply(200, result)
+            except (BrokenPipeError, ConnectionResetError):
+                pass  # Closing the UI may abandon a pending read-only request.
             except (ValueError, OSError, RuntimeError, SystemExit) as exc:
                 self.reply(400, {'error': str(exc)})
 

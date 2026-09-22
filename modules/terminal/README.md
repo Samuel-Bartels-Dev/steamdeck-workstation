@@ -4,6 +4,21 @@ Use `deckctl setup customize` to choose individual tools in this category. Selec
 
 A reversible user-space Konsole/Bash quality-of-life layer for the Steam Deck. It intentionally does **not** change the system shell and does not install packages with pacman.
 
+## Shared appearance
+
+In **Theme & appearance**, choose Bubble Gum Rave, Midnight Ocean or Graphite,
+then enable the tools that should follow it. Each tool still has its independent
+install choice. Appearance switches are saved in `~/.config/deckctl/appearance.json`;
+off preserves existing appearance files and does not remove software. The shared
+palette also reaches supported CSS Loader themes when its switch is enabled.
+
+`deckctl terminal apply --config-only` applies selected, enabled appearance targets
+without downloading tools. Reopen terminals to reload their colors and prompts.
+Managed theme filenames remain stable across palettes. Personal Ghostty config
+is not overwritten; use `theme = deckctl-bubble-gum-rave` to follow the palette.
+Oh My Posh works in both Ghostty and Konsole when Oh My Posh and Shell helpers
+are selected; the terminal emulator alone does not enable a prompt engine.
+
 ## Managed components
 
 - JetBrainsMono Nerd Font Mono in `~/.local/share/fonts/deckctl-jetbrainsmono`
@@ -138,3 +153,8 @@ Shell-installer tools are installed in staging and pass a version check before
 replacing the managed executable. Temporary files are removed. AppImages and
 older Ollama runtimes are executable/recovery payloads, not disposable download
 archives; they are retained.
+
+The per-item setup window reports download bytes, archive extraction, configuration
+and verification phases where the provider exposes them. Elapsed time continues
+during opaque provider operations; a spinner never claims a percentage. **View log**
+shows phase notes and stderr/Python errors while Konsole keeps interactive prompts.

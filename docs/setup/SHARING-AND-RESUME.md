@@ -7,7 +7,7 @@ item leaves existing software and personal data in place.
 ## Share choices
 
 Save your plan at Review. **More → Export saved setup** writes a portable ZIP.
-It includes module, app, component, launcher, Decky and CSS/palette choices, plus
+It includes module, app, component, launcher, Decky, CSS/palette and appearance choices, plus
 allowlisted captured configuration. Browser sessions, passwords and tokens are
 excluded. The receiving Deck uses **More → Import setup**, reviews the included
 files, confirms, then reviews or removes choices before installing anything.
@@ -67,6 +67,12 @@ and Claude Code use their own login-status checks. Other account and pairing
 steps require your explicit confirmation; those results are labelled as confirmed
 by you. App presence alone never proves a working account or connection.
 
+The running item stays at the top with its phase and elapsed time. Managed
+terminal downloads show received bytes and a percentage when a server total is
+available. Other provider operations show activity; Konsole retains their own
+progress and interactive prompts. **View log** opens private, bounded phase/error
+diagnostics and can refresh while installation runs. Review before sharing.
+
 ## Compare palettes
 
 The CSS Loader page offers color swatches and a live menu/keyboard color study.
@@ -76,3 +82,8 @@ layout examples. Those examples may use different colors and Steam versions.
 Colors apply only to selected components with supported native controls.
 Physical Game Mode, controller and touch testing remains a separate acceptance
 step on the Deck.
+
+**Theme & appearance** in the sidebar also controls Ghostty, Fastfetch, Oh My
+Posh, Starship, Konsole and tmux. Switch off individual targets to preserve their
+current colors. No extra tool is installed by a theme switch. Review lists the
+selected tools that will receive the palette when installation runs.

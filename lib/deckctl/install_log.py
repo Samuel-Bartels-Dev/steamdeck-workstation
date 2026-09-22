@@ -8,6 +8,24 @@ import sys
 import threading
 import traceback
 from . import core
+from contextvars import ContextVar
+
+_writer = ContextVar("install_log_writer", default=None)
+
+def note(message):
+    writer = _writer.get()
+    if writer: writer(message + "\n")
+
+def path_for(key):
+    return core.STATE/"install-logs"/(hashlib.sha256(key.encode()).hexdigest()[:24]+".log")
+
+def read(key):
+    path = path_for(key)
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW)
+    with os.fdopen(fd, "r", encoding="utf-8", errors="replace") as stream:
+        text = stream.read(LIMIT)
+    return redact(text)
+
 
 LIMIT = 1024 * 1024
 
@@ -24,12 +42,15 @@ def redact(text):
 def capture(key):
     directory = core.STATE/'install-logs'
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
-    path = directory/(hashlib.sha256(key.encode()).hexdigest()[:24]+'.log')
+    path = path_for(key)
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     os.fchmod(fd, 0o600)
     with os.fdopen(fd, 'w', encoding='utf-8') as output:
         count = 0
+        guard = threading.Lock()
         def save(text):
+            with guard: write(text)
+        def write(text):
             nonlocal count
             clean = redact(text)
             encoded = clean.encode()[:max(0, LIMIT-count)]
@@ -77,10 +98,12 @@ def capture(key):
             os.dup2(writer, 2)
             os.close(writer)
             thread.start()
+            token = _writer.set(save)
             try: yield path
             except BaseException:
                 error = traceback.format_exc()
                 raise
+            finally: _writer.reset(token)
         finally:
             sys.stderr.flush()
             os.dup2(original, 2)

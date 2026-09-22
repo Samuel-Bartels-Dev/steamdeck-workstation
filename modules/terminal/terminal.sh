@@ -26,7 +26,11 @@ if [[ $- == *i* ]]; then
     _deckctl_prompt_engine="$(tr -d '[:space:]' < "$HOME/.config/deckctl/terminal/prompt-engine")"
   fi
   if [[ "$_deckctl_prompt_engine" == "posh" ]] && _deckctl_tool_selected oh-my-posh && command -v oh-my-posh >/dev/null 2>&1; then
-    eval "$(oh-my-posh init bash --strict --config "$POSH_THEME")"
+    if [[ -f "$POSH_THEME" ]]; then
+      eval "$(oh-my-posh init bash --strict --config "$POSH_THEME")"
+    else
+      eval "$(oh-my-posh init bash --strict)"
+    fi
   elif _deckctl_tool_selected starship && command -v starship >/dev/null 2>&1; then
     eval "$(starship init bash)"
   fi

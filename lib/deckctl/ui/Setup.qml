@@ -28,6 +28,28 @@ ApplicationWindow {
     readonly property color cyan: window.tone("#42f5ff")
     readonly property color violet: window.tone("#a970ff")
     property string paletteId: "bubblegum"
+    property var appearanceChoices: ({})
+    property var logView: ({item: "", text: ""})
+    function openAppearance() { appearanceDialog.open() }
+    function closeAppearance() { appearanceDialog.close() }
+    function closeLog() { logDialog.close() }
+    function appearanceSummary() {
+        var names = (data.appearanceTargets || []).filter(function(target) {
+            return appearanceChoices[target.id] !== false && (target.id === "css" ? pageValues("css").length > 0 : pageValues("terminal").indexOf(target.id) >= 0)
+        }).map(function(target) { return target.name })
+        return names.length ? activePalette.name + " → " + names.join(", ") : "Keep current appearance"
+    }
+    function setAppearance(key, value) {
+        var next = Object.assign({}, appearanceChoices); next[key] = value
+        appearanceChoices = next; markChanged()
+    }
+    function showLog(key) {
+        request("log", {item: key}, function(result) { logView = result; logDialog.open() })
+    }
+    function elapsedLabel(seconds) {
+        var mins = Math.floor((seconds || 0) / 60)
+        return mins ? mins + "m " + (seconds % 60) + "s" : (seconds || 0) + "s"
+    }
     readonly property var paletteOptions: data.palettes || []
     readonly property var activePalette: paletteOptions.find(function(p) { return p.id === paletteId }) || ({name: "Bubble Gum Rave", colors: {}})
     function tone(original) { return activePalette.colors[original] || original }
@@ -58,6 +80,7 @@ ApplicationWindow {
     onSelectedPluginsChanged: invalidatePreview()
     onSelectedCssChanged: invalidatePreview()
     onPaletteIdChanged: invalidatePreview()
+    onAppearanceChoicesChanged: invalidatePreview()
     property bool showPalettePreview: false
     property var finishItems: []
     property var importPreview: ({})
@@ -305,23 +328,23 @@ ApplicationWindow {
         selectedOnly = false; searchText = ""; saved = false; dirty = true; notice = full ? "Full workstation selected. Make it your own below." : "Starting small. Add only what you need."
     }
     function savePlan(install) {
-        busy = true; problem = ""
+        busy = true; problem = ""; notice = ""
         var components = {}
         Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
-        request("save", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId}, function(result) {
+        request("save", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId, appearance: appearanceChoices}, function(result) {
             saved = true; dirty = false; busy = false; notice = "Plan saved. You can close this window or install when ready."
             if (install) startOperation("install")
             else if (data.planOnly) window.close()
         })
     }
     function sharePlan(operation) {
-        busy = true; problem = ""
+        busy = true; problem = ""; notice = ""
         request("share", {operation: operation}, function(result) {
             busy = false
             if (result.exported) notice = "Setup saved to " + result.exported
             if (result.files) { importPreview = result; importDialog.open() }
             if (result.imported) request("catalog", null, function(catalog) {
-                data = catalog; paletteId = catalog.palette; selectedComponents = catalog.selectedComponents
+                data = catalog; paletteId = catalog.palette; appearanceChoices = catalog.appearance; selectedComponents = catalog.selectedComponents
                 selectedCss = catalog.selectedCss; selectedLaunchers = catalog.selectedLaunchers
                 selectedPlugins = catalog.selectedPlugins; chosen = catalog.modules; selectedApps = catalog.selectedApps
                 saved = true; dirty = false; installPreview = ({}); stage = 4
@@ -330,11 +353,11 @@ ApplicationWindow {
         })
     }
     function checkFinish() {
-        busy = true; problem = ""
+        busy = true; problem = ""; notice = ""
         request("finish", null, function(result) { finishItems = result.items; busy = false })
     }
     function finishAction(key, operation) {
-        busy = true; problem = ""
+        busy = true; problem = ""; notice = ""
         request("finish", {item: key, operation: operation}, function(result) {
             busy = false; notice = result.confirmed ? "Marked complete by you." : "Opened. Complete setup, then use Recheck readiness."
             if (result.confirmed) checkFinish()
@@ -344,7 +367,7 @@ ApplicationWindow {
         var components = {}
         Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
         problem = ""; previewPending = true; previewRevision = planRevision
-        request("preview", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId}, function(result) { if (previewRevision === planRevision) installPreview = result })
+        request("preview", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId, appearance: appearanceChoices}, function(result) { if (previewRevision === planRevision) installPreview = result })
     }
     function bytesLabel(value) {
         if (value === null || value === undefined) return "Provider checks size"
@@ -352,7 +375,7 @@ ApplicationWindow {
         return (value / (1024 * 1024 * 1024)).toFixed(1) + " GiB"
     }
     function startOperation(name, item) {
-        busy = true; problem = ""
+        busy = true; problem = ""; notice = ""
         request("start", {operation: name, item: item || null}, function(result) {
             finishItems = []; progress = result; stage = 5; busy = false
         })
@@ -379,7 +402,7 @@ ApplicationWindow {
         for (var i=0; i<args.length; i++) if (args[i].indexOf("http://127.0.0.1:") === 0) endpoint = args[i]
         if (!endpoint) { problem = "Open this app with deckctl setup customize."; return }
         request("catalog", null, function(result) {
-            saved = result.hasSavedPlan; data = result; paletteId = result.palette; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
+            saved = result.hasSavedPlan; data = result; paletteId = result.palette; appearanceChoices = result.appearance; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
             if (!result.hasSavedPlan) { preset(false); dirty = false; notice = "Start with only what you need. Nothing installs until you review and confirm." }
         })
     }
@@ -512,24 +535,10 @@ ApplicationWindow {
                 Action {
                     id: paletteButton
                     Layout.fillWidth: true
-                    text: "Theme palette ▾"
-                    enabled: window.loaded
-                    Accessible.name: "Theme palette for CSS Loader: " + window.activePalette.name
-                    onClicked: paletteMenu.popup()
-                    Menu {
-                        id: paletteMenu
-                        y: -height
-                        Repeater {
-                            model: window.paletteOptions
-                            delegate: MenuItem {
-                                required property var modelData
-                                text: modelData.name
-                                checkable: true
-                                checked: window.paletteId === modelData.id
-                                onTriggered: window.choosePalette(modelData.id)
-                            }
-                        }
-                    }
+                    text: "Theme & appearance"
+                    enabled: window.loaded && !window.busy && !window.progress.running
+                    Accessible.name: "Theme and appearance: " + window.activePalette.name
+                    onClicked: appearanceDialog.open()
                 }
                 Rectangle { visible: window.height >= 780; Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
                 TextLabel { visible: window.height >= 780; text: "BUILT FOR YOUR DECK"; font.pixelSize: 10; font.letterSpacing: 1.2; color: window.tone("#bda8ca"); Layout.topMargin: 14 }
@@ -597,9 +606,10 @@ ApplicationWindow {
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ColumnLayout {
                     width: scroll.availableWidth; spacing: 14
+                    TextLabel { visible: window.stage === 4; text: "Appearance: " + window.appearanceSummary(); Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan }
                     TextLabel {
                         visible: window.detailPage === "css" || window.detailPage === "plugins"
-                        text: "Theme palette: " + window.activePalette.name + ". Change it with Theme palette in the sidebar. Colors apply during installation to supported CSS Loader controls; plugins without color settings keep their own appearance."
+                        text: "Theme palette: " + window.activePalette.name + ". Choose where to apply it using Theme & appearance in the sidebar. Enabled appearance targets follow this palette during installation; plugins without color settings keep their own appearance."
                         color: window.muted; font.pixelSize: 13; Layout.fillWidth: true
                     }
                     ColumnLayout {
@@ -718,7 +728,7 @@ ApplicationWindow {
                                 id: reviewIntro; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 8
                                 TextLabel { text: "A setup that fits you"; font.pixelSize: 19; font.weight: Font.DemiBold }
                                 TextLabel { text: "Save this plan for later, or install your choices. Existing apps and personal data are kept."; Layout.fillWidth: true; color: window.tone("#e2c5e6"); font.pixelSize: 14 }
-                                TextLabel { visible: window.pageValues("css").length > 0; text: "Theme palette: " + window.activePalette.name + " · for selected CSS Loader color controls"; Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
+                                TextLabel { visible: window.pageValues("css").length > 0; text: window.appearanceChoices.css === false ? "CSS colors: keep current appearance" : "Theme palette: " + window.activePalette.name + " · for selected CSS Loader color controls"; Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
                             }
                         }
                         Flow {
@@ -778,7 +788,7 @@ ApplicationWindow {
                         visible: window.stage === 5; Layout.fillWidth: true; spacing: 12
                         TextLabel { text: window.installTitle(); font.pixelSize: 21; font.weight: Font.DemiBold }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
-                        Action { text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        Action { visible: !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
                         Repeater {
                             model: window.finishItems
                             delegate: Rectangle {
@@ -798,7 +808,6 @@ ApplicationWindow {
                         }
 
                         TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "The operation ended with exit code " + window.progress.exitCode + ". Check its Konsole output, then retry. Completed installs are reused." : "Each selection has its own result. Resume checks completed items again and retries unfinished work."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
-                        BusyIndicator { running: window.progress.running; visible: running; implicitWidth: 38; implicitHeight: 38 }
                         Repeater {
                             model: window.finishItems.length && !window.progress.running ? [] : window.progress.modules
                             delegate: Rectangle {
@@ -813,6 +822,28 @@ ApplicationWindow {
                                         TextLabel { text: window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
                                     }
                                     TextLabel { visible: !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                    TextLabel {
+                                        visible: modelData.status === "RUNNING" || !!modelData.startedAt
+                                        text: (modelData.status === "RUNNING" ? (modelData.phase || "Installing") + " · " : "Elapsed · ") + window.elapsedLabel(modelData.elapsedSeconds)
+                                        color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true
+                                    }
+                                    BusyIndicator { visible: modelData.status === "RUNNING" && !(modelData.total > 0); running: visible; implicitWidth: 28; implicitHeight: 28 }
+                                    ProgressBar {
+                                        id: transferProgress
+                                        visible: modelData.status === "RUNNING" && modelData.total > 0; Layout.fillWidth: true
+                                        implicitHeight: 6
+                                        background: Rectangle { color: window.tone("#31213f"); radius: 3 }
+                                        contentItem: Item { Rectangle { width: transferProgress.visualPosition * parent.width; height: parent.height; color: window.accent; radius: 3 } }
+                                        indeterminate: !(modelData.total > 0)
+                                        value: modelData.total > 0 ? Math.min(1, (modelData.downloaded || 0) / modelData.total) : 0
+                                        Accessible.name: "Progress for " + modelData.name
+                                    }
+                                    TextLabel {
+                                        visible: modelData.status === "RUNNING" && modelData.downloaded !== null && modelData.downloaded !== undefined
+                                        text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded · total size unavailable")
+                                        font.pixelSize: 12; color: window.muted; Layout.fillWidth: true
+                                    }
+                                    Action { objectName: "viewInstallLog"; text: "View log"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
                                     Action { text: "Retry this item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
                                 }
                             }
@@ -845,6 +876,75 @@ ApplicationWindow {
             }
         }
     }
+    }
+    Dialog {
+        id: appearanceDialog
+        objectName: "appearanceDialog"
+        title: "Theme & appearance"
+        background: Rectangle { color: window.tone("#1a1128"); radius: 14; border.color: window.violet }
+        anchors.centerIn: parent; width: Math.min(560, window.width - 40); height: Math.min(620, window.height - 40)
+        modal: true; standardButtons: Dialog.Close
+        contentItem: ScrollView {
+            clip: true; contentWidth: availableWidth
+            ColumnLayout {
+                width: appearanceDialog.availableWidth; spacing: 12
+                TextLabel { text: "Choose one palette, then where it applies."; Layout.fillWidth: true; color: window.muted }
+                ComboBox {
+                    Layout.fillWidth: true; model: window.paletteOptions; textRole: "name"
+                    currentIndex: window.paletteOptions.findIndex(function(p) { return p.id === window.paletteId })
+                    Accessible.name: "Shared color palette"
+                    onActivated: window.choosePalette(window.paletteOptions[currentIndex].id)
+                }
+                Row {
+                    spacing: 10
+                    Repeater {
+                        model: ["#090612", "#ff4fd8", "#42f5ff", "#a970ff", "#f8e7ff"]
+                        delegate: Rectangle { required property string modelData; width: 36; height: 20; radius: 6; color: window.tone(modelData); border.color: window.muted }
+                    }
+                }
+                TextLabel { text: "Apply to selected tools"; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                Repeater {
+                    model: window.data.appearanceTargets || []
+                    delegate: ColumnLayout {
+                        required property var modelData
+                        Layout.fillWidth: true; spacing: 1
+                        CheckBox {
+                            id: appearanceSwitch
+                            implicitHeight: 44
+                            indicator: Rectangle {
+                                x: 6; y: (parent.height - height) / 2; width: 24; height: 24; radius: 7
+                                color: appearanceSwitch.checked ? window.accent : window.tone("#100a1b")
+                                border.width: appearanceSwitch.activeFocus ? 2 : 1
+                                border.color: appearanceSwitch.activeFocus ? window.cyan : window.muted
+                                Text { anchors.centerIn: parent; text: appearanceSwitch.checked ? "✓" : ""; color: window.tone("#20091e"); font.bold: true; font.pixelSize: 17 }
+                            }
+                            text: modelData.name; Layout.fillWidth: true
+                            checked: window.appearanceChoices[modelData.id] !== false
+                            onClicked: window.setAppearance(modelData.id, checked)
+                        }
+                        TextLabel { text: modelData.summary; Layout.fillWidth: true; Layout.leftMargin: 30; font.pixelSize: 12; color: window.muted }
+                    }
+                }
+                TextLabel { text: "These switches never install extra software. Off keeps the current appearance; it does not reset it. Changes apply when you save and install. Personal Ghostty configuration is preserved; its theme must reference deckctl-bubble-gum-rave to follow this palette. Unsupported Decky plugins keep their own colors."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
+            }
+        }
+    }
+    Dialog {
+        id: logDialog
+        objectName: "installLogDialog"
+        title: "Installation log"
+        background: Rectangle { color: window.tone("#1a1128"); radius: 14; border.color: window.violet }
+        anchors.centerIn: parent; width: Math.min(760, window.width - 40); height: Math.min(540, window.height - 40)
+        modal: true; standardButtons: Dialog.Close
+        contentItem: ColumnLayout {
+            TextLabel { text: "Phases, installer errors and diagnostics. Prompts remain in Konsole. Review before sharing."; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted }
+            TextLabel { visible: !!window.logView.truncated; text: "Showing the last 64 KiB."; font.pixelSize: 12 }
+            ScrollView {
+                Layout.fillWidth: true; Layout.fillHeight: true; clip: true
+                TextArea { text: window.logView.text || "No diagnostic output yet."; readOnly: true; textFormat: TextEdit.PlainText; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere; font.family: "monospace"; font.pixelSize: 12 }
+            }
+            Action { text: "Refresh log"; onClicked: window.showLog(window.logView.item) }
+        }
     }
     Dialog {
         id: importDialog
