@@ -1,5 +1,10 @@
 # v0.2.34
 
+## v0.2.43
+
+- Keep unfinished selections visible after successful individual retries.
+- Show installed and attention counts, prioritize failed items, and clarify appearance preferences for unselected tools.
+
 ## v0.2.42
 
 - Show install phases, elapsed time, measured download progress and per-item diagnostic logs in the setup window.

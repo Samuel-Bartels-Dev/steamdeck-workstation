@@ -33,9 +33,12 @@ ApplicationWindow {
     function openAppearance() { appearanceDialog.open() }
     function closeAppearance() { appearanceDialog.close() }
     function closeLog() { logDialog.close() }
+    function appearanceTargetSelected(key) {
+        return key === "css" ? pageValues("css").length > 0 : pageValues("terminal").indexOf(key) >= 0
+    }
     function appearanceSummary() {
         var names = (data.appearanceTargets || []).filter(function(target) {
-            return appearanceChoices[target.id] !== false && (target.id === "css" ? pageValues("css").length > 0 : pageValues("terminal").indexOf(target.id) >= 0)
+            return appearanceChoices[target.id] !== false && appearanceTargetSelected(target.id)
         }).map(function(target) { return target.name })
         return names.length ? activePalette.name + " → " + names.join(", ") : "Keep current appearance"
     }
@@ -559,7 +562,7 @@ ApplicationWindow {
             RowLayout {
                 visible: !!window.detailPage || window.navigationStack.length > 0
                 Layout.fillWidth: true
-                Action { text: window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "‹ Return to review" : window.detailPage === "css" ? "‹ Decky plugins" : "‹ " + window.stageNames[window.stage]; onClicked: window.back() }
+                Action { text: window.stage === 5 && window.progress.running ? (window.progress.operation === "accounts" ? "Setup in progress…" : "Installing…") : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "‹ Return to review" : window.detailPage === "css" ? "‹ Decky plugins" : "‹ " + window.stageNames[window.stage]; onClicked: window.back() }
                 TextLabel { Layout.fillWidth: true; text: window.detailPage === "plugins" ? "Choosing a plugin includes Decky Loader." : window.detailPage === "css" ? "Choosing a theme includes CSS Loader and Decky." : "Your edits stay in this plan."; color: window.muted; font.pixelSize: 12 }
             }
             RowLayout {
@@ -787,6 +790,11 @@ ApplicationWindow {
                     ColumnLayout {
                         visible: window.stage === 5; Layout.fillWidth: true; spacing: 12
                         TextLabel { text: window.installTitle(); font.pixelSize: 21; font.weight: Font.DemiBold }
+                        TextLabel {
+                            visible: !!window.progress.operation && !!window.progress.summary
+                            text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " installed" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
+                            Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan
+                        }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
                         Action { visible: !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
                         Repeater {
@@ -807,7 +815,7 @@ ApplicationWindow {
                             }
                         }
 
-                        TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "The operation ended with exit code " + window.progress.exitCode + ". Check its Konsole output, then retry. Completed installs are reused." : "Each selection has its own result. Resume checks completed items again and retries unfinished work."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
+                        TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "Some selections still need attention. Review their results or logs, then resume. Completed installs are reused." : "Each selection has its own result. Resume checks completed items again and retries unfinished work."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
                         Repeater {
                             model: window.finishItems.length && !window.progress.running ? [] : window.progress.modules
                             delegate: Rectangle {
@@ -862,7 +870,7 @@ ApplicationWindow {
                 Action {
                     objectName: "primaryAction"
                     primary: true
-                    text: window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Resume installation" : "Install selections")))
+                    text: window.stage === 5 && window.progress.running ? (window.progress.operation === "accounts" ? "Setup in progress…" : "Installing…") : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Resume installation" : "Install selections")))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
                         if (window.detailPage || window.navigationStack.length) window.back()
@@ -922,7 +930,7 @@ ApplicationWindow {
                             checked: window.appearanceChoices[modelData.id] !== false
                             onClicked: window.setAppearance(modelData.id, checked)
                         }
-                        TextLabel { text: modelData.summary; Layout.fillWidth: true; Layout.leftMargin: 30; font.pixelSize: 12; color: window.muted }
+                        TextLabel { text: modelData.summary + (window.appearanceTargetSelected(modelData.id) ? "" : " · Tool not selected; preference only"); Layout.fillWidth: true; Layout.leftMargin: 30; font.pixelSize: 12; color: window.muted }
                     }
                 }
                 TextLabel { text: "These switches never install extra software. Off keeps the current appearance; it does not reset it. Changes apply when you save and install. Personal Ghostty configuration is preserved; its theme must reference deckctl-bubble-gum-rave to follow this palette. Unsupported Decky plugins keep their own colors."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }

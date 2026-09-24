@@ -95,6 +95,8 @@ class Session:
         normalized = setup_builder._app_module_roots(roots, selected)
         setup_builder.save_plan(normalized, selected, payload.get("launchers"), payload.get("plugins"), payload.get("css"), payload.get("components"), payload.get("palette"), payload.get("appearance"))
         self.selected = core.topo(core.enabled_modules())
+        self.process = None
+        self.operation = None
         return {'saved': True, 'modules': self.selected}
 
     def share(self, operation):
@@ -109,6 +111,8 @@ class Session:
             reliability.profile_import(archive)
             self.import_archive = None
             self.selected = core.topo(core.enabled_modules())
+            self.process = None
+            self.operation = None
             return {'imported': True}
         if operation == 'import-cancel':
             self.import_archive = None
@@ -190,11 +194,17 @@ class Session:
             row['elapsedSeconds'] = max(0, int(end-start)) if isinstance(start, (float, int)) else 0
             path = install_log.path_for(row['key'])
             row['hasLog'] = not path.is_symlink() and path.is_file()
-        visible.sort(key=lambda row: row.get('status') != 'RUNNING')
+        attention = {'FAILED', 'INTERRUPTED', 'NEEDS_SETUP', 'BLOCKED'}
+        visible.sort(key=lambda row: 0 if row.get('status') == 'RUNNING' else 1 if row.get('status') in attention else 3 if row.get('status') == 'DONE' else 2)
         code = self.process.poll() if self.process else None
-        if not live and records and code is None:
-            code = 0 if all(row.get('status') == 'DONE' for row in records.values()) else 2
-        return {'running': live, 'operation': self.operation or ('install' if records else None),
+        operation = self.operation or ('install' if records else None)
+        if not live and records and operation == 'install':
+            complete = all(records.get(row['key'], {}).get('status') == 'DONE' for row in rows)
+            if code is None or (code == 0 and not complete):
+                code = 0 if complete else 2
+        summary = {'total': len(visible), 'done': sum(row.get('status') == 'DONE' for row in visible),
+                   'attention': sum(row.get('status') in attention for row in visible)}
+        return {'running': live, 'operation': operation, 'summary': summary,
                 'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live}
 
 

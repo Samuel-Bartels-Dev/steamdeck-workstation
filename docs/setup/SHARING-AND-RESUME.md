@@ -87,3 +87,8 @@ step on the Deck.
 Posh, Starship, Konsole and tmux. Switch off individual targets to preserve their
 current colors. No extra tool is installed by a theme switch. Review lists the
 selected tools that will receive the palette when installation runs.
+
+Installation shows a completed-item count and brings failures ahead of waiting and
+completed items. A successful individual retry does not mark the whole plan
+finished while other selections remain incomplete. Appearance choices for tools
+that are not selected are labelled as preferences only.
