@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.42
+# Steam Deck Workstation — v0.2.43
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -72,8 +72,8 @@ For an offline install, copy the release tarball from USB into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.42.tar.gz
-cd steamdeck-workstation-0.2.42
+tar -xzf steamdeck-workstation-v0.2.43.tar.gz
+cd steamdeck-workstation-0.2.43
 chmod +x install.sh
 ./install.sh
 ```
@@ -116,8 +116,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.42.tar.gz
-cd steamdeck-workstation-0.2.42
+tar -xzf steamdeck-workstation-v0.2.43.tar.gz
+cd steamdeck-workstation-0.2.43
 chmod +x install.sh
 ./install.sh
 ```
@@ -880,7 +880,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.42.md).
+See [the latest release notes](docs/RELEASE-0.2.43.md).
 
 ## Online releases and recovery
 

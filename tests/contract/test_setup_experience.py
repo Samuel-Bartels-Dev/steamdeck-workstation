@@ -6,7 +6,7 @@ import subprocess
 from pathlib import Path
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, Mock
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]/'lib'))
 from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder, setup_window, reliability, terminal, install_log
@@ -65,6 +65,33 @@ class Experience(unittest.TestCase):
         self.assertEqual(rows['media:netflix']['followup'], 'signin')
         self.assertEqual(rows['media:hulu']['followup'], 'signin')
         self.assertEqual(rows['launcher:nonsteamlaunchers']['followup'], 'setup')
+
+    def test_new_saved_plan_does_not_inherit_old_process_success(self):
+        session = setup_window.Session()
+        session.operation = 'install'; session.process = Mock()
+        session.process.poll.return_value = 0
+        session.save(self.plan)
+        result = session.progress()
+        self.assertIsNone(result['operation'])
+        self.assertIsNone(result['exitCode'])
+        self.assertFalse(result['running'])
+
+    def test_successful_retry_does_not_hide_other_unfinished_items(self):
+        rows = [dict(key=k, name=k, visible=True) for k in ('done', 'failed', 'waiting')]
+        records = {'done': {'status': 'DONE'}, 'failed': {'status': 'FAILED'}}
+        core.save_json(setup_install.state_path(), {'fingerprint': setup_plan.fingerprint(self.plan), 'items': records})
+        session = setup_window.Session(); session.operation = 'install'
+        session.process = Mock(); session.process.poll.return_value = 0
+        with patch.object(setup_plan, 'items', return_value=(self.plan, rows)):
+            result = session.progress()
+            self.assertEqual(result['exitCode'], 2)
+            self.assertEqual(result['summary'], {'total': 3, 'done': 1, 'attention': 1})
+            self.assertEqual([r['key'] for r in result['items']], ['failed', 'waiting', 'done'])
+            session.operation = 'accounts'
+            self.assertEqual(session.progress()['exitCode'], 0)
+            session.operation = 'install'
+            core.save_json(setup_install.state_path(), {'fingerprint': setup_plan.fingerprint(self.plan), 'items': {k: {'status': 'DONE'} for k in ('done', 'failed', 'waiting')}})
+            self.assertEqual(session.progress()['exitCode'], 0)
 
     def test_failure_log_captures_child_stderr_and_traceback_privately(self):
         with self.assertRaisesRegex(RuntimeError, 'installer failed'):

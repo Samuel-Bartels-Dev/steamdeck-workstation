@@ -59,6 +59,7 @@ Each module's canonical domain documentation is `modules/<module>/README.md`.
 - [Docker everyday commands](DOCKER.md)
 - [App selection and removal](APPS.md)
 - [v0.2.39 release notes](RELEASE-0.2.39.md)
+- [v0.2.43 — Clearer setup completion and retries](RELEASE-0.2.43.md)
 - [v0.2.42 — Install progress and shared appearance](RELEASE-0.2.42.md)
 - [v0.2.41 — Setup sharing and per-item installation](RELEASE-0.2.41.md)
 - [v0.2.40 — Decky theme palette selection](RELEASE-0.2.40.md)
