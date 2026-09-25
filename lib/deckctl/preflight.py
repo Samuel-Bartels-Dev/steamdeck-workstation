@@ -1,5 +1,6 @@
 """Read-only preflight using selected items and conservative existing space allowances."""
 import json
+from datetime import datetime, timezone
 import os
 import pwd
 from pathlib import Path
@@ -62,14 +63,30 @@ def network():
     endpoints = ('https://api.github.com', 'https://github.com', 'https://flathub.org/repo/flathub.flatpakrepo')
     for endpoint in endpoints:
         host = endpoint.split('/')[2]
+        message = 'HTTPS probe failed; check DNS, network, proxy and TLS.'
         try:
             result = subprocess.run(['curl', '--head', '--fail', '--silent', '--show-error',
                                      '--proto', '=https', '--proto-redir', '=https', '--location', '--connect-timeout', '5', '--max-time', '12',
                                      endpoint], capture_output=True, text=True, timeout=15)
             passed = result.returncode == 0
+            # Only interpret the final response after redirects/proxy handshakes.
+            headers = {}; status = ''
+            for line in result.stdout.splitlines():
+                if line.startswith('HTTP/'):
+                    headers = {}; fields = line.split(); status = fields[1] if len(fields) > 1 else ''
+                elif ':' in line:
+                    key, value = line.split(':', 1); headers[key.lower()] = value.strip()
+            if not passed and status.isdigit():
+                message = 'HTTPS endpoint returned HTTP '+status+'. Retry later; check upstream availability or access restrictions.'
+            if not passed and host == 'api.github.com' and status in ('403', '429') and headers.get('x-ratelimit-remaining') == '0':
+                message = 'GitHub API rate limit exhausted. Wait for the allowance to reset, then Resume installation. Completed installs are preserved.'
+                try:
+                    reset = datetime.fromtimestamp(int(headers['x-ratelimit-reset']), timezone.utc)
+                    message += ' Reset: '+reset.strftime('%Y-%m-%d %H:%M:%S UTC')+'.'
+                except (KeyError, ValueError, OverflowError, OSError): pass
         except (OSError, subprocess.TimeoutExpired): passed = False
         rows.append({'name': host, 'status': 'PASS' if passed else 'FAIL',
-                     'message': 'HTTPS endpoint reachable' if passed else 'HTTPS probe failed; check DNS, network, proxy and TLS.'})
+                     'message': 'HTTPS endpoint reachable' if passed else message})
     return rows
 
 

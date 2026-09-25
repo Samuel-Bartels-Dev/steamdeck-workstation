@@ -35,6 +35,8 @@ class Session:
         self.preview_thread = None
         self.import_archive = None
         self.inventory_scan = None
+        from .setup_activity import Sampler
+        self.activity = Sampler()
 
     def snapshot(self):
         manifests = core.module_manifests()
@@ -176,7 +178,8 @@ class Session:
             raise ValueError('Unknown setup operation.')
         command = [str(core.ROOT/'bin/deckctl'), *commands[operation]]
         if operation in ('install','resume','retry'):
-            from . import setup_process
+            from . import setup_process, setup_activity
+            self.activity = setup_activity.Sampler()
             self.process = setup_process.start([*command, '--verbose'], setup_plan.fingerprint(setup_plan.items()[0]))
         else:
             terminal = shutil.which('konsole')
@@ -192,6 +195,12 @@ class Session:
         state = setup_install.snapshot()
         if data.get('finishedAt', float('inf')) < state.get('startedAt', 0): return {'text':''}
         return data
+
+    def control(self, action):
+        if not self.process or not hasattr(self.process,'control'):
+            raise ValueError('Controls are available only for the UI run started in this window.')
+        self.process.control(action)
+        return self.progress()
 
     def log(self, item):
         if item not in {row['key'] for row in setup_plan.items()[1]}:
@@ -247,7 +256,14 @@ class Session:
                 code = 0 if complete else 2
         summary = {'total': len(visible), 'done': sum(row.get('status') == 'DONE' for row in visible),
                    'attention': sum(row.get('status') in attention for row in visible)}
-        return {'running': live, 'operation': operation, 'summary': summary,
+        controls = self.process.controls() if self.process and hasattr(self.process,'controls') else {'available':False}
+        failure = ''
+        if not live and code not in (None, 0) and console.get('finishedAt', 0) >= state.get('startedAt', 0):
+            failures = [line for line in console.get('text', '').splitlines() if line.startswith('FAIL ')]
+            failure = '\n'.join(failures[-3:])
+        return {'running': live, 'operation': operation, 'summary': summary, 'failureMessage':failure,
+                'controls':controls, 'queueStatus':state.get('queueStatus'),
+                'activity':self.activity.sample() if live else self.activity.history,
                 'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live,
                 'hasHistory': bool(records), 'historyPlanChanged': bool(state.get('items')) and not matches,
                 'unfinished': sum(records.get(row['key'],{}).get('status') != 'DONE' for row in rows) if records else 0,
@@ -294,6 +310,8 @@ def launch(plan_only=False):
                         result = session.save(payload)
                     elif route == 'start':
                         result = session.start(payload.get('operation'), payload.get('item'))
+                    elif route == 'control':
+                        result = session.control(payload.get('action'))
                     elif route == 'preview':
                         result = session.preview(payload)
                     elif route == 'share':

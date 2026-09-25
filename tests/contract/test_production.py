@@ -229,6 +229,19 @@ class Production(unittest.TestCase):
             self.assertEqual(call.kwargs['timeout'], 15)
             self.assertIn('--max-time', call.args[0])
 
+    def test_network_rate_limit_is_actionable_and_still_blocks(self):
+        import subprocess
+        response = subprocess.CompletedProcess([], 22,
+            'HTTP/1.1 200 Connection established\r\n\r\nHTTP/2 403\r\n'
+            'x-ratelimit-remaining: 0\r\nx-ratelimit-reset: 1790325901\r\n', '')
+        with patch.object(preflight.subprocess, 'run', return_value=response):
+            rows = preflight.network()
+        self.assertEqual(rows[0]['status'], 'FAIL')
+        self.assertIn('rate limit exhausted', rows[0]['message'])
+        self.assertIn('08:45:01 UTC', rows[0]['message'])
+        self.assertNotIn('DNS', rows[0]['message'])
+        self.assertIn('HTTP 403', rows[1]['message'])
+
     def test_flatpak_progress_reports_update_and_noop_without_fake_bytes(self):
         from deckctl import flatpak_progress, install_progress
         events = []

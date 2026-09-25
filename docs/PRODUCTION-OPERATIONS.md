@@ -8,9 +8,26 @@ and [existing hardware checklist](HARDWARE-TESTING.md).
 
 Normal UI **Install**, **Resume**, and **Retry** run directly with an inline live
 output panel, without opening Konsole. Output is redacted and bounded to 64 KiB
-in the private `setup-console.json` latest-run record. Pause, copy, or hide the
-panel as needed. Keep the UI open until the pass finishes. Unexpected closure can
-interrupt the child; reopen setup and resume from verified item state.
+in the private `setup-console.json` latest-run record. Expand, pause, copy, or hide
+output as needed; **Pause output** only stops refreshing the panel.
+
+The install screen groups active, scheduled, attention-needed and completed items.
+**Pause after item** finishes the current item before waiting at the next boundary;
+**Continue queue** releases that pause. **Cancel run** interrupts the owned installer
+process group. After ten seconds, a separately confirmed **Force stop** can end an
+unresponsive provider. This can leave the current item incomplete: resume verifies
+completed items and retries unfinished work. Cancellation does not uninstall apps.
+Closing an owned active run offers cancellation and closes after the worker exits.
+A viewer of a run started elsewhere can close, but must use the originating window
+or terminal to cancel that run. Unexpected closure can still interrupt the child.
+
+Network receive and disk read/write graphs use Linux sysfs counters, sampled only
+while a run is active. They include other applications on the Deck, exclude virtual
+devices to avoid double counting, and show unavailable counters as gaps. They are
+not per-download byte measurements. The rolling history is limited to 60 samples;
+no monitoring daemon is installed. Provider-reported item progress remains separate.
+GitHub API exhaustion stays a blocking preflight failure with reset time and retry
+instructions, rather than being mislabeled as a DNS problem.
 
 Known interactive vendor/privileged providers are deferred when they do not
 already verify. They show **Continue in terminal** after the pass, rather than

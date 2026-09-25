@@ -32,13 +32,37 @@ ApplicationWindow {
     property var logView: ({item: "", text: ""})
     property var consoleOutput: ({text:""})
     property bool consolePending: false
-    property bool showConsole: true
+    property bool showConsole: false
+    property bool closeAfterCancel: false
+    property bool closeRequested: false
+    property bool allowClose: false
     property bool followConsole: true
     property string expandedResult: ""
     property bool showCompleted: false
     function installRows() {
         if (!progress.operation || (finishItems.length && !progress.running)) return []
-        return (progress.items || progress.modules || []).filter(function(item) { return !progress.running || showCompleted || item.status !== "DONE" })
+        var rows = progress.items || progress.modules || [], output = []
+        ;[{name:"ACTIVE",states:["RUNNING"]},{name:"SCHEDULED",states:["PENDING"]},{name:"NEEDS ATTENTION",states:["FAILED","INTERRUPTED","NEEDS_SETUP","BLOCKED"]},{name:"COMPLETED",states:["DONE"]}].forEach(function(group) {
+            var items = rows.filter(function(item) { return group.states.indexOf(item.status) >= 0 })
+            if (group.name === "COMPLETED" && !showCompleted) return
+            items.forEach(function(item,index) { output.push(Object.assign({},item,{queueHeading:index === 0 ? group.name + " · " + items.length : ""})) })
+        })
+        return output
+    }
+    function requestRunClose() {
+        closeRequested = true
+        if (progress.controls && progress.controls.available) {
+            if (progress.controls.cancel) { closeAfterCancel = true; notice = "Closing when cancellation finishes. Use Force stop if the provider does not respond." }
+            else cancelRunDialog.open()
+        } else externalCloseDialog.open()
+    }
+    onProgressChanged: {
+        if (closeAfterCancel && !progress.running) { allowClose = true; Qt.callLater(function() { window.close() }) }
+    }
+    function controlQueue(action) { request("control", {action:action}, function(result) { progress = result }) }
+    function rateLabel(key) {
+        var samples = progress.activity || [], value = samples.length ? samples[samples.length-1][key] : null
+        return value === null || value === undefined ? "Unavailable" : bytesLabel(value) + "/s"
     }
     function refreshConsole() {
         if (consolePending) return
@@ -367,6 +391,8 @@ ApplicationWindow {
         if (!detailPage) searchText = section.title
     }
     function installTitle() {
+        if (progress.controls && progress.controls.cancel && !progress.running) return "Installation cancelled"
+        if (progress.running && progress.queueStatus === "PAUSED") return "Queue paused"
         if (progress.running) return progress.operation === "accounts" ? "Finish setup in Konsole" : "Installing your selections"
         if (!progress.operation) return "Ready to install"
         if (progress.exitCode !== 0) return "Setup needs attention"
@@ -457,7 +483,7 @@ ApplicationWindow {
         busy = true; problem = ""; notice = ""
         request("start", {operation: name, item: item || null}, function(result) {
             finishItems = []; progress = result; stage = 5; busy = false
-            showConsole = true; refreshConsole()
+            showConsole = false; refreshConsole()
         })
     }
     function stateColor(status) {
@@ -470,9 +496,13 @@ ApplicationWindow {
         return section.items.filter(function(item) { return itemSelected(item) }).length
     }
     onClosing: function(event) {
-        if (progress.running || busy) {
+        if (allowClose) return
+        if (progress.running) {
             event.accepted = false
-            notice = "Installation is running. Keep setup open until this pass finishes."
+            requestRunClose()
+        } else if (busy) {
+            event.accepted = false
+            notice = "Finishing the current request. Try Close again in a moment."
         } else if (dirty && loaded && !leaveDialog.visible) {
             event.accepted = false
             leaveDialog.open()
@@ -957,27 +987,59 @@ ApplicationWindow {
                             text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " verified in this installation record" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
                             Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan
                         }
-                        Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
-                        Action { visible: !!window.progress.operation && !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        TextLabel { visible: !!window.progress.failureMessage; text: window.progress.failureMessage || ""; Layout.fillWidth: true; color: window.accent; font.pixelSize: 13 }
+                        Flow {
+                            visible: window.progress.running; Layout.fillWidth: true; spacing: 8
+                            Action { text: window.progress.controls && window.progress.controls.pause ? "Continue queue" : "Pause after item"; enabled: !!window.progress.controls && !!window.progress.controls.available && !window.progress.controls.cancel; onClicked: window.controlQueue(window.progress.controls.pause ? "continue" : "pause") }
+                            Action { text: window.progress.controls && window.progress.controls.cancel ? "Cancelling…" : "Cancel run"; enabled: !!window.progress.controls && !!window.progress.controls.available && !window.progress.controls.cancel; onClicked: { window.closeRequested = false; cancelRunDialog.open() } }
+                        }
+                        Action { text: "Force stop…"; visible: !!window.progress.controls && !!window.progress.controls.forceAvailable; onClicked: forceStopDialog.open() }
+                        TextLabel { visible: !!window.progress.controls && (window.progress.controls.pause || window.progress.controls.cancel); text: window.progress.controls && window.progress.controls.cancel ? (window.progress.running ? "Cancellation requested. Waiting for the current provider to stop; unfinished work can be retried." : "Run cancelled. Completed installs are kept. Resume will verify and retry unfinished work.") : window.progress.queueStatus === "PAUSED" ? "Queue paused. No next item will start until you continue." : "Pause requested. The current item will finish before the queue pauses."; Layout.fillWidth: true; color: window.accent; font.pixelSize: 12 }
+                        Repeater {
+                            model: window.installRows().filter(function(item) { return item.status === "RUNNING" })
+                            delegate: installationRowDelegate
+                        }
                         Rectangle {
-                            visible: !!window.progress.operation
-                            Layout.fillWidth: true; implicitHeight: consoleColumn.implicitHeight + 24
-                            radius: 12; color: window.tone("#150d21"); border.color: window.tone("#402c4e")
+                            visible: !!window.progress.operation && (window.progress.running || (window.progress.activity || []).length > 0)
+                            Layout.fillWidth: true; implicitHeight: activityLayout.implicitHeight + 24; radius: 10; color: window.tone("#150d21")
                             ColumnLayout {
-                                id: consoleColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    TextLabel { text: "LIVE OUTPUT"; Layout.fillWidth: true; font.pixelSize: 11; font.letterSpacing: 1; color: window.muted }
-                                    Action { text: window.followConsole ? "Pause" : "Live"; implicitHeight: 36; implicitWidth: 70; onClicked: window.followConsole = !window.followConsole }
-                                    Action { text: "Copy"; implicitHeight: 36; implicitWidth: 70; onClicked: { consoleText.selectAll(); consoleText.copy(); consoleText.deselect() } }
-                                    Action { text: window.showConsole ? "Hide" : "Show"; implicitHeight: 36; implicitWidth: 70; onClicked: window.showConsole = !window.showConsole }
+                                id: activityLayout; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
+                                TextLabel { text: "DECK ACTIVITY · includes other apps"; font.pixelSize: 11; color: window.muted; Layout.fillWidth: true }
+                                Flow { Layout.fillWidth: true; spacing: 16
+                                    TextLabel { text: "Network receive  " + window.rateLabel("network"); color: window.accent; font.pixelSize: 12 }
+                                    TextLabel { text: "Disk read  " + window.rateLabel("read"); color: window.cyan; font.pixelSize: 12 }
+                                    TextLabel { text: "Disk write  " + window.rateLabel("write"); color: window.violet; font.pixelSize: 12 }
                                 }
-                                ScrollView {
-                                    visible: window.showConsole; Layout.fillWidth: true; Layout.preferredHeight: window.height < 620 ? 120 : 180; clip: true
-                                    TextArea { id: consoleText; objectName: "inlineConsole"; text: window.consoleOutput.text || "Output from UI installs will appear here. Earlier terminal runs have per-item logs below."; readOnly: true; selectByMouse: true; textFormat: TextEdit.PlainText; wrapMode: TextEdit.WrapAnywhere; color: window.ink; font.family: "monospace"; font.pixelSize: 12; background: null; onTextChanged: cursorPosition = length }
+                                Canvas {
+                                    id: activityGraph; objectName: "downloadActivityGraph"
+                                    Layout.fillWidth: true; Layout.preferredHeight: window.height < 620 ? 60 : 90
+                                    property var samples: window.progress.activity || []
+                                    onSamplesChanged: requestPaint()
+                                    onWidthChanged: requestPaint()
+                                    onHeightChanged: requestPaint()
+                                    onPaint: {
+                                        var ctx = getContext("2d"); ctx.clearRect(0,0,width,height)
+                                        var peak = 1, keys = ["network","read","write"], colors = [window.accent,window.cyan,window.violet]
+                                        samples.forEach(function(sample) { keys.forEach(function(key) { peak = Math.max(peak,sample[key] || 0) }) })
+                                        ctx.strokeStyle = window.muted; ctx.globalAlpha = .15
+                                        for (var grid=1;grid<4;grid++) { ctx.beginPath(); ctx.moveTo(0,height*grid/4); ctx.lineTo(width,height*grid/4); ctx.stroke() }
+                                        ctx.globalAlpha = 1; ctx.lineWidth = 2
+                                        keys.forEach(function(key,index) {
+                                            ctx.strokeStyle = colors[index]; ctx.beginPath(); var connected = false
+                                            samples.forEach(function(sample,i) {
+                                                if (sample[key] === null || sample[key] === undefined) { connected = false; return }
+                                                var x = width*i/59, y = height-4-(height-8)*sample[key]/peak
+                                                if (connected) ctx.lineTo(x,y); else ctx.moveTo(x,y)
+                                                connected = true
+                                            }); ctx.stroke()
+                                        })
+                                    }
                                 }
+                                TextLabel { text: "Rolling 60 samples · shared auto-scale · unavailable counters leave gaps"; color: window.muted; font.pixelSize: 10; Layout.fillWidth: true }
                             }
                         }
+                        Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
+                        Action { visible: !!window.progress.operation && !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
                         TextLabel { visible: !window.progress.operation; text: window.selectionCount() + " optional choices saved. Start when you're ready; live output and results will appear here."; Layout.fillWidth: true; color: window.muted }
                         Repeater {
                             model: window.finishItems
@@ -1007,41 +1069,30 @@ ApplicationWindow {
                         RowLayout {
                             visible: !!window.progress.operation && !window.finishItems.length
                             Layout.fillWidth: true
-                            TextLabel { text: "RESULTS · select an item for details"; Layout.fillWidth: true; color: window.muted; font.pixelSize: 11; font.letterSpacing: .5 }
-                            CheckBox { visible: window.progress.running; text: "Show completed"; checked: window.showCompleted; onToggled: window.showCompleted = checked }
+                            TextLabel { text: "QUEUE · select an item for details"; Layout.fillWidth: true; color: window.muted; font.pixelSize: 11; font.letterSpacing: .5 }
+                            CheckBox { text: "Completed (" + (window.progress.summary ? window.progress.summary.done : 0) + ")"; checked: window.showCompleted; onToggled: window.showCompleted = checked }
                         }
                         Repeater {
-                            model: window.installRows()
-                            delegate: ColumnLayout {
-                                id: resultRow
-                                required property var modelData
-                                property bool expanded: window.expandedResult === modelData.id
-                                Layout.fillWidth: true; spacing: 6
-                                AbstractButton {
-                                    objectName: "installationResultRow"
-                                    Layout.fillWidth: true; implicitHeight: 48
-                                    Accessible.name: (modelData.name || modelData.id) + ". " + (modelData.resultLabel || window.statusLabel(modelData.status)) + ". Show details and actions."
-                                    onClicked: window.expandedResult = resultRow.expanded ? "" : modelData.id
-                                    background: Rectangle { color: parent.hovered || parent.activeFocus ? window.tone("#1a1128") : "transparent"; radius: 6 }
-                                    contentItem: RowLayout {
-                                        spacing: 12
-                                        TextLabel { text: modelData.name || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
-                                        TextLabel { text: (modelData.resultLabel || window.statusLabel(modelData.status)) + (resultRow.expanded ? "  ⌄" : "  ›"); color: window.stateColor(modelData.status); font.pixelSize: 12 }
-                                    }
+                            model: window.installRows().filter(function(item) { return item.status !== "RUNNING" })
+                            delegate: installationRowDelegate
+                        }
+                        Rectangle {
+                            visible: !!window.progress.operation
+                            Layout.fillWidth: true; implicitHeight: consoleColumn.implicitHeight + 24
+                            radius: 12; color: window.tone("#150d21"); border.color: window.tone("#402c4e")
+                            ColumnLayout {
+                                id: consoleColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextLabel { text: "LIVE OUTPUT"; Layout.fillWidth: true; font.pixelSize: 11; font.letterSpacing: 1; color: window.muted }
+                                    Action { visible: window.showConsole; text: window.followConsole ? "Pause output" : "Live output"; implicitHeight: 36; implicitWidth: 115; onClicked: window.followConsole = !window.followConsole }
+                                    Action { visible: window.showConsole; text: "Copy"; implicitHeight: 36; implicitWidth: 70; onClicked: { consoleText.selectAll(); consoleText.copy(); consoleText.deselect() } }
+                                    Action { text: window.showConsole ? "Hide" : "Show"; implicitHeight: 36; implicitWidth: 70; onClicked: window.showConsole = !window.showConsole }
                                 }
-                                TextLabel { visible: (resultRow.expanded || modelData.status === "RUNNING") && !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                                TextLabel { visible: resultRow.expanded && !!modelData.nextAction; text: modelData.nextAction || ""; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
-                                TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
-                                TextLabel { visible: modelData.status === "RUNNING"; text: (modelData.phase || "Working") + " · " + window.elapsedLabel(modelData.elapsedSeconds) + " · last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                                ProgressBar { visible: modelData.status === "RUNNING"; Layout.fillWidth: true; implicitHeight: 4; indeterminate: !(modelData.total > 0); value: modelData.total > 0 ? Math.min(1, (modelData.downloaded || 0) / modelData.total) : 0; Accessible.name: "Progress for " + modelData.name }
-                                TextLabel { visible: modelData.status === "RUNNING" && modelData.downloaded !== null && modelData.downloaded !== undefined; text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded"); color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                                Flow {
-                                    visible: resultRow.expanded; Layout.fillWidth: true; spacing: 8
-                                    Action { objectName: "viewInstallLog"; text: "Details"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
-                                    Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
-                                    Action { text: "Continue in terminal"; visible: ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
+                                ScrollView {
+                                    visible: window.showConsole; Layout.fillWidth: true; Layout.preferredHeight: window.height < 620 ? 120 : 180; clip: true
+                                    TextArea { id: consoleText; objectName: "inlineConsole"; text: window.consoleOutput.text || "Output from UI installs will appear here. Earlier terminal runs have per-item logs below."; readOnly: true; selectByMouse: true; textFormat: TextEdit.PlainText; wrapMode: TextEdit.WrapAnywhere; color: window.ink; font.family: "monospace"; font.pixelSize: 12; background: null; onTextChanged: cursorPosition = length }
                                 }
-                                Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
                             }
                         }
                     }
@@ -1053,7 +1104,7 @@ ApplicationWindow {
                 Action { text: "Back"; visible: !!window.detailPage || (window.stage > 0 && window.stage < 5); enabled: !window.busy; onClicked: window.back() }
                 TextLabel { visible: window.stage < 4; text: "Your choices save at review.\nNothing installs yet."; font.pixelSize: 12; color: window.muted; Layout.fillWidth: true }
                 Item { visible: window.stage >= 4; Layout.fillWidth: true }
-                Action { text: "Close"; visible: window.stage === 5; enabled: !window.progress.running && !window.busy; onClicked: window.close() }
+                Action { text: "Close"; visible: window.stage === 5; enabled: !window.busy; onClicked: window.close() }
                 Action { text: "Save for later"; visible: window.stage === 4 && !window.data.planOnly; enabled: !window.busy; onClicked: window.savePlan(false) }
                 Action {
                     objectName: "primaryAction"
@@ -1078,6 +1129,68 @@ ApplicationWindow {
             }
         }
     }
+    }
+    Component {
+        id: installationRowDelegate
+        ColumnLayout {
+            id: resultRow
+            required property var modelData
+            property bool expanded: window.expandedResult === modelData.id
+            Layout.fillWidth: true; spacing: 6
+            TextLabel { visible: !!modelData.queueHeading; text: modelData.queueHeading || ""; color: window.cyan; font.pixelSize: 11; font.letterSpacing: 1; Layout.topMargin: 8; Layout.fillWidth: true }
+            AbstractButton {
+                objectName: "installationResultRow"
+                Layout.fillWidth: true; implicitHeight: 48
+                Accessible.name: (modelData.name || modelData.id) + ". " + (modelData.resultLabel || window.statusLabel(modelData.status)) + ". Show details and actions."
+                onClicked: window.expandedResult = resultRow.expanded ? "" : modelData.id
+                background: Rectangle { color: parent.hovered || parent.activeFocus ? window.tone("#1a1128") : "transparent"; radius: 6 }
+                contentItem: RowLayout {
+                    spacing: 12
+                    TextLabel { text: modelData.name || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
+                    TextLabel { text: (modelData.resultLabel || window.statusLabel(modelData.status)) + (resultRow.expanded ? "  ⌄" : "  ›"); color: window.stateColor(modelData.status); font.pixelSize: 12 }
+                }
+            }
+            TextLabel { visible: (resultRow.expanded || modelData.status === "RUNNING") && !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+            TextLabel { visible: resultRow.expanded && !!modelData.nextAction; text: modelData.nextAction || ""; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
+            TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
+            TextLabel { visible: modelData.status === "RUNNING"; text: (modelData.phase || "Working") + " · " + window.elapsedLabel(modelData.elapsedSeconds) + " · last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+            ProgressBar { visible: modelData.status === "RUNNING"; Layout.fillWidth: true; implicitHeight: 4; indeterminate: !(modelData.total > 0); value: modelData.total > 0 ? Math.min(1, (modelData.downloaded || 0) / modelData.total) : 0; Accessible.name: "Progress for " + modelData.name }
+            TextLabel { visible: modelData.status === "RUNNING" && modelData.downloaded !== null && modelData.downloaded !== undefined; text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded"); color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+            Flow {
+                visible: resultRow.expanded; Layout.fillWidth: true; spacing: 8
+                Action { objectName: "viewInstallLog"; text: "Details"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
+                Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
+                Action { text: "Continue in terminal"; visible: ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
+            }
+            Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
+        }
+    }
+
+    Dialog {
+        id: cancelRunDialog
+        objectName: "cancelRunDialog"
+        title: window.closeRequested ? "Cancel installation and close?" : "Cancel this installation run?"
+        anchors.centerIn: parent; width: Math.min(480, window.width-40); modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: TextLabel { text: "The current provider will be interrupted. Completed items are kept; unfinished items may need repair or retry. This does not uninstall anything."; wrapMode: Text.WordWrap }
+        onAccepted: { window.closeAfterCancel = window.closeRequested; window.controlQueue("cancel") }
+        onRejected: window.closeRequested = false
+    }
+    Dialog {
+        id: forceStopDialog
+        title: "Force stop the current provider?"
+        anchors.centerIn: parent; width: Math.min(480, window.width-40); modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: TextLabel { text: "The provider has not stopped after cancellation. Force stop ends this run immediately. The unfinished item may need repair; completed installs are kept."; wrapMode: Text.WordWrap }
+        onAccepted: window.controlQueue("force")
+    }
+    Dialog {
+        id: externalCloseDialog
+        title: "Close this viewer?"
+        anchors.centerIn: parent; width: Math.min(480, window.width-40); modal: true
+        standardButtons: Dialog.Ok | Dialog.Cancel
+        contentItem: TextLabel { text: "This installation is controlled by another window or terminal. Closing this viewer will leave it running. Cancel it from the window that started it."; wrapMode: Text.WordWrap }
+        onAccepted: { window.allowClose = true; window.close() }
     }
     Drawer {
         id: statusDrawer
