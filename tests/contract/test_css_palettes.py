@@ -37,15 +37,53 @@ class CSSPalettes(Isolated):
             self.assertEqual(css.apply(), 0)
             self.assertEqual(calls, backend.calls)
 
-    def test_palette_only_changes_selected_components(self):
+    def test_palette_discovers_installed_themes_with_empty_install_selection(self):
+        from deckctl import setup_builder, setup_plan
         backend = self.fake_install()
         self.assertEqual(css.apply(), 0)
-        before = {p: p.read_bytes() for p in css.THEMES_DIR.glob('*/config_*.json')}
-        self.choose('ocean', ['Chromahon (QAM)'])
+        downloads = sum(c[0] == 'download_theme_from_url' for c in backend.calls)
+        disabled = next(t for t in backend.loaded.values() if t['display_name'] == 'Chromahon (QAM)')
+        disabled['enabled'] = False
+        backend.persist(disabled)
+        unrelated = css.THEMES_DIR / 'Personal theme/config_USER.json'
+        write_json(unrelated, {'active': True, 'color': 'mine'})
+        write_json(unrelated.parent/'theme.json', {'name':'Personal theme'})
+        before = unrelated.read_bytes()
+        original = copy.deepcopy(backend.loaded)
+        self.choose('ocean', [])
+        write_json(core.CONFIG_HOME/'appearance.json', {'css':True})
+        setup_builder.save_plan(['base'], [], css=[], appearance_choices={'css':True})
+        self.assertIn('dependency:css-profile', {row['key'] for row in setup_plan.items()[1]})
+        self.assertIsNone(css.selection_error())
         self.assertEqual(css.apply(), 0)
-        target = next(t['name'] for t in backend.themes() if t['display_name'] == 'Chromahon (QAM)')
-        for path, content in before.items():
-            if path.parent.name != target: self.assertEqual(path.read_bytes(), content)
+        self.assertEqual(css.selection(), [])
+        self.assertTrue(css.readiness()[0])
+        self.assertFalse(backend.loaded[disabled['name']]['enabled'])
+        self.assertEqual(unrelated.read_bytes(), before)
+        self.assertEqual(downloads, sum(c[0] == 'download_theme_from_url' for c in backend.calls))
+        for name in css.installed_palette_components():
+            theme = css._live_theme(backend.themes(), name)
+            stack = css._stack()
+            desired = css.palette_plan(theme, stack['palette'], stack['named_presets'])
+            css._verify_live(theme, desired, theme['enabled'])
+            for patch in theme['patches']:
+                if patch['name'] not in desired:
+                    self.assertIn(patch, original[theme['name']]['patches'])
+        calls = copy.deepcopy(backend.calls)
+        self.choose('graphite', [])
+        write_json(core.CONFIG_HOME/'appearance.json', {'css':False})
+        self.assertEqual(css.apply(), 0)
+        self.assertEqual(backend.calls, calls)
+
+    def test_missing_live_installed_theme_never_downloads_unselected_theme(self):
+        backend = self.fake_install()
+        self.assertEqual(css.apply(), 0)
+        self.choose('ocean', [])
+        write_json(core.CONFIG_HOME/'appearance.json', {'css':True})
+        backend.loaded.clear()
+        backend.calls.clear()
+        self.assertEqual(css.apply(), 2)
+        self.assertFalse(any(c[0] == 'download_theme_from_url' for c in backend.calls))
 
     def test_each_palette_uses_advertised_controls_and_matching_named_colors(self):
         for palette in css.palette_catalog():

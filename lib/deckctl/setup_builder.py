@@ -109,9 +109,9 @@ def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, co
     if palette is not None: palette=css_stack.validate_palette(palette)
     if components is not None: components=component_options.validate(components)
     if css is not None: css=css_stack.validate_selection(css)
-    if css_requested and not (css if css is not None else css_stack.selection()):
+    if css_requested and not (css if css is not None else css_stack.selection()) and not css_stack.installed_palette_components():
         raise ValueError('Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off.')
-    if appearance_choices is not None and css == [] and not css_requested: appearance_choices['css'] = False
+    if appearance_choices is not None and css == [] and not css_requested and not css_stack.installed_palette_components(): appearance_choices['css'] = False
     if launchers is not None: launchers=gaming_options.validate(launchers)
     if plugins is not None:
         known={item['id'] for item in plugin_items()}

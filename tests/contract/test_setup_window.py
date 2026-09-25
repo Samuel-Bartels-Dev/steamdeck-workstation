@@ -14,6 +14,8 @@ class SetupWindow(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
+        themes = patch.object(css_stack, 'THEMES_DIR', self.home/'themes')
+        themes.start(); self.addCleanup(themes.stop)
         for name in ('CONFIG_HOME', 'STATE'):
             p = patch.object(core, name, self.home/name)
             p.start(); self.addCleanup(p.stop)

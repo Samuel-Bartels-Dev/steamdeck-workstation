@@ -46,6 +46,15 @@ def palette_id():
     return validate_palette(core.load_json(core.CONFIG_HOME/'css-selection.json', {}).get('palette', 'bubblegum'))
 
 
+def installed_palette_components():
+    """Discover supported installed themes without consulting install selections."""
+    data = core.load_json(STACK_PATH, {})
+    installed = _installed_themes()
+    return sorted(item['name'] for category in ('required', 'recommended', 'optional')
+                  for item in data.get(category, [])
+                  if item.get('configure_palette') and _find(installed, item['name']))
+
+
 def _stack(unfiltered=False):
     data = json.loads(STACK_PATH.read_text())
     if data.get('schema_version') != 3 or not data.get('required'):
@@ -63,7 +72,8 @@ def _stack(unfiltered=False):
         for item in data['required'] + data['recommended'] + data.get('optional', []):
             item['configure_palette'] = False
     if not unfiltered:
-        names = selection()
+        names = set(selection())
+        if data['apply_palette']: names.update(installed_palette_components())
         items = data['required'] + data['recommended'] + data.get('optional', [])
         data['required'] = [item for item in items if item['name'] in names]
         data['recommended'] = []
@@ -312,8 +322,8 @@ def palette_plan(theme, palette, named_presets=None):
     return plan
 
 
-def _matches_config(config, desired):
-    if config.get('active') is not True:
+def _matches_config(config, desired, active=True):
+    if config.get('active') is not active:
         return False
     for name, expected in desired.items():
         current = config.get(name)
@@ -328,13 +338,13 @@ def _matches_config(config, desired):
     return True
 
 
-def _saved_config(theme_path, plan):
+def _saved_config(theme_path, plan, active=True):
     candidates = []
     for name in ('config_ROOT.json', 'config_USER.json'):
         path = theme_path / name
         if path.is_file():
             try:
-                if _matches_config(_read(path), plan):
+                if _matches_config(_read(path), plan, active):
                     candidates.append(path)
             except (OSError, ValueError, AttributeError):
                 pass
@@ -343,9 +353,9 @@ def _saved_config(theme_path, plan):
     return max(candidates, key=lambda p: p.stat().st_mtime_ns)
 
 
-def _verify_live(theme, plan):
-    if theme.get('enabled') is not True:
-        raise CSSError(f"CSS Loader did not enable {theme['name']}")
+def _verify_live(theme, plan, active=True):
+    if theme.get('enabled') is not active:
+        raise CSSError(f"CSS Loader did not preserve the requested enabled state for {theme['name']}")
     patches = {p['name']: p for p in theme['patches']}
     for name, expected in plan.items():
         patch = patches.get(name, {})
@@ -379,7 +389,7 @@ def _manifest_hash():
 
 def selection_error():
     requested = core.load_json(core.CONFIG_HOME/'appearance.json', {}).get('css') is True
-    if requested and not selection():
+    if requested and not selection() and not installed_palette_components():
         return 'Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off.'
     return None
 
@@ -417,7 +427,7 @@ def readiness():
             filename = entry['config_file']
             if filename not in ('config_ROOT.json', 'config_USER.json'):
                 return False, 'Invalid CSS configuration reference'
-            if not _matches_config(_read(theme_path / filename), entry['patches']):
+            if not _matches_config(_read(theme_path / filename), entry['patches'], entry.get('active', True)):
                 return False, 'Palette or enabled-state drift: ' + item['name']
         profile = THEMES_DIR / (stack['preset'] + '.profile')
         if hashlib.sha256((profile / 'theme.json').read_bytes()).hexdigest() != receipt['profile_sha256']:
@@ -439,7 +449,7 @@ def component_ready(name):
         path = THEMES_DIR/relative
         if path.is_symlink() or entry['config_file'] not in ('config_ROOT.json', 'config_USER.json'): return False
         return (hashlib.sha256((path/'theme.json').read_bytes()).hexdigest() == entry['manifest_sha256']
-                and _matches_config(_read(path/entry['config_file']), entry['patches']))
+                and _matches_config(_read(path/entry['config_file']), entry['patches'], entry.get('active', True)))
     except (OSError, ValueError, KeyError, TypeError): return False
 
 
@@ -452,7 +462,7 @@ def apply(only=None):
         if only is not None and component_ready(only): return 0
         ok, reason = readiness()
         if ok:
-            print(('UNCHANGED' if not selection() else 'READY') + ' — ' + reason)
+            print(('READY' if _stack()['required'] else 'UNCHANGED') + ' — ' + reason)
             return 0
         if not core._decky_loader_present():
             raise CSSError('Install Decky Loader first')
@@ -474,6 +484,8 @@ def apply(only=None):
                     theme = _live_theme(themes, name)
                     store_id = None
                     if theme is None:
+                        if name not in selection():
+                            raise CSSError('Installed theme is not available in CSS Loader; reload the plugin and retry: ' + name)
                         detail = _resolve_store_theme(name)
                         if detail['manifestVersion'] > backend.call('get_backend_version'):
                             raise CSSError(f'{name} requires a newer CSS Loader')
@@ -485,12 +497,14 @@ def apply(only=None):
                         theme = _live_theme(themes, name)
                         if theme is None:
                             raise CSSError('Theme Store download did not install ' + name)
+                    installing = name in selection()
+                    active = True if installing else bool(theme.get('enabled'))
                     plan = palette_plan(theme, stack['palette'], stack['named_presets']) if item.get('configure_palette') else {}
                     if item.get('configure_palette') and not plan:
                         if name.startswith('Chromahon') or name == 'Focus Highlight Color':
                             raise CSSError(f'{name} exposes no supported palette controls')
                         print(name + ': no color-picker controls; preserving vendor defaults')
-                    for patch_name, value in item.get('patch_options', {}).items():
+                    for patch_name, value in (item.get('patch_options', {}) if installing else {}).items():
                         patch = next((p for p in theme['patches'] if p['name'] == patch_name), None)
                         if patch is None or value not in patch.get('options', []):
                             raise CSSError(f'{name}/{patch_name}: requested option {value!r} is unavailable')
@@ -505,16 +519,16 @@ def apply(only=None):
                         for component, value in desired['components'].items():
                             if str(live_components.get(component, '')).casefold() != value.casefold():
                                 backend.call('set_component_of_theme_patch', themeName=theme['name'], patchName=patch_name, componentName=component, value=value)
-                    if not theme.get('enabled'):
+                    if active and not theme.get('enabled'):
                         backend.call('set_theme_state', name=theme['name'], state=True, set_deps=True, set_deps_value=False)
                     themes = backend.themes()
                     theme = _live_theme(themes, name)
-                    _verify_live(theme, plan)
+                    _verify_live(theme, plan, active)
                     installed = _find(_installed_themes(), name)
                     if not installed:
                         raise CSSError('Component missing on disk: ' + name)
-                    config = _saved_config(installed['path'], plan)
-                    receipt['components'][name] = {'directory': installed['path'].name, 'native_name': theme['name'], 'manifest_sha256': hashlib.sha256((installed['path'] / 'theme.json').read_bytes()).hexdigest(), 'config_file': config.name, 'patches': plan, 'store_id': store_id}
+                    config = _saved_config(installed['path'], plan, active)
+                    receipt['components'][name] = {'directory': installed['path'].name, 'native_name': theme['name'], 'manifest_sha256': hashlib.sha256((installed['path'] / 'theme.json').read_bytes()).hexdigest(), 'config_file': config.name, 'patches': plan, 'store_id': store_id, 'active': active}
                     print('Verified: ' + name, flush=True)
                 except (OSError, ValueError, KeyError, TypeError, CSSError) as exc:
                     failures.append(f"{item['name']}: {exc}")
@@ -544,7 +558,7 @@ def apply(only=None):
                 theme = _live_theme(backend.themes(), name)
                 if theme is None:
                     raise CSSError('Component disappeared after reload: ' + name)
-                _verify_live(theme, entry['patches'])
+                _verify_live(theme, entry['patches'], entry.get('active', True))
         core.save_json(RECEIPT, receipt)
         ok, reason = readiness()
         if not ok:
@@ -574,8 +588,8 @@ def palette_status():
     else:
         ready, reason = readiness()
         state = 'VERIFIED' if ready else 'UNVERIFIED'
-        message = selected + (' · saved palette verified for selected CSS components.' if ready else ' selected · Game Mode application not verified. ' + reason)
-    return {'selectedPalette':selected, 'componentCount':count, 'state':state, 'message':message}
+        message = selected + (' · saved palette verified for supported CSS components.' if ready else ' selected · Game Mode application not verified. ' + reason)
+    return {'selectedPalette':selected, 'componentCount':count, 'installedComponents':installed_palette_components(), 'state':state, 'message':message}
 
 
 def status():

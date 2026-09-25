@@ -104,7 +104,7 @@ def items(payload=None):
     for option in css_stack.selection_items():
         if option['id'] in plan['css']:
             add('css:'+option['id'], option['name'], 'css', 'decky', option['summary'], ['plugin:SDH-CssLoader'], component=option['id'])
-    if plan['css']:
+    if plan['css'] or (plan['appearance'].get('css', True) and css_stack.installed_palette_components()):
         add('dependency:css-profile', 'CSS palette and recovery profile', 'css-profile', 'decky',
             requires=['css:'+name for name in plan['css']])
     if any('dependency:chrome' in row['requires'] for row in rows.values()):

@@ -12,7 +12,7 @@ TARGETS = [
     {'id': 'starship', 'name': 'Starship', 'summary': 'Colors for the alternative shell prompt'},
     {'id': 'konsole', 'name': 'Konsole', 'summary': 'The managed terminal profile and color scheme'},
     {'id': 'tmux', 'name': 'tmux', 'summary': 'Session status and pane borders'},
-    {'id': 'css', 'name': 'Supported Decky themes', 'summary': 'Color controls in your selected CSS Loader themes'},
+    {'id': 'css', 'name': 'Supported Decky themes', 'summary': 'Color controls in your installed supported CSS Loader themes'},
 ]
 
 
@@ -27,7 +27,8 @@ def selection():
     value = core.load_json(core.CONFIG_HOME/'appearance.json', {})
     if isinstance(value, dict) and 'css' not in value:
         css = core.load_json(core.CONFIG_HOME/'css-selection.json', {})
-        if isinstance(css, dict) and css.get('selected') == []: value = {**value, 'css':False}
+        from . import css_stack
+        if isinstance(css, dict) and css.get('selected') == [] and not css_stack.installed_palette_components(): value = {**value, 'css':False}
     return validate(value)
 
 

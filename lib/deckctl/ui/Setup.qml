@@ -92,20 +92,24 @@ ApplicationWindow {
     }
     property bool followLog: true
     property bool logPending: false
+    function cssPaletteTargets() {
+        var installed = (progress.cssPalette || data.cssPalette || {}).installedComponents || []
+        return installed.concat(pageValues("css")).filter(function(name, index, all) { return all.indexOf(name) === index })
+    }
     function cssSelectionError() {
-        return appearanceChoices.css === true && pageValues("css").length === 0 ? "Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off." : ""
+        return appearanceChoices.css === true && cssPaletteTargets().length === 0 ? "Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off." : ""
     }
     function cssPalettePlanText() {
         if (cssSelectionError()) return "Selection error: " + cssSelectionError()
         if (appearanceChoices.css === false) return "Selected palette: " + activePalette.name + ". Game Mode recoloring is off; existing colors will stay."
-        if (pageValues("css").length === 0) return "Selected palette: " + activePalette.name + ". It will not apply to Game Mode: no CSS components selected. Existing colors will stay."
-        return "Selected palette: " + activePalette.name + ". Will apply to " + pageValues("css").length + " selected CSS components when you install; this is not an applied-status check."
+        if (cssPaletteTargets().length === 0) return "Selected palette: " + activePalette.name + ". It will not apply to Game Mode: no CSS components selected. Existing colors will stay."
+        return "Selected palette: " + activePalette.name + ". Will apply to " + cssPaletteTargets().length + " supported CSS themes when you apply changes. Installed themes are included automatically; no need to select them again."
     }
     function openAppearance() { appearanceDialog.open() }
     function closeAppearance() { appearanceDialog.close() }
     function closeLog() { logDialog.close() }
     function appearanceTargetSelected(key) {
-        return key === "css" ? pageValues("css").length > 0 : pageValues("terminal").indexOf(key) >= 0
+        return key === "css" ? cssPaletteTargets().length > 0 : pageValues("terminal").indexOf(key) >= 0
     }
     function appearanceSummary() {
         var names = (data.appearanceTargets || []).filter(function(target) {
@@ -1266,7 +1270,7 @@ ApplicationWindow {
             clip: true; contentWidth: availableWidth
             ColumnLayout {
                 width: appearanceDialog.availableWidth; spacing: 12
-                TextLabel { text: "Choose one palette, then where it applies. This selects your next configuration; it does not prove it is installed."; Layout.fillWidth: true; color: window.muted }
+                TextLabel { text: "Choose a palette for your workstation. Installed supported Game Mode themes follow automatically when you apply changes."; Layout.fillWidth: true; color: window.muted }
                 ComboBox {
                     Layout.fillWidth: true; model: window.paletteOptions; textRole: "name"
                     currentIndex: window.paletteOptions.findIndex(function(p) { return p.id === window.paletteId })
@@ -1283,8 +1287,8 @@ ApplicationWindow {
                 TextLabel { text: window.cssPalettePlanText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: 13 }
                 TextLabel { text: "Saved Game Mode status: " + ((window.progress.cssPalette || window.data.cssPalette || {}).message || "Not checked"); Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
                 Action { visible: !!window.cssSelectionError(); text: "Turn Game Mode theming off"; onClicked: window.setAppearance("css", false) }
-                Action { text: "Choose Game Mode components"; enabled: !window.progress.running && !window.busy; onClicked: { window.closeAppearance(); window.browse("css") } }
-                TextLabel { text: "Apply to selected tools"; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                Action { text: "Install additional Game Mode themes"; enabled: !window.progress.running && !window.busy; onClicked: { window.closeAppearance(); window.browse("css") } }
+                TextLabel { text: "Appearance preferences"; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 Repeater {
                     model: window.data.appearanceTargets || []
                     delegate: ColumnLayout {
