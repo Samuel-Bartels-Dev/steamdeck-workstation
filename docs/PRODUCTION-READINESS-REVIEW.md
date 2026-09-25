@@ -98,7 +98,7 @@ policy. New shared files are `run_log.py`, `preflight.py`, `compatibility.py`,
 * Managed appearance writes now atomically replace only completed temporary files.
 * Support bundles add compatibility and allowlisted run summaries, excluding raw
   provider logs. Existing credential/configuration allowlists are preserved.
-* SAFE quick/full/module diagnostics, isolated harness entry points and 18 new
+* SAFE quick/full/module diagnostics, isolated harness entry points and 19 new
   production contracts. Full does not silently run state-changing container tests.
 * Release archives now stage on the output filesystem: actual build testing
   exposed and fixed EXDEV when /tmp and the destination are different devices.
@@ -111,7 +111,7 @@ policy. New shared files are `run_log.py`, `preflight.py`, `compatibility.py`,
 ## Verification evidence and boundaries
 
 The existing full repository suite passed across all 17 modules during this pass.
-The focused production suite passes 18 tests, including independent candidate
+The focused production suite passes 19 tests, including independent candidate
 control-plane install in a temporary home, explicit-public-RC resolution,
 retention, interruption, symlink protection, read-only doctor, failed health exit,
 future OS rejection, wrong/ambiguous cards, atomic-write failure, partial download,
@@ -121,8 +121,7 @@ five workflows. Logs are retained locally under `~/.cache/deckctl-review/` with
 `production-` filenames; these are engineering evidence, not public hardware logs.
 
 Read-only local checks identified OLED, SteamOS 3.8.16 build 20260716.1. Offline
-preflight and storage exited 2 (warnings); this is not a production PASS. Windows
-CI and the new public-release smoke cannot be claimed passed locally. No release
+preflight and storage exited 2 (warnings); this is not a production PASS. GitHub quality, security and packaging workflows passed for the initial implementation, including Windows syntax checks. The new public-release smoke cannot run before publication. A live Flathub probe failed DNS resolution even outside the sandbox; connectivity remains unverified here. No release
 has been published or promoted by this work. Packaging/extracted validation is a
 separate final check reported in the handoff; local tests are not physical T01â€“T06.
 
@@ -143,3 +142,5 @@ separate final check reported in the handoff; local tests are not physical T01â€
 certification. Follow [the physical commands and pass/fail checklist](PRODUCTION-OPERATIONS.md).
 A new candidate version is required before installing this changed tree over the
 existing v0.2.43 control plane. Preserve the previous stable release for recovery.
+
+Final local clean-source package verification passed: 373 files, two independent extractions, matching nested archive, executable modes, SHA-256 and both extracted regression runs. A subsequent narrow network-probe change uses the existing real Flathub repository endpoint with HTTPS-only redirects; focused contracts and static checks cover it, with GitHub validation rerun on the updated head.

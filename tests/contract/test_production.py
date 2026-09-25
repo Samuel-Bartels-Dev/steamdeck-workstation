@@ -192,5 +192,16 @@ class Production(unittest.TestCase):
         self.assertEqual(len(list(output.iterdir())), 3)
         self.assertTrue((output/'steamdeck-workstation-v1.2.3-rc1-SHA256SUMS.txt').is_file())
 
+    def test_network_failure_is_bounded_and_uses_real_repo_endpoint(self):
+        import subprocess
+        with patch.object(preflight.subprocess, 'run', side_effect=subprocess.TimeoutExpired('curl', 15)) as request:
+            rows = preflight.network()
+        self.assertEqual([row['status'] for row in rows], ['FAIL']*3)
+        urls = [call.args[0][-1] for call in request.call_args_list]
+        self.assertIn('https://flathub.org/repo/flathub.flatpakrepo', urls)
+        for call in request.call_args_list:
+            self.assertEqual(call.kwargs['timeout'], 15)
+            self.assertIn('--max-time', call.args[0])
+
 
 if __name__ == '__main__': unittest.main(verbosity=2)
