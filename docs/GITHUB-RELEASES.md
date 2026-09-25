@@ -35,7 +35,7 @@ python3 tools/verify-release.py /tmp/deck-release
 
 Changes on main and pull requests trigger validation and extracted-package tests
 on Python 3.12 and 3.13. The separate Publish verified release workflow runs when VERSION changes on
-main, and can also be manually triggered there. It packages and verifies before creating
+main, and can also be manually triggered there. RC versions publish as prereleases. Stable publication now requires a reviewed evidence report through manual workflow input; a stable VERSION push alone is blocked. See [production release gates](PRODUCTION-OPERATIONS.md). It packages and verifies before creating
 the version tag/release and uploading exactly the three release artifacts. It
 refuses to replace an existing release. Actions are pinned to reviewed commit SHAs.
 

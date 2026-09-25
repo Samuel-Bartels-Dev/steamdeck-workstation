@@ -1,0 +1,35 @@
+name: Public bootstrap smoke
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Published version, including rc suffix if applicable
+        required: true
+        type: string
+permissions:
+  contents: read
+jobs:
+  public-download:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Fetch the public bootstrap and verify published assets
+        env:
+          RELEASE_VERSION: ${{ inputs.version || github.event.release.tag_name }}
+        run: |
+          set -euo pipefail
+          version="${RELEASE_VERSION#v}"
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[1-9][0-9]*)?$ ]]
+          curl --fail --location --retry 2 --max-time 60 \
+            https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstation/main/bootstrap.sh \
+            -o "$RUNNER_TEMP/public-bootstrap.sh"
+          bash "$RUNNER_TEMP/public-bootstrap.sh" --version "$version" --download-only "$RUNNER_TEMP/public-assets"
+          mkdir "$RUNNER_TEMP/public-tree"
+          tar --no-same-owner -xzf "$RUNNER_TEMP/public-assets/steamdeck-workstation-v$version.tar.gz" -C "$RUNNER_TEMP/public-tree"
+          root="$RUNNER_TEMP/public-tree/steamdeck-workstation-$version"
+          test "$(cat "$root/VERSION")" = "$version"
+          "$root/bin/deckctl" --version
+          "$root/install.sh" --help
+          # No vendor provisioning on a GitHub runner. Physical install is a separate gate.

@@ -4,6 +4,11 @@ on:
     branches: [main]
     paths: [VERSION]
   workflow_dispatch:
+    inputs:
+      evidence:
+        description: Reviewed stable evidence path in this checkout (required for stable)
+        required: false
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -22,6 +27,15 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.13'
+      - name: Require candidate or reviewed stable evidence
+        env:
+          EVIDENCE: ${{ inputs.evidence }}
+        run: |
+          if [[ -n "$EVIDENCE" ]]; then
+            python3 tools/release-gate.py --report "$EVIDENCE"
+          else
+            python3 tools/release-gate.py
+          fi
       - run: ./tools/build-release "$RUNNER_TEMP/packages"
       - run: python3 tools/verify-release.py "$RUNNER_TEMP/packages"
       - name: Publish once after verification
@@ -31,6 +45,10 @@ jobs:
         run: |
           set -euo pipefail
           version="$(cat VERSION)"
-          gh release create "v$version" "$RUNNER_TEMP/packages/"* \
+          release_flags=()
+          if [[ "$version" == *-rc* ]]; then release_flags+=(--prerelease); fi
+          gh release create "v$version" "${release_flags[@]}" "$RUNNER_TEMP/packages/"* \
             --target "$GITHUB_SHA" --title "Steam Deck Workstation v$version" \
             --notes-file "docs/RELEASE-$version.md"
+      - name: Verify exact public path after publication
+        run: ./tools/public-bootstrap-smoke "$(cat VERSION)"

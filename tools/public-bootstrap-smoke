@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == --help || "${1:-}" == -h ]]; then
+  echo 'Usage: tools/public-bootstrap-smoke VERSION'
+  echo 'Downloads exact public bootstrap and published release; verifies/extracts and runs help only. No vendor installation.'
+  exit 0
+fi
+version="${1:?Published VERSION required}"
+[[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-rc[1-9][0-9]*)?$ ]]
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+curl --fail --location --retry 2 --max-time 60 \
+  https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstation/main/bootstrap.sh \
+  -o "$work/bootstrap.sh"
+bash "$work/bootstrap.sh" --version "$version" --download-only "$work/assets"
+mkdir "$work/tree"
+tar --no-same-owner -xzf "$work/assets/steamdeck-workstation-v$version.tar.gz" -C "$work/tree"
+root="$work/tree/steamdeck-workstation-$version"
+test "$(cat "$root/VERSION")" = "$version"
+"$root/bin/deckctl" --version
+"$root/install.sh" --help

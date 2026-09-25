@@ -1,0 +1,5 @@
+{
+  "schema_version": 1,
+  "records": [],
+  "notes": "No complete release-scoped SteamOS/Decky/plugin certification has been recorded. Partial historical Docker evidence is in docs/COMPATIBILITY.md; it must not certify an entire workstation. Records require exact OS, build, architecture, component version, date and evidence."
+}

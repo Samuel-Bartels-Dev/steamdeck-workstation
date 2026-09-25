@@ -43,12 +43,12 @@ def fetch(url,limit):
     return data
 
 def resolve(version=None):
-    if version and not re.fullmatch(r'\d+\.\d+\.\d+',version):raise ValueError('Version must be X.Y.Z')
+    if version and not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?',version):raise ValueError('Version must be X.Y.Z or X.Y.Z-rcN')
     endpoint='tags/v'+version if version else 'latest'
     release=json.loads(fetch(f'https://api.github.com/repos/{REPO}/releases/{endpoint}',4*1024*1024))
     tag=release.get('tag_name','')
-    if not re.fullmatch(r'v\d+\.\d+\.\d+',tag) or release.get('draft') or release.get('prerelease'):
-        raise ValueError('Expected a published stable versioned release')
+    if not re.fullmatch(r'v\d+\.\d+\.\d+(?:-rc[1-9]\d*)?',tag) or release.get('draft') or (release.get('prerelease') and not version) or ('-rc' in tag and not version):
+        raise ValueError('Expected a published versioned release; candidates require explicit --version')
     if version and tag!='v'+version:raise ValueError('Requested release version mismatch')
     version=tag[1:]
     names=[f'steamdeck-workstation-v{version}.tar.gz',f'steamdeck-workstation-v{version}-SHA256SUMS.txt']

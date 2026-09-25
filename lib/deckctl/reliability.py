@@ -627,6 +627,12 @@ def support_bundle():
             "ui_safe_mode": bool(UI_SAFE_STATE.exists()),
             "terminal": terminal.status_data(),
         }
+        from . import compatibility, run_log
+        inventory['compatibility'] = compatibility.report()
+        # Only allowlisted scalar run summaries, never arbitrary provider logs/messages.
+        inventory['recent_runs'] = [{key: row.get(key) for key in
+            ('run_id', 'operation', 'status', 'version', 'duration_ms', 'exit_code')}
+            for row in run_log.runs()[:10]]
         (root / "inventory.json").write_text(json.dumps(_sanitize(inventory, support_bundle=True), indent=2) + "\n")
         # Include only known-safe config summaries, not arbitrary home/browser files.
         cfg = root / "config"; cfg.mkdir()

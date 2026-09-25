@@ -1,13 +1,15 @@
 """Durable per-item installer. Runs on demand in Konsole; no startup service."""
 from __future__ import annotations
 from contextlib import contextmanager
+from contextvars import ContextVar
+_verbose = ContextVar('setup_verbose', default=False)
 import fcntl
 import os
 from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan, install_log, install_progress
+from . import core, setup_plan, install_log, install_progress, run_log
 
 
 class NeedsSetup(RuntimeError):
@@ -50,6 +52,8 @@ def lock():
 
 
 def _run(args, env=None):
+    if args and args[0] == 'flatpak':
+        return run_log.run_step(args, env, verbose=_verbose.get())
     result = subprocess.run(args, env=env)
     if result.returncode: raise RuntimeError('Installer exited with code '+str(result.returncode)+'. See Konsole for its explanation.')
 
@@ -125,7 +129,8 @@ def execute(row):
         return
     if key == 'launcher:nonsteamlaunchers':
         dest = Path.home()/'Desktop/Deck-Setup-Staged/NonSteamLaunchers.desktop'; dest.parent.mkdir(parents=True, exist_ok=True)
-        _run(['curl', '-fL', '--retry', '2', 'https://raw.githubusercontent.com/moraroy/NonSteamLaunchers-On-Steam-Deck/main/NonSteamLaunchers.desktop', '-o', str(dest)])
+        from . import downloads
+        downloads.fetch('https://raw.githubusercontent.com/moraroy/NonSteamLaunchers-On-Steam-Deck/main/NonSteamLaunchers.desktop', dest, validate=downloads.desktop_entry)
         dest.chmod(0o755); return
     if row['kind'] == 'plugin':
         if decky_installer.install_selected(only=name, assume_yes=True): raise NeedsSetup('Plugin needs attention in the Decky Plugin Store.')
@@ -155,7 +160,17 @@ def verify(row):
     return setup_plan.present(row)[0]
 
 
-def run(only=None, resume=False):
+def run(only=None, resume=False, verbose=False):
+    token = _verbose.set(verbose)
+    try:
+        with run_log.execution("install") as journal:
+            code = _run_plan(only, resume, journal)
+            journal.finish(code)
+            return code
+    finally: _verbose.reset(token)
+
+
+def _run_plan(only, resume, journal):
     plan, rows = setup_plan.items()
     by_key = {row['key']: row for row in rows}
     if only is not None and only not in by_key: raise ValueError('Item is not selected in the saved plan')
@@ -168,10 +183,11 @@ def run(only=None, resume=False):
             for parent in by_key[key]['requires']: include(parent)
         include(only)
     with lock():
+        core.save_json(journal.path/'plan.json', {**core.load_json(journal.path/'plan.json', {}), 'plan': plan, 'items': rows, 'requested_item': only, 'resume': resume})
         fingerprint = setup_plan.fingerprint(plan)
         previous = core.load_json(state_path(), {})
         same = previous.get('fingerprint') == fingerprint
-        state = {'fingerprint': fingerprint, 'version': (core.ROOT/'VERSION').read_text().strip(),
+        state = {'run_id': journal.id, 'fingerprint': fingerprint, 'version': (core.ROOT/'VERSION').read_text().strip(),
                  'startedAt': time.time(), 'items': previous.get('items', {}) if same else {}}
         records = state['items']
         for row in rows:
@@ -180,6 +196,8 @@ def run(only=None, resume=False):
             records[key].update(status=status, message=message, updatedAt=time.time())
             if status != 'RUNNING': records[key]['finishedAt'] = time.time()
             core.save_json(state_path(), state)
+            if status != 'RUNNING':
+                run_log.event(key, status, message, duration_ms=round((time.time()-records[key].get('startedAt', time.time()))*1000))
         try:
             for row in rows:
                 key = row['key']
@@ -200,7 +218,7 @@ def run(only=None, resume=False):
                     with install_log.capture(key) as log_path, install_progress.listen(progress):
                         records[key]['logPath'] = str(log_path)
                         path, budget, _ = setup_plan.storage_budget(row, False)
-                        if budget is not None and not verify(row):
+                        if budget is not None:
                             anchor = path.resolve()
                             while not anchor.exists(): anchor = anchor.parent
                             if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
@@ -215,6 +233,8 @@ def run(only=None, resume=False):
                     message = install_log.redact(str(exc))
                     if records[key].get('logPath'): message += ' Error log: '+records[key]['logPath']
                     record(key, 'FAILED', message)
+                finally:
+                    run_log.archive_item(key)
         except (KeyboardInterrupt, EOFError):
             for key in wanted:
                 if records[key]['status'] == 'RUNNING': record(key, 'INTERRUPTED', 'Interrupted; resume to retry this item.')

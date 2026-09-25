@@ -99,9 +99,9 @@ class ExistingInstallation(unittest.TestCase):
                 installed=self.run_tool(ROOT)
                 current=self.home/'.local/share/steamdeck-workstation/current'
                 self.assertEqual(current.resolve(),installed)
-                self.assertEqual(installed.name,'0.2.43')
+                self.assertEqual(installed.name,(ROOT/'VERSION').read_text().strip())
                 result=subprocess.run([str(self.home/'.local/bin/deckctl'),'--version'],env=self.env,capture_output=True,text=True,timeout=10)
-                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),'0.2.43')
+                self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.strip(),(ROOT/'VERSION').read_text().strip())
                 for name,content in payloads.items():self.assertEqual((self.home/name).read_bytes(),content,name)
                 self.assertEqual(old_inventory,{str(p.relative_to(old)):hashlib.sha256(p.read_bytes()).hexdigest() for p in old.rglob('*') if p.is_file()})
                 self.assertIn('# personal shell config',bashrc.read_text())
@@ -120,7 +120,13 @@ class ExistingInstallation(unittest.TestCase):
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         self.assertEqual(changed-maintenance,set(guard['maintenance_changes'])-maintenance)
         for name in ('lib/deckctl/android.py','modules/decky/css-stack.json','tools/install-control-plane'):
-            self.assertNotIn(name,changed)
+            if name == 'tools/install-control-plane':
+                # Only the explicit RC suffix grammar changed; retain the historical
+                # full-file guard for every other byte of the control plane.
+                original = (ROOT/name).read_bytes().replace(br'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?', br'\d+\.\d+\.\d+')
+                self.assertEqual(hashlib.sha256(original).hexdigest(), guard['files'][name]['sha256'])
+            else:
+                self.assertNotIn(name,changed)
 
 
 

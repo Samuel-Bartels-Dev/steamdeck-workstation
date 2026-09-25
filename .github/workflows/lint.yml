@@ -32,3 +32,20 @@ jobs:
           echo "$RUNNER_TEMP/lint-bin" >> "$GITHUB_PATH"
       - name: Python, shell, workflow and documentation checks
         run: python3 tools/lint-repo.py
+  powershell-syntax:
+    name: PowerShell syntax (${{ matrix.shell }})
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        shell: [powershell, pwsh]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Parse companion scripts without executing host changes
+        shell: pwsh
+        env:
+          TEST_SHELL: ${{ matrix.shell }}
+        run: |
+          & $env:TEST_SHELL -NoProfile -File tools/check-powershell.ps1
+          exit $LASTEXITCODE

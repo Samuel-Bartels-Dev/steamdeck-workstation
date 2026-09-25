@@ -211,3 +211,9 @@ def decorate(root):
 # Optional container commands keep their domain documentation with the implementation.
 from .containers import HELP as CONTAINER_HELP
 PAGES.update(CONTAINER_HELP)
+
+from .production_cli import HELP as PRODUCTION_HELP
+PAGES.update(PRODUCTION_HELP)
+PAGES['doctor'] = ('Diagnose one module or all enabled modules without repairing them.', 'Read-only verifiers; docker and waydroid expose provider diagnostics. Use explicit repair MODULE to change installed state. Exit statuses match verify.', 'doctor docker --json')
+
+PAGES['storage'] = ('Validate internal storage and optional role-card mounts.', 'Without a subcommand checks mount presence, writable flags and optional settings.json storage_devices expectations (uuid, mount, filesystem, required). Does not mount, format or run fsck. Exit 1 invalid, 2 optional missing, 0 pass.', 'storage --json')

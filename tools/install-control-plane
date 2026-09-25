@@ -6,7 +6,7 @@ parser = argparse.ArgumentParser(description='Install the persistent deckctl con
 parser.add_argument('source', nargs='?', default=str(Path(__file__).resolve().parents[1]), help='Trusted repository directory (default: this repository).')
 source = Path(parser.parse_args().source).resolve()
 version = (source / "VERSION").read_text().strip()
-if not re.fullmatch(r'\d+\.\d+\.\d+', version): raise SystemExit('Invalid release version')
+if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?', version): raise SystemExit('Invalid release version')
 if not (source/'bin/deckctl').is_file(): raise SystemExit('Source is missing bin/deckctl')
 # Validate configuration before creating or replacing the active release.
 alias_map = json.loads((source / 'config/aliases.json').read_text())

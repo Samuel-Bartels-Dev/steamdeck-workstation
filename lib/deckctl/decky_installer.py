@@ -314,6 +314,13 @@ def install_selected(*, reinstall: bool = False, dry_run: bool = False, assume_y
             if not locator:
                 failures.append((name, "Decky Store has no downloadable version"))
                 continue
+            from . import compatibility
+            compatibility_row = compatibility.resolve('plugin:'+folder, str(version or 'unknown'), compatibility.system(), compatibility.database())
+            if compatibility_row['status'] == 'UNSUPPORTED':
+                failures.append((name, 'Reviewed compatibility record marks this version unsupported'))
+                continue
+            if compatibility_row['status'] == 'UNKNOWN':
+                print(f"{name}: UNKNOWN compatibility; explicitly selected Store package, actual Game Mode loading remains unverified.")
             url = CDN_TEMPLATE.format(hash=locator)
             archive = td / f"{folder}.zip"
             print(f"\n{name}: resolving {version or 'latest'}")

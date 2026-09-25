@@ -6,7 +6,7 @@
 4. **`deckctl` orchestrates; modules implement.** Domain-specific installation logic does not belong in the root CLI.
 5. **Hardware differences are profiles/capabilities, not forks.** OLED/LCD share implementation unless hardware truly requires otherwise.
 6. **Interactive setup is a state, not a failure.** Authentication/GUI work may legitimately return `CONFIG_REQUIRED`.
-7. **Verification is read-only.** `verify` reports; `doctor` repairs; `apply` converges desired state.
+7. **Verification is read-only.** `verify` reports; `doctor` diagnoses; explicit `repair` repairs; `apply` converges desired state. Legacy module doctor actions are internal repair implementations.
 8. **Replaceable payloads and irreplaceable state are different.** Games can be re-downloaded; saves/configuration need protection.
 9. **Secrets never enter Git or support bundles.** Redaction is mandatory.
 10. **Strong interfaces, simple implementation.** Do not build a framework larger than the problem.
