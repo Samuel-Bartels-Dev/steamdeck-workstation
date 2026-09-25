@@ -1,11 +1,35 @@
 """Read-only preflight using selected items and conservative existing space allowances."""
 import json
 import os
+import pwd
 from pathlib import Path
 import shutil
 import subprocess
 import tempfile
 from . import core, compatibility, setup_plan
+
+
+def sudo_readiness():
+    """Inspect password status without reading hashes or attempting authentication."""
+    if not shutil.which('sudo'):
+        return {'status':'WARN', 'state':'UNAVAILABLE', 'message':'sudo is unavailable. System-level installers need administrator access.'}
+    try:
+        user = pwd.getpwuid(os.getuid()).pw_name
+        result = subprocess.run(['passwd', '--status', user], capture_output=True, text=True,
+                                stdin=subprocess.DEVNULL, timeout=5, env=dict(os.environ, LC_ALL='C'))
+        fields = result.stdout.split()
+        state = fields[1] if result.returncode == 0 and len(fields) >= 2 and fields[0] == user else None
+    except (OSError, KeyError, subprocess.TimeoutExpired): state = None
+    if state == 'P':
+        return {'status':'PASS', 'state':'PASSWORD_SET', 'message':'Account password is set. sudo authorization is still checked by each installer.'}
+    if state == 'NP':
+        message = 'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo.'
+    elif state == 'L':
+        message = 'Account password is locked. On a fresh SteamOS install, open Konsole and run passwd to set your password. If that fails, resolve account access before using sudo installers.'
+    else:
+        message = 'Could not check account password status. Before using sudo installers, open Konsole and run sudo -v. On a fresh SteamOS install with no password, run passwd first.'
+    return {'status':'WARN', 'state':{'NP':'PASSWORD_MISSING','L':'PASSWORD_LOCKED'}.get(state,'UNKNOWN'),
+            'message':message+' Password entry stays in Konsole; typed characters are not displayed. Then recheck here. User-space installs can continue.'}
 
 
 def anchor(path):
@@ -60,7 +84,8 @@ def report(rows=None, online=False):
     add('hardware', 'WARN' if host['model'] == 'unknown' else 'PASS', host['model'])
     for name in ('flatpak', 'curl', 'tar', 'lsblk'):
         add(name, 'PASS' if shutil.which(name) else 'FAIL', 'Required executable '+name)
-    add('sudo', 'PASS' if shutil.which('sudo') else 'WARN', 'Availability only; interactive authorization is provider-owned.')
+    sudo = sudo_readiness()
+    add('sudo', sudo['status'], sudo['message'])
     volumes = {}; unknown = []
     for row in rows:
         if row['kind'] == 'support': continue
