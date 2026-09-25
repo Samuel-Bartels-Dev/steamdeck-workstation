@@ -35,11 +35,13 @@ def reserve():
 def network():
     # curl bounds DNS, TLS, connect and transfer time as one process; no unbounded getaddrinfo.
     rows = []
-    for host in ('api.github.com', 'github.com', 'dl.flathub.org'):
+    endpoints = ('https://api.github.com', 'https://github.com', 'https://flathub.org/repo/flathub.flatpakrepo')
+    for endpoint in endpoints:
+        host = endpoint.split('/')[2]
         try:
             result = subprocess.run(['curl', '--head', '--fail', '--silent', '--show-error',
-                                     '--proto', '=https', '--connect-timeout', '5', '--max-time', '12',
-                                     'https://'+host], capture_output=True, text=True, timeout=15)
+                                     '--proto', '=https', '--proto-redir', '=https', '--location', '--connect-timeout', '5', '--max-time', '12',
+                                     endpoint], capture_output=True, text=True, timeout=15)
             passed = result.returncode == 0
         except (OSError, subprocess.TimeoutExpired): passed = False
         rows.append({'name': host, 'status': 'PASS' if passed else 'FAIL',
