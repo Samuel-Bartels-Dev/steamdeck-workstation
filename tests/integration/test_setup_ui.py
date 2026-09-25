@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Optional actual Qt Quick + loopback smoke test; never provisions software."""
 import os
+import json
 from pathlib import Path
 import shutil
 import subprocess
@@ -31,6 +32,7 @@ UI.Setup {
     id: app
     width: 1120; height: 720
     property bool attempted: false
+    property bool capturing: false
     property bool retried: false
     property int experienceStage: 0
     function findObject(root, name) {
@@ -42,6 +44,7 @@ UI.Setup {
     Timer {
         running: app.loaded; interval: 100; repeat: true
         onTriggered: {
+            if (app.capturing) return
             if (!app.attempted) {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
                 app.attempted = true
@@ -50,6 +53,8 @@ UI.Setup {
                 app.guideStep = 3
                 app.closeGuide()
                 if (app.selectionCount() !== 0 || app.dirty) throw new Error("Walkthrough changed choices")
+                app.progress = {running:false,modules:[{id:"test",status:"PENDING"}]}
+                if (app.installRows().length) throw new Error("Ready-to-install screen shows waiting rows")
                 app.restoreProgress({hasHistory:true,resumable:true,unfinished:2,lastRunAt:123,running:false,modules:[]})
                 if (app.previousRunText().indexOf("2 items") < 0 || app.stage !== 0) throw new Error("Resume guidance missing or changed navigation")
                 app.previousRun = ({})
@@ -157,6 +162,7 @@ UI.Setup {
                     app.finishItems = []
                     app.progress = {running:true, operation:"install", modules:[{id:"terminal:ghostty",name:"Ghostty",status:"RUNNING",phase:"Downloading",message:"Fetching runtime",elapsedSeconds:65,startedAt:1,total:10000000,downloaded:5000000,hasLog:true}]}
                     app.showLog("terminal:ghostty")
+                    app.refreshConsole()
                     return
                 }
                 if (!app.logView.text || app.logView.text.indexOf("Extracting") < 0) throw new Error("Log viewer did not load diagnostics")
@@ -165,10 +171,22 @@ UI.Setup {
                 }
                 if (app.logPending) return
                 if (app.logView.text.indexOf("Latest output") < 0) throw new Error("Live details did not refresh")
-                app.progress = {running:false,modules:[{id:"terminal:ghostty",status:"FAILED"}]}
+                if (app.experienceStage === 5) {
+                    app.progress = {running:false,operation:"install",exitCode:1,summary:{total:1,done:0,attention:1},modules:[{id:"terminal:ghostty",name:"Ghostty",status:"FAILED",message:"Verification needs attention. Review Details before retrying.",hasLog:true}]}
+                    app.closeLog(); app.experienceStage = 6; return
+                }
+                if (app.consolePending) return
+                if (app.consoleOutput.text.indexOf("Checking selected tools") < 0) throw new Error("Inline output did not load")
+                var resultRow = app.findObject(app.contentItem,"installationResultRow")
+                if (!resultRow) throw new Error("Compact result row missing")
+                resultRow.clicked()
+                if (app.expandedResult !== "terminal:ghostty") throw new Error("Row did not expand")
+                resultRow.clicked()
+                if (app.expandedResult !== "") throw new Error("Row did not collapse")
                 if (!app.logCanRetry()) throw new Error("Failed item retry unavailable")
                 app.closeLog()
                 app.dirty = false
+                // OPTIONAL_SCREENSHOT
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
             }
         }
@@ -176,6 +194,10 @@ UI.Setup {
     Timer { running: true; interval: 8000; onTriggered: { app.dirty=false; Qt.exit(4) } }
 }
 '''.replace('width: 1120; height: 720', f'width: {width}; height: {height}'))
+            if os.environ.get('DECKCTL_UI_SCREENSHOTS'):
+                images = Path(os.environ['DECKCTL_UI_SCREENSHOTS']); images.mkdir(parents=True,exist_ok=True)
+                capture = 'app.capturing = true; app.paletteId = "bubblegum"; app.findObject(app.contentItem,"setupCanvas").grabToImage(function(image) { image.saveToFile('+json.dumps(str(images/f'install-{width}.png'))+'); app.navigate(1); Qt.callLater(function() { app.findObject(app.contentItem,"setupCanvas").grabToImage(function(choices) { choices.saveToFile('+json.dumps(str(images/f'choices-{width}.png'))+'); Qt.exit(0) }) }) }); return'
+                harness.write_text(harness.read_text().replace('// OPTIONAL_SCREENSHOT',capture))
             run = subprocess.run
             def start(args, **kwargs):
                 args[1] = str(harness)
@@ -203,6 +225,9 @@ UI.Setup {
             password_check = patch.object(preflight,'sudo_readiness',return_value={'status':'WARN','state':'PASSWORD_MISSING','message':'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo. Password entry stays in Konsole; typed characters are not displayed. Then recheck here. User-space installs can continue.'})
             password_check.start()
             self.addCleanup(password_check.stop)
+            console_check = patch.object(setup_window.Session,'console',return_value={'text':'Checking selected tools…\nGhostty: verification needs attention.\nInstallation pass complete. Review the results below.'})
+            console_check.start()
+            self.addCleanup(console_check.stop)
             with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])

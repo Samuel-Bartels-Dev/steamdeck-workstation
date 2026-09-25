@@ -30,6 +30,21 @@ ApplicationWindow {
     property string paletteId: "bubblegum"
     property var appearanceChoices: ({})
     property var logView: ({item: "", text: ""})
+    property var consoleOutput: ({text:""})
+    property bool consolePending: false
+    property bool showConsole: true
+    property bool followConsole: true
+    property string expandedResult: ""
+    property bool showCompleted: false
+    function installRows() {
+        if (!progress.operation || (finishItems.length && !progress.running)) return []
+        return (progress.items || progress.modules || []).filter(function(item) { return !progress.running || showCompleted || item.status !== "DONE" })
+    }
+    function refreshConsole() {
+        if (consolePending) return
+        consolePending = true
+        request("console", null, function(result) { consolePending = false; consoleOutput = result })
+    }
     property var previousRun: ({})
     property bool previousRunDismissed: false
     property int guideStep: 0
@@ -181,7 +196,7 @@ ApplicationWindow {
                 var result = JSON.parse(xhr.responseText)
                 if (xhr.status !== 200) throw new Error(result.error || "Setup could not complete this action.")
                 callback(result)
-            } catch (e) { busy = false; if (route === "log") logPending = false; problem = e.message || "Setup connection lost. Close and reopen this window." }
+            } catch (e) { busy = false; if (route === "log") logPending = false; if (route === "console") consolePending = false; problem = e.message || "Setup connection lost. Close and reopen this window." }
         }
         xhr.send(payload === null ? null : JSON.stringify(payload))
     }
@@ -442,6 +457,7 @@ ApplicationWindow {
         busy = true; problem = ""; notice = ""
         request("start", {operation: name, item: item || null}, function(result) {
             finishItems = []; progress = result; stage = 5; busy = false
+            showConsole = true; refreshConsole()
         })
     }
     function stateColor(status) {
@@ -453,7 +469,7 @@ ApplicationWindow {
     onClosing: function(event) {
         if (progress.running || busy) {
             event.accepted = false
-            notice = "Finish or close the installer terminal before closing setup."
+            notice = "Installation is running. Keep setup open until this pass finishes."
         } else if (dirty && loaded && !leaveDialog.visible) {
             event.accepted = false
             leaveDialog.open()
@@ -488,6 +504,7 @@ ApplicationWindow {
         interval: 1500; running: window.loaded && window.stage === 5; repeat: true
         onTriggered: window.request("progress", null, function(result) { var wasRunning = window.progress.running; window.progress = result; if (wasRunning && !result.running) window.refreshInventory() })
     }
+    Timer { interval: 1000; running: window.loaded && window.stage === 5 && window.showConsole && window.followConsole; repeat: true; onTriggered: window.refreshConsole() }
 
     component TextLabel: Label {
         color: window.ink
@@ -526,12 +543,15 @@ ApplicationWindow {
         property string inventoryDetail: ""
         property int selectedCount: 0
         property bool selected: false
-        implicitHeight: Math.max(104, card.contentItem.implicitHeight + 32) + (optionsPage ? 54 : 0)
+        implicitHeight: Math.max(94, card.contentItem.implicitHeight + 24) + (optionsPage ? 54 : 0)
         hoverEnabled: true
         bottomPadding: optionsPage ? 54 : 0
+        ToolTip.visible: hovered && !!inventoryDetail
+        ToolTip.delay: 700
+        ToolTip.text: inventoryDetail
         background: Rectangle {
-            radius: 13
-            color: !card.navigation && card.selected ? window.tone("#35182f") : (card.hovered ? window.tone("#2b1c3a") : window.tone("#1a1128"))
+            radius: 10
+            color: !card.navigation && card.selected ? window.tone("#2a1736") : (card.hovered ? window.tone("#2b1c3a") : window.tone("#1a1128"))
             border.width: card.activeFocus ? 2 : 1
             border.color: card.activeFocus ? window.cyan : (!card.navigation && card.selected ? window.tone("#c745a7") : window.tone("#493055"))
         }
@@ -549,8 +569,8 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.rightMargin: 16; spacing: 6
                 TextLabel { text: card.heading; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 TextLabel { text: card.detail; color: !card.navigation && card.selected ? window.tone("#e2c5e6") : window.muted; font.pixelSize: 13; Layout.fillWidth: true }
-                TextLabel { visible: !!card.inventoryLabel; text: card.inventoryLabel; color: card.inventoryStatus === "UPDATE" ? window.accent : window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
-                TextLabel { visible: !!card.inventoryDetail; text: card.inventoryDetail; color: window.muted; font.pixelSize: 11; Layout.fillWidth: true }
+                TextLabel { visible: !!card.inventoryLabel; text: card.inventoryLabel; color: card.inventoryStatus === "UPDATE" ? window.accent : window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+
                 TextLabel { visible: !!card.requirement; text: "Included · required by " + card.requirement; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
                 TextLabel { visible: card.navigation; text: card.selectedCount ? card.selectedCount + " selected · Browse" : "Browse individual options"; color: window.accent; font.pixelSize: 12 }
             }
@@ -576,10 +596,10 @@ ApplicationWindow {
     RowLayout {
         anchors.fill: parent; spacing: 0
         Rectangle {
-            Layout.preferredWidth: window.width < 950 ? 210 : 246
+            Layout.preferredWidth: window.width < 950 ? 180 : 218
             Layout.fillHeight: true; color: window.tone("#120b1d")
             ColumnLayout {
-                anchors.fill: parent; anchors.margins: 22; spacing: 8
+                anchors.fill: parent; anchors.margins: 16; spacing: 8
                 Rectangle {
                     visible: window.height >= 600; Layout.topMargin: window.height < 620 ? 0 : 10; width: 42; height: 42; radius: 12; color: window.accent
                     Text { anchors.centerIn: parent; text: "W"; color: window.tone("#20091e"); font.pixelSize: 24; font.bold: true }
@@ -611,38 +631,33 @@ ApplicationWindow {
                 Action {
                     id: paletteButton
                     Layout.fillWidth: true
-                    text: "Theme & appearance"
+                    text: "Appearance"
                     enabled: window.loaded && !window.busy && !window.progress.running
                     Accessible.name: "Theme and appearance: " + window.activePalette.name
                     onClicked: appearanceDialog.open()
                 }
                 Rectangle { visible: window.height >= 780; Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
                 TextLabel { visible: window.height >= 780; text: "BUILT FOR YOUR DECK"; font.pixelSize: 10; font.letterSpacing: 1.2; color: window.tone("#bda8ca"); Layout.topMargin: 14 }
-                TextLabel { visible: window.height >= 780; text: "Setup runs only while open.\nYour choices stay yours."; color: window.muted; font.pixelSize: 12; Layout.topMargin: 4 }
+                TextLabel { visible: window.height >= 780; text: "On-demand setup.\nYour choices stay yours."; color: window.muted; font.pixelSize: 12; Layout.topMargin: 4 }
             }
         }
         ColumnLayout {
             Layout.fillWidth: true; Layout.fillHeight: true
-            Layout.margins: window.width < 950 ? 22 : 34; spacing: 15
+            Layout.margins: window.width < 950 ? 18 : 28; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
                 TextLabel { text: window.stage < 4 ? "BUILD YOUR SETUP" : "YOUR WORKSTATION"; font.pixelSize: 11; font.letterSpacing: 1.8; color: window.accent }
                 Item { Layout.fillWidth: true }
                 TextLabel { text: window.selectionCount() + " in your plan"; color: window.muted; font.pixelSize: 12 }
+                Action { text: window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS" ? "Setup check" : window.inventoryPending ? "Checking Deck…" : "Deck status"; implicitHeight: 36; onClicked: statusDrawer.open() }
             }
-            TextLabel { text: window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
-            TextLabel { text: window.detailPage === "css" ? "Decky › CSS Loader. Choose the components you want to manage." : window.detailPage === "plugins" ? "Add-ons for Decky Loader. CSS Loader has its own component choices." : window.detailPage ? "Check only the items you want. Browsing does not select or install anything." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
+            TextLabel { text: window.stage === 5 ? window.installTitle() : window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
+            TextLabel { visible: window.stage !== 5; text: window.detailPage === "css" ? "Decky › CSS Loader. Choose the components you want to manage." : window.detailPage === "plugins" ? "Add-ons for Decky Loader. CSS Loader has its own component choices." : window.detailPage ? "Check only the items you want. Browsing does not select or install anything." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
             RowLayout {
                 visible: !!window.detailPage || window.navigationStack.length > 0
                 Layout.fillWidth: true
                 Action { text: window.stage === 5 && window.progress.running ? (window.progress.operation === "accounts" ? "Setup in progress…" : "Installing…") : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "‹ Return to review" : window.detailPage === "css" ? "‹ Decky plugins" : "‹ " + window.stageNames[window.stage]; onClicked: window.back() }
                 TextLabel { Layout.fillWidth: true; text: window.detailPage === "plugins" ? "Choosing a plugin includes Decky Loader." : window.detailPage === "css" ? "Choosing a theme includes CSS Loader and Decky." : "Your edits stay in this plan."; color: window.muted; font.pixelSize: 12 }
-            }
-            RowLayout {
-                visible: !!window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS"
-                Layout.fillWidth: true
-                TextLabel { Layout.fillWidth: true; text: window.data.sudoReadiness ? window.data.sudoReadiness.message : ""; color: window.accent; font.pixelSize: 12 }
-                Action { text: "Recheck password"; enabled: !window.progress.running; onClicked: window.request("sudo-readiness", null, function(result) { var next = Object.assign({}, window.data); next.sudoReadiness = result; window.data = next }) }
             }
             RowLayout {
                 visible: window.stage < 4
@@ -679,12 +694,6 @@ ApplicationWindow {
                 Layout.fillWidth: true; implicitHeight: banner.implicitHeight + 24; radius: 10
                 color: window.problem ? window.tone("#442035") : window.tone("#281d3e")
                 TextLabel { id: banner; anchors.fill: parent; anchors.margins: 12; text: window.problem || window.notice; color: window.problem ? window.tone("#ffd0e9") : window.tone("#e3d0fa"); font.pixelSize: 13 }
-            }
-            RowLayout {
-                Layout.fillWidth: true
-                TextLabel { Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: window.inventoryPending ? "Checking this Deck and available updates… " + (window.deckInventory.completed || 0) + "/" + (window.deckInventory.total || 0) : "Device status is separate from your selections. Sign-in may still be needed." }
-                Action { text: "Refresh status"; enabled: !window.inventoryPending && !window.progress.running; onClicked: window.refreshInventory() }
-                Action { text: "Select updates"; enabled: !window.inventoryPending && !window.progress.running && !window.busy; onClicked: window.selectUpdates() }
             }
             ScrollView {
                 id: scroll
@@ -897,74 +906,97 @@ ApplicationWindow {
                     }
                     ColumnLayout {
                         visible: window.stage === 5; Layout.fillWidth: true; spacing: 12
-                        TextLabel { text: window.installTitle(); font.pixelSize: 21; font.weight: Font.DemiBold }
+
                         TextLabel {
                             visible: !!window.progress.operation && !!window.progress.summary
                             text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " verified in this installation record" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
                             Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan
                         }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
-                        Action { visible: !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
-                        Repeater {
-                            model: window.finishItems
-                            delegate: Rectangle {
-                                required property var modelData
-                                Layout.fillWidth: true; implicitHeight: finishColumn.implicitHeight + 28; radius: 12; color: window.tone("#1a1128")
-                                ColumnLayout {
-                                    id: finishColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 14; spacing: 7
-                                    TextLabel { text: modelData.name + " · " + modelData.status; Layout.fillWidth: true; font.weight: Font.DemiBold }
-                                    TextLabel { text: modelData.note; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
-                                    Flow {
-                                        Layout.fillWidth: true; spacing: 8
-                                        Action { visible: modelData.canLaunch; text: modelData.status === "Ready" ? "Open" : "Open setup / sign-in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "launch") }
-                                        Action { visible: modelData.canConfirm && modelData.status !== "Ready"; text: modelData.followup === "pairing" ? "I've paired it" : modelData.followup === "setup" ? "I've completed setup" : "I've signed in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "confirm") }
-                                    }
+                        Action { visible: !!window.progress.operation && !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        Rectangle {
+                            visible: !!window.progress.operation
+                            Layout.fillWidth: true; implicitHeight: consoleColumn.implicitHeight + 24
+                            radius: 12; color: window.tone("#150d21"); border.color: window.tone("#402c4e")
+                            ColumnLayout {
+                                id: consoleColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12; spacing: 8
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    TextLabel { text: "LIVE OUTPUT"; Layout.fillWidth: true; font.pixelSize: 11; font.letterSpacing: 1; color: window.muted }
+                                    Action { text: window.followConsole ? "Pause" : "Live"; implicitHeight: 36; implicitWidth: 70; onClicked: window.followConsole = !window.followConsole }
+                                    Action { text: "Copy"; implicitHeight: 36; implicitWidth: 70; onClicked: { consoleText.selectAll(); consoleText.copy(); consoleText.deselect() } }
+                                    Action { text: window.showConsole ? "Hide" : "Show"; implicitHeight: 36; implicitWidth: 70; onClicked: window.showConsole = !window.showConsole }
+                                }
+                                ScrollView {
+                                    visible: window.showConsole; Layout.fillWidth: true; Layout.preferredHeight: window.height < 620 ? 120 : 180; clip: true
+                                    TextArea { id: consoleText; objectName: "inlineConsole"; text: window.consoleOutput.text || "Output from UI installs will appear here. Earlier terminal runs have per-item logs below."; readOnly: true; selectByMouse: true; textFormat: TextEdit.PlainText; wrapMode: TextEdit.WrapAnywhere; color: window.ink; font.family: "monospace"; font.pixelSize: 12; background: null; onTextChanged: cursorPosition = length }
                                 }
                             }
                         }
-
-                        TextLabel { text: window.progress.running ? "Use the Konsole window for installer prompts. Keep this window open to follow results." : window.progress.operation && window.progress.exitCode !== 0 ? "Some selections still need attention. Review their results or logs, then resume. Completed installs are reused." : "Each selection has its own result. Resume checks completed items again and retries unfinished work."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
+                        TextLabel { visible: !window.progress.operation; text: window.selectionCount() + " optional choices saved. Start when you're ready; live output and results will appear here."; Layout.fillWidth: true; color: window.muted }
                         Repeater {
-                            model: window.finishItems.length && !window.progress.running ? [] : window.progress.modules
-                            delegate: Rectangle {
+                            model: window.finishItems
+                            delegate: ColumnLayout {
                                 required property var modelData
-                                Layout.fillWidth: true; implicitHeight: resultColumn.implicitHeight + 26
-                                radius: 10; color: window.tone("#1a1128")
-                                ColumnLayout {
-                                    id: resultColumn; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 13; spacing: 5
-                                    RowLayout {
-                                        Layout.fillWidth: true
-                                        TextLabel { text: modelData.name || window.featureNames()[modelData.id] || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
-                                        TextLabel { text: modelData.resultLabel || window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
+                                property bool expanded: window.expandedResult === "finish:" + modelData.key
+                                Layout.fillWidth: true; spacing: 8
+                                AbstractButton {
+                                    Layout.fillWidth: true; implicitHeight: 48
+                                    Accessible.name: modelData.name + ". " + modelData.status + ". Show setup actions."
+                                    onClicked: window.expandedResult = parent.expanded ? "" : "finish:" + modelData.key
+                                    background: Rectangle { color: parent.hovered || parent.activeFocus ? window.tone("#1a1128") : "transparent"; radius: 6 }
+                                    contentItem: RowLayout {
+                                        TextLabel { text: modelData.name; Layout.fillWidth: true; font.pixelSize: 14 }
+                                        TextLabel { text: modelData.status + "  ›"; color: window.cyan; font.pixelSize: 12 }
                                     }
-                                    TextLabel { visible: !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                                    TextLabel { visible: !!modelData.nextAction; text: "Next: " + (modelData.nextAction || ""); color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
-                                    TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
-                                    TextLabel { visible: modelData.status === "RUNNING"; text: "Last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
-                                    TextLabel {
-                                        visible: modelData.status === "RUNNING" || !!modelData.startedAt
-                                        text: (modelData.status === "RUNNING" ? (modelData.phase || "Installing") + " · " : "Elapsed · ") + window.elapsedLabel(modelData.elapsedSeconds)
-                                        color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true
-                                    }
-                                    BusyIndicator { visible: modelData.status === "RUNNING" && !(modelData.total > 0); running: visible; implicitWidth: 28; implicitHeight: 28 }
-                                    ProgressBar {
-                                        id: transferProgress
-                                        visible: modelData.status === "RUNNING" && modelData.total > 0; Layout.fillWidth: true
-                                        implicitHeight: 6
-                                        background: Rectangle { color: window.tone("#31213f"); radius: 3 }
-                                        contentItem: Item { Rectangle { width: transferProgress.visualPosition * parent.width; height: parent.height; color: window.accent; radius: 3 } }
-                                        indeterminate: !(modelData.total > 0)
-                                        value: modelData.total > 0 ? Math.min(1, (modelData.downloaded || 0) / modelData.total) : 0
-                                        Accessible.name: "Progress for " + modelData.name
-                                    }
-                                    TextLabel {
-                                        visible: modelData.status === "RUNNING" && modelData.downloaded !== null && modelData.downloaded !== undefined
-                                        text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded · total size unavailable")
-                                        font.pixelSize: 12; color: window.muted; Layout.fillWidth: true
-                                    }
-                                    Action { objectName: "viewInstallLog"; text: "Details / live output"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
-                                    Action { text: "Retry this item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
                                 }
+                                TextLabel { visible: parent.expanded; text: modelData.note; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
+                                Flow {
+                                    visible: parent.expanded; Layout.fillWidth: true; spacing: 8
+                                    Action { visible: modelData.canLaunch; text: modelData.status === "Ready" ? "Open" : "Open setup / sign-in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "launch") }
+                                    Action { visible: modelData.canConfirm && modelData.status !== "Ready"; text: modelData.followup === "pairing" ? "I've paired it" : modelData.followup === "setup" ? "I've completed setup" : "I've signed in"; enabled: !window.busy && !window.progress.running; onClicked: window.finishAction(modelData.key, "confirm") }
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
+                            }
+                        }
+                        RowLayout {
+                            visible: !!window.progress.operation && !window.finishItems.length
+                            Layout.fillWidth: true
+                            TextLabel { text: "RESULTS · select an item for details"; Layout.fillWidth: true; color: window.muted; font.pixelSize: 11; font.letterSpacing: .5 }
+                            CheckBox { visible: window.progress.running; text: "Show completed"; checked: window.showCompleted; onToggled: window.showCompleted = checked }
+                        }
+                        Repeater {
+                            model: window.installRows()
+                            delegate: ColumnLayout {
+                                id: resultRow
+                                required property var modelData
+                                property bool expanded: window.expandedResult === modelData.id
+                                Layout.fillWidth: true; spacing: 6
+                                AbstractButton {
+                                    objectName: "installationResultRow"
+                                    Layout.fillWidth: true; implicitHeight: 48
+                                    Accessible.name: (modelData.name || modelData.id) + ". " + (modelData.resultLabel || window.statusLabel(modelData.status)) + ". Show details and actions."
+                                    onClicked: window.expandedResult = resultRow.expanded ? "" : modelData.id
+                                    background: Rectangle { color: parent.hovered || parent.activeFocus ? window.tone("#1a1128") : "transparent"; radius: 6 }
+                                    contentItem: RowLayout {
+                                        spacing: 12
+                                        TextLabel { text: modelData.name || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
+                                        TextLabel { text: (modelData.resultLabel || window.statusLabel(modelData.status)) + (resultRow.expanded ? "  ⌄" : "  ›"); color: window.stateColor(modelData.status); font.pixelSize: 12 }
+                                    }
+                                }
+                                TextLabel { visible: (resultRow.expanded || modelData.status === "RUNNING") && !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                TextLabel { visible: resultRow.expanded && !!modelData.nextAction; text: modelData.nextAction || ""; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
+                                TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
+                                TextLabel { visible: modelData.status === "RUNNING"; text: (modelData.phase || "Working") + " · " + window.elapsedLabel(modelData.elapsedSeconds) + " · last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                ProgressBar { visible: modelData.status === "RUNNING"; Layout.fillWidth: true; implicitHeight: 4; indeterminate: !(modelData.total > 0); value: modelData.total > 0 ? Math.min(1, (modelData.downloaded || 0) / modelData.total) : 0; Accessible.name: "Progress for " + modelData.name }
+                                TextLabel { visible: modelData.status === "RUNNING" && modelData.downloaded !== null && modelData.downloaded !== undefined; text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded"); color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                Flow {
+                                    visible: resultRow.expanded; Layout.fillWidth: true; spacing: 8
+                                    Action { objectName: "viewInstallLog"; text: "Details"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
+                                    Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
+                                    Action { text: "Continue in terminal"; visible: ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
+                                }
+                                Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
                             }
                         }
                     }
@@ -1001,6 +1033,29 @@ ApplicationWindow {
             }
         }
     }
+    }
+    Drawer {
+        id: statusDrawer
+        edge: Qt.RightEdge; width: Math.min(430, window.width - 32); height: window.height
+        background: Rectangle { color: window.tone("#150d21") }
+        ScrollView { anchors.fill: parent; anchors.margins: 20; clip: true; contentWidth: availableWidth
+            ColumnLayout { width: parent.width; spacing: 16
+                TextLabel { text: "This Deck"; font.pixelSize: 26; font.bold: true; Layout.fillWidth: true }
+                TextLabel { text: window.inventoryPending ? "Checking installed tools and available updates… " + (window.deckInventory.completed || 0) + "/" + (window.deckInventory.total || 0) : "Checks are separate from your selections. Nothing updates automatically."; Layout.fillWidth: true; color: window.muted }
+                Flow { Layout.fillWidth: true; spacing: 8
+                    Action { text: "Refresh status"; enabled: !window.inventoryPending && !window.progress.running; onClicked: window.refreshInventory() }
+                    Action { text: "Select updates"; enabled: !window.inventoryPending && !window.progress.running && !window.busy; onClicked: { window.selectUpdates(); statusDrawer.close() } }
+                }
+                TextLabel { text: "Administrator access"; font.bold: true; Layout.fillWidth: true }
+                TextLabel { text: window.data.sudoReadiness ? window.data.sudoReadiness.message : "Not checked"; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
+                Action { text: "Recheck password"; enabled: !window.progress.running; onClicked: window.request("sudo-readiness", null, function(result) { var next = Object.assign({}, window.data); next.sudoReadiness = result; window.data = next }) }
+                TextLabel { text: "Installed tools & updates"; font.bold: true; Layout.fillWidth: true }
+                Repeater { model: Object.keys(window.deckInventory.items || {})
+                    delegate: TextLabel { required property string modelData; property var check: window.deckInventory.items[modelData]; text: (check.name || modelData) + " · " + check.label + (check.note ? "\n" + check.note : "") + (check.installedVersion && check.availableVersion ? "\n" + check.installedVersion + " → " + check.availableVersion : ""); Layout.fillWidth: true; color: check.status === "UPDATE" ? window.accent : window.muted; font.pixelSize: 13 }
+                }
+                Action { text: "Close"; onClicked: statusDrawer.close() }
+            }
+        }
     }
     Dialog {
         id: guideDialog

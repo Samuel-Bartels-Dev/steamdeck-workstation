@@ -6,6 +6,29 @@ and [existing hardware checklist](HARDWARE-TESTING.md).
 
 ## Commands and state
 
+Normal UI **Install**, **Resume**, and **Retry** run directly with an inline live
+output panel, without opening Konsole. Output is redacted and bounded to 64 KiB
+in the private `setup-console.json` latest-run record. Pause, copy, or hide the
+panel as needed. Keep the UI open until the pass finishes. Unexpected closure can
+interrupt the child; reopen setup and resume from verified item state.
+
+Known interactive vendor/privileged providers are deferred when they do not
+already verify. They show **Continue in terminal** after the pass, rather than
+attempting to collect input through the output panel. Guided account setup also
+uses Konsole. This preserves vendor wizards and password prompts; normal UI
+workers have disconnected stdin and no controlling terminal. A failed unexpected
+prompt can be retried explicitly in a terminal. No terminal opens automatically
+for a normal install/resume/retry.
+
+The **Deck status** / **Setup check** button opens detailed inventory and password
+guidance in a drawer. App cards retain short status labels; detailed version/check
+information is available in the drawer and hover tooltips. **Appearance** in the
+sidebar still controls the shared palette and selected appearance targets.
+The ready-to-install view stays minimal until an operation starts. Results use
+compact expandable rows instead of a card per item. Running and unfinished work
+comes first; completed rows can be shown during a pass. Select a result to reveal
+its diagnostics and retry/interactive actions.
+
 Setup reopens with a summary of its last saved installation when the plan and
 installer version still match. **Resume installation** re-verifies completed
 items before skipping them; **Review choices** edits the plan without starting

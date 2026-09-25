@@ -13,6 +13,51 @@ from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder
 
 
 class Experience(unittest.TestCase):
+    def test_ui_install_resume_retry_do_not_launch_konsole(self):
+        from deckctl import setup_process
+        session = setup_window.Session(); session.selected = ['base']
+        process = Mock(); process.poll.return_value = 0
+        with patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'app:slack'}])), patch.object(session,'progress',return_value={}), patch.object(setup_process,'start',return_value=process) as start, patch.object(setup_window.subprocess,'Popen') as terminal:
+            for action in ('install','resume','retry'):
+                session.start(action,'app:slack')
+                command = start.call_args.args[0]
+                self.assertEqual(command[1:3],['setup','install'])
+                self.assertIn('--verbose',command)
+                if action == 'resume': self.assertIn('--resume',command)
+                if action == 'retry': self.assertIn('--item',command)
+            terminal.assert_not_called()
+
+    def test_terminal_launch_is_explicit_and_clears_noninteractive_mode(self):
+        session = setup_window.Session(); session.selected = ['base']
+        with patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'module:android'}])), patch.object(session,'progress',return_value={}), patch.object(setup_window.shutil,'which',return_value='/usr/bin/konsole'), patch.object(setup_window.subprocess,'Popen') as launch, patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}):
+            session.start('interactive','module:android')
+            self.assertEqual(launch.call_args.args[0][0],'/usr/bin/konsole')
+            self.assertEqual(launch.call_args.args[0][-2:],['--item','module:android'])
+            self.assertNotIn('DECKCTL_UI_RUN',launch.call_args.kwargs['env'])
+
+    def test_ui_console_is_bounded_redacted_and_has_no_input(self):
+        from deckctl import setup_process
+        source = 'import sys; print("token=secret-value"); print("stdin="+repr(sys.stdin.read())); print("x"*100000); print("finished", file=sys.stderr); sys.exit(7)'
+        process = setup_process.start([sys.executable,'-c',source],'test-plan')
+        self.assertEqual(process.wait(5),7)
+        result = setup_process.snapshot('test-plan')
+        self.assertNotIn('secret-value',result['text'])
+        self.assertIn('stdin=\'\'',result['text'])
+        self.assertIn('finished',result['text'])
+        self.assertEqual(result['exitCode'],7)
+        self.assertLessEqual(len(result['text']),setup_process.LIMIT)
+        self.assertEqual(setup_process.path().stat().st_mode & 0o777,0o600)
+        self.assertEqual(setup_process.snapshot('different-plan'),{'text':''})
+        unicode_run = setup_process.start([sys.executable,'-c',"for _ in range(30): print('🌸'*1000)"],'unicode-plan')
+        self.assertEqual(unicode_run.wait(5),0)
+        self.assertLessEqual(len(setup_process.snapshot('unicode-plan')['text'].encode('utf-8')),setup_process.LIMIT)
+
+    def test_ui_defers_interactive_vendor_without_invoking_it(self):
+        row = dict(key='module:android',kind='module',owner='android')
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_install,'verify',return_value=False), patch.object(setup_install,'_module') as vendor:
+            with self.assertRaisesRegex(setup_install.NeedsSetup,'Continue in terminal'): setup_install.execute(row)
+            vendor.assert_not_called()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
