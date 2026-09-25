@@ -22,6 +22,8 @@ class Production(unittest.TestCase):
         self.state = Path(self.temp.name)/'state'
         self.patcher = patch.object(core, 'STATE', self.state)
         self.patcher.start(); self.addCleanup(self.patcher.stop)
+        config_patch = patch.object(core, 'CONFIG_HOME', Path(self.temp.name)/'config')
+        config_patch.start(); self.addCleanup(config_patch.stop)
 
     def test_distinct_runs_plan_timing_and_private_files(self):
         for _ in range(2):
@@ -202,6 +204,72 @@ class Production(unittest.TestCase):
         for call in request.call_args_list:
             self.assertEqual(call.kwargs['timeout'], 15)
             self.assertIn('--max-time', call.args[0])
+
+    def test_flatpak_progress_reports_update_and_noop_without_fake_bytes(self):
+        from deckctl import flatpak_progress, install_progress
+        events = []
+        with install_progress.listen(lambda *args: events.append(args)):
+            reporter = flatpak_progress.Reporter()
+            reporter('Looking for updates…')
+            reporter('Updating… █████ 45% 270.2 kB/s 03:59')
+            reporter('Nothing to do.')
+        self.assertEqual([e[0] for e in events], ['Checking for updates', 'Updating', 'Up to date'])
+        self.assertIn('45%', events[1][1])
+        self.assertIn('270.2 kB/s', events[1][1])
+        self.assertIn('03:59', events[1][1])
+        self.assertEqual(events[1][2:], (None, None))
+
+    def test_command_progress_handles_carriage_returns_and_final_fragment(self):
+        lines = []
+        run_log.run_step([sys.executable, '-c', 'import sys; sys.stdout.write("first\\rsecond\\nlast")'], on_output=lines.append)
+        self.assertEqual(lines, ['first', 'second', 'last'])
+
+    def test_flatpak_completion_distinguishes_update_noop_and_system_reuse(self):
+        from deckctl import setup_install, setup_plan
+        for phase, expected in [('Up to date','Already up to date; verified.'), ('Updating','Updated and verified.')]:
+            with patch.object(setup_plan, 'command', return_value='installed-commit'), patch.object(setup_install, '_run', return_value=phase) as run:
+                self.assertEqual(setup_install._flatpak('com.discordapp.Discord'), expected)
+                run.assert_called_once_with(['flatpak','update','--user','-y','com.discordapp.Discord'])
+        with patch.object(setup_plan, 'command', side_effect=['system-commit', None]), patch.object(setup_install, '_run') as run:
+            self.assertIn('system installation reused', setup_install._flatpak('com.discordapp.Discord'))
+            run.assert_not_called()
+
+    def test_inventory_distinguishes_updates_and_failed_update_checks(self):
+        from deckctl import setup_inventory, setup_plan
+        row = {'key':'app:discord'}
+        current = dict(key=row['key'], installed=True, label='Installed')
+        for action, check, expected in [('UPDATE','Checked','Update available'), ('UP_TO_DATE','Checked','Up to date'), ('INSTALLED','Unavailable; installer will check','Installed · couldn’t check updates')]:
+            with patch.object(setup_plan,'inspect',return_value={'installed':True,'action':action,'updateCheck':check}):
+                self.assertEqual(setup_inventory.remote(row,current)['label'],expected)
+        self.assertFalse(core.STATE.exists())
+
+    def test_catalog_inventory_does_not_change_saved_choices(self):
+        from deckctl import setup_window, setup_inventory
+        snapshot = setup_window.Session().snapshot()
+        before = json.dumps(snapshot,sort_keys=True)
+        rows = setup_inventory.catalog_rows(snapshot)
+        self.assertIn('app:discord', {r['key'] for r in rows})
+        self.assertEqual(json.dumps(snapshot,sort_keys=True),before)
+        self.assertFalse(core.CONFIG_HOME.exists())
+
+    def test_inventory_provider_failure_is_not_missing_and_scan_continues(self):
+        from deckctl import setup_inventory
+        import time
+        def inspect(row):
+            if row['key']=='broken': raise OSError('provider unavailable')
+            if row['key']=='offline': return dict(key=row['key'], installed=True, label='Installed', status='INSTALLED')
+            return dict(key=row['key'], installed=False, label='Not installed', status='MISSING')
+        with patch.object(setup_inventory,'local',side_effect=inspect), patch.object(setup_inventory,'remote',side_effect=OSError('offline')):
+            scan=setup_inventory.Scan([{'key':'broken'},{'key':'missing'},{'key':'offline'}])
+            deadline=time.monotonic()+2
+            while scan.snapshot()['running'] and time.monotonic()<deadline: time.sleep(.01)
+            result=scan.snapshot(); scan.close()
+        self.assertFalse(result['running'])
+        self.assertEqual(result['items']['broken']['status'],'UNKNOWN')
+        self.assertEqual(result['items']['missing']['status'],'MISSING')
+        self.assertTrue(result['items']['offline']['installed'])
+        self.assertEqual(result['items']['offline']['label'],'Installed · couldn’t check updates')
+        self.assertFalse(core.STATE.exists())
 
 
 if __name__ == '__main__': unittest.main(verbosity=2)

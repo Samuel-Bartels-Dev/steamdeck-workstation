@@ -43,8 +43,10 @@ UI.Setup {
         running: app.loaded; interval: 100; repeat: true
         onTriggered: {
             if (!app.attempted) {
+                if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                if (app.inventoryFor({kind:"app",id:"discord"}).label !== "Update available") return
                 function choose(id) {
                     var item=app.currentItems().filter(function(x) { return x.id === id })[0]
                     if (!item) throw new Error("Missing choice " + id)
@@ -164,7 +166,7 @@ UI.Setup {
                 confirmed.append(key)
                 return {'confirmed': True}
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', return_value={'item':'terminal:ghostty','text':'Extracting runtime: diagnostic test'}), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
+            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE'}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', return_value={'item':'terminal:ghostty','text':'Extracting runtime: diagnostic test'}), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
