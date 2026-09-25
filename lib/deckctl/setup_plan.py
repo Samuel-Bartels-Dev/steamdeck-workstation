@@ -151,7 +151,11 @@ def present(row):
         installed = core._decky_installed_plugins().get(row['component'], {})
         return bool(installed.get('valid')), installed
     if row['kind'] == 'css':
-        return css_stack.component_ready(row['component']), {}
+        theme = css_stack._find(css_stack._installed_themes(), row['component'])
+        ready = css_stack.component_ready(row['component'])
+        return bool(theme), {'version':theme['manifest'].get('version') if theme else None,
+                             'configured':ready, 'configuration':bool(theme) and not ready,
+                             'message':('Theme files detected. Saved palette/enabled settings still need verification.' if theme and not ready else '')}
     if row['kind'] == 'css-profile': return css_stack.readiness()[0], {}
     if key.startswith('terminal:'):
         from . import terminal
