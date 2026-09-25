@@ -26,7 +26,9 @@ def local(row):
     else:
         installed, evidence = setup_plan.present(row)
     state = evidence.get('status')
-    if installed:
+    if installed and evidence.get('configured') is False:
+        label = 'Installed · needs setup'; status = 'NEEDS_SETUP'
+    elif installed:
         label = 'Installed'; status = 'INSTALLED'
     elif state in ('CONFIG_REQUIRED','DEGRADED','API_READY','TEST_REQUIRED','STOPPED_OR_UNREACHABLE','TEST_FAILED','NOT_CONFIGURED') or evidence.get('configuration'):
         label = 'Needs setup'; status = 'NEEDS_SETUP'
@@ -42,6 +44,7 @@ def remote(row, current):
     details = setup_plan.inspect(row, online=True)
     if not details['installed']: return local(row)
     action = details['action']; check = details['updateCheck']
+    if action == 'CONFIGURE': return current
     if action == 'UPDATE': label, status = 'Update available', 'UPDATE'
     elif action == 'UP_TO_DATE': label, status = 'Up to date', 'CURRENT'
     elif action == 'PRESERVE_SYSTEM': label, status = 'Installed · system managed', 'INSTALLED'

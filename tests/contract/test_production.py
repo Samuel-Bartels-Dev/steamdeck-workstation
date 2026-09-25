@@ -55,6 +55,24 @@ class Production(unittest.TestCase):
         target.unlink(); target.symlink_to(ROOT/'lib/deckctl/ui/Setup.qml')
         with self.assertRaisesRegex(ValueError, 'symlink'): runtime_package.validate(installed)
 
+    def test_css_inventory_detects_display_name_without_claiming_palette_ready(self):
+        from deckctl import css_stack, setup_plan, setup_inventory, setup_install
+        themes = Path(self.temp.name)/'themes'
+        theme = themes/'CapyMenu (QAM)'; theme.mkdir(parents=True)
+        (theme/'theme.json').write_text(json.dumps({'name':'CapyMenu (QAM)', 'display_name':'Chromahon (QAM)', 'version':'v3.0.1'}))
+        row = {'key':'css:Chromahon (QAM)', 'kind':'css', 'component':'Chromahon (QAM)', 'name':'Chromahon (QAM)'}
+        with patch.object(css_stack,'THEMES_DIR',themes), patch.object(css_stack,'component_ready',return_value=False):
+            installed, evidence = setup_plan.present(row)
+            self.assertTrue(installed); self.assertFalse(evidence['configured'])
+            local = setup_inventory.local(row)
+            self.assertEqual(local['label'], 'Installed · needs setup')
+            self.assertEqual(setup_plan.inspect(row,online=False)['action'], 'CONFIGURE')
+            self.assertEqual(setup_inventory.remote(row,local)['status'], 'NEEDS_SETUP')
+            self.assertFalse(setup_install.verify(row))
+            (theme/'theme.json').write_text('invalid')
+            self.assertFalse(setup_plan.present(row)[0])
+            self.assertEqual(setup_inventory.local(row)['status'], 'MISSING')
+
     def test_password_readiness_never_prompts_or_confuses_locked_with_set(self):
         import pwd
         import subprocess
