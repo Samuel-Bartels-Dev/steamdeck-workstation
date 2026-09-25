@@ -6,6 +6,32 @@ and [existing hardware checklist](HARDWARE-TESTING.md).
 
 ## Commands and state
 
+Setup reopens with a summary of its last saved installation when the plan and
+installer version still match. **Resume installation** re-verifies completed
+items before skipping them; **Review choices** edits the plan without starting
+anything; **View last results** displays the recorded outcomes. If the plan or
+version changed, old results are not presented as proof for the new plan. A live
+installation opens its progress view instead of launching another installer.
+
+Fresh setups show an optional four-step guide: Desktop Mode, password readiness,
+storage, and choosing/reviewing apps. Skip it any time, or reopen it through
+**More → First-run guide**. The guide does not select components or save settings.
+
+Before installing from review, **Review changes** checks the selected plan and
+groups new installs, updates, configuration and existing-installation checks.
+It includes dependencies, available download estimates, and known privilege and
+restart guidance. Unspecified vendor requirements remain explicit. After reading
+the results, **Save & install** confirms the operation. Known insufficient space
+blocks that confirmation; unknown sizes are still estimates, not a capacity
+guarantee. Changing selections invalidates the preview. Saving for later remains
+available without network checks.
+
+Final item results distinguish reported installs, updates and already-current
+apps. Providers that do not report the action receive **Verified**, rather than
+a guessed update result. Each result includes its next action; use **Recheck
+readiness** for current sign-in/pairing/setup follow-up. Last-run results describe
+that attempt, not continuous monitoring of the installed software.
+
 On a fresh or reimaged Steam Deck, setup and preflight inspect the current account's
 password status with `passwd --status`. If missing or locked, the UI explains how
 to open Konsole and run `passwd`, then offers **Recheck password**. Password typing

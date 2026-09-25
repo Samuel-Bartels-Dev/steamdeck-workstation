@@ -229,10 +229,34 @@ def _size(details, label):
     return math.ceil((float(match[1]) + (0.1 if '.' in match[1] else 1))*unit)
 
 
+def review_notes(row):
+    key = row['key']
+    notes = []
+    if key in ('module:decky','module:android','remote:tailscale') or row['kind'] in ('plugin','css','css-profile'):
+        notes.append('May request sudo for vendor setup, service restart or permission repair.')
+    elif 'flatpak' in row:
+        notes.append('Uses the existing system app or installs in your user account.')
+    else:
+        notes.append('Privileges depend on the provider; any administrator prompt stays in Konsole.')
+    if row['kind'] in ('css','css-profile') or key == 'module:decky':
+        notes.append('May restart Decky; check the result in Game Mode.')
+    elif key == 'module:controller':
+        notes.append('Switch to Game Mode to reload templates; restart Steam only if still missing.')
+    elif key.startswith('terminal:'):
+        notes.append('Open a new terminal for configuration changes; an existing tmux session may need restarting after an upgrade.')
+    elif key == 'module:android':
+        notes.append('Follow vendor instructions for service or device restarts.')
+    else:
+        notes.append('No automatic device reboot; follow any provider restart instructions.')
+    if row.get('followup'): notes.append('After installation: '+{'signin':'sign in to your account','pairing':'pair your device','setup':'complete vendor setup'}.get(row['followup'],'check setup')+'.')
+    return notes
+
+
 def inspect(row, online=False):
     installed, evidence = present(row)
     result = {**row, 'installed': installed, 'action': 'INSTALLED' if installed else 'NEW',
-              'updateCheck': 'Not checked', 'downloadBytes': None, 'installedVersion': evidence.get('version')}
+              'updateCheck': 'Not checked', 'downloadBytes': None, 'installedVersion': evidence.get('version'),
+              'reviewNotes': review_notes(row)}
     if row['kind'] == 'support': result['action'] = 'SUPPORT'
     if evidence.get('configuration') or row['kind'] == 'css-profile': result['action'] = 'CONFIGURE'
     if installed and 'flatpak' in row and evidence.get('scope') == 'system':

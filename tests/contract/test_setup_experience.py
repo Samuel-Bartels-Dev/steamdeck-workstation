@@ -77,6 +77,39 @@ class Experience(unittest.TestCase):
         self.assertIsNone(result['exitCode'])
         self.assertFalse(result['running'])
 
+    def test_reopen_history_is_read_only_and_changed_plan_cannot_resume_old_results(self):
+        rows = [dict(key=k,name=k,visible=True) for k in ('a','b')]
+        core.save_json(setup_install.state_path(), {'fingerprint':setup_plan.fingerprint(self.plan),'startedAt':123,'items':{'a':{'status':'DONE','message':'Already up to date; verified.'},'b':{'status':'RUNNING'}}})
+        before = setup_install.state_path().read_bytes()
+        with patch.object(setup_plan,'items',return_value=(self.plan,rows)), patch.object(setup_install,'verify',side_effect=AssertionError('startup must not install or verify providers')):
+            result = setup_window.Session().progress()
+        self.assertTrue(result['hasHistory']); self.assertTrue(result['resumable'])
+        self.assertEqual(result['unfinished'],1)
+        self.assertEqual(result['items'][0]['status'],'INTERRUPTED')
+        self.assertEqual(result['items'][1]['resultLabel'],'Already current')
+        self.assertEqual(before,setup_install.state_path().read_bytes())
+        with patch.object(setup_plan,'items',return_value=({**self.plan,'palette':'bubblegum'},rows)):
+            changed = setup_window.Session().progress()
+        self.assertTrue(changed['historyPlanChanged']); self.assertFalse(changed['resumable'])
+        self.assertFalse(changed['hasHistory'])
+
+    def test_results_only_claim_update_when_reported_and_include_next_steps(self):
+        rows = [dict(key=k,name=k,visible=True,followup='signin') for k in ('updated','generic','failed')]
+        records = {'updated':{'status':'DONE','message':'Updated and verified.'}, 'generic':{'status':'DONE','message':'Installation verified.'}, 'failed':{'status':'FAILED'}}
+        core.save_json(setup_install.state_path(),{'fingerprint':setup_plan.fingerprint(self.plan),'items':records})
+        with patch.object(setup_plan,'items',return_value=(self.plan,rows)):
+            results = {r['key']:r for r in setup_window.Session().progress()['items']}
+        self.assertEqual(results['updated']['resultLabel'],'Updated')
+        self.assertEqual(results['generic']['resultLabel'],'Verified')
+        self.assertIn('sign-in',results['updated']['nextAction'])
+        self.assertIn('retry',results['failed']['nextAction'])
+
+    def test_review_notes_explain_privileges_restart_and_signin(self):
+        notes = setup_plan.review_notes(dict(key='module:decky',kind='module'))
+        self.assertIn('sudo',' '.join(notes)); self.assertIn('restart Decky',' '.join(notes))
+        notes = setup_plan.review_notes(dict(key='app:slack',kind='flatpak',flatpak='com.slack.Slack',followup='signin'))
+        self.assertIn('user account',' '.join(notes)); self.assertIn('sign in',' '.join(notes))
+
     def test_successful_retry_does_not_hide_other_unfinished_items(self):
         rows = [dict(key=k, name=k, visible=True) for k in ('done', 'failed', 'waiting')]
         records = {'done': {'status': 'DONE'}, 'failed': {'status': 'FAILED'}}

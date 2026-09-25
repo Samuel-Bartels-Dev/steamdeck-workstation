@@ -30,6 +30,27 @@ ApplicationWindow {
     property string paletteId: "bubblegum"
     property var appearanceChoices: ({})
     property var logView: ({item: "", text: ""})
+    property var previousRun: ({})
+    property bool previousRunDismissed: false
+    property int guideStep: 0
+    readonly property var guidePages: [
+        {title:"Start in Desktop Mode", text:"From Steam’s Power menu, switch to Desktop Mode. Keep your Deck connected to power and the internet for downloads. This guide is optional and does not change your choices."},
+        {title:"Check your password", text:"Some vendor installers need administrator access. If setup says your password is missing or locked, open Konsole and run passwd. Typed characters stay invisible. Return here and use Recheck password. Never paste passwords into logs or this UI."},
+        {title:"Choose storage deliberately", text:"Internal storage holds tools and settings. Optional DECK-GAMES and DECK-EMU cards are for the configured game and emulation paths. Insert the intended card before installing components that use it. Check changes & space on the review page shows known allowances; unknown vendor sizes need extra room."},
+        {title:"Make it your setup", text:"Choose individual apps and tools; required dependencies are included automatically. Review new installs, updates and configuration changes, then confirm. Afterward, check results and complete any sign-in or pairing. You can save choices for later and resume unfinished installation work."}
+    ]
+    function openGuide() { guideStep = 0; guideDialog.open() }
+    function closeGuide() { guideDialog.close() }
+    function restoreProgress(result) { previousRun = result; progress = result; if (result.running) stage = 5 }
+    function previousRunText() {
+        if (previousRun.historyPlanChanged) return "Your saved choices or installer version differ from the last run. Review this plan; previous results will not be reused as proof."
+        var stamp = previousRun.lastRunAt ? " · " + new Date(previousRun.lastRunAt * 1000).toLocaleString() : ""
+        return (previousRun.unfinished ? "Unfinished installation: " + previousRun.unfinished + " items remaining" : "Your last installation results are available") + stamp + ". Resume rechecks completed items before skipping them."
+    }
+    function changeGroups() {
+        var categories = [{title:"New installations",actions:["NEW"]},{title:"Updates",actions:["UPDATE"]},{title:"Configuration changes",actions:["CONFIGURE"]},{title:"Existing installations / checks",actions:["INSTALLED","UP_TO_DATE","PRESERVE_SYSTEM"]},{title:"Included support",actions:["SUPPORT"]}]
+        return categories.map(function(group) { return {title:group.title,items:(installPreview.items || []).filter(function(item) { return group.actions.indexOf(item.action) >= 0 })} }).filter(function(group) { return group.items.length })
+    }
     property bool followLog: true
     property bool logPending: false
     function openAppearance() { appearanceDialog.open() }
@@ -185,7 +206,7 @@ ApplicationWindow {
         if (page === "css") return selectedCss
         return selectedComponents[page] || []
     }
-    function markChanged() { saved = false; dirty = true; notice = ""; problem = "" }
+    function markChanged() { saved = false; dirty = true; notice = ""; problem = ""; previousRunDismissed = true }
     function setPageValues(page, values) {
         var roots = chosen.slice(), module = owner(page)
         if (values.length && roots.indexOf(module) < 0) roots.push(module)
@@ -447,6 +468,8 @@ ApplicationWindow {
         request("catalog", null, function(result) {
             saved = result.hasSavedPlan; data = result; paletteId = result.palette; appearanceChoices = result.appearance; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
             if (!result.hasSavedPlan) { preset(false); dirty = false; notice = "Start with only what you need. Nothing installs until you review and confirm." }
+            if (result.hasSavedPlan) request("progress", null, function(state) { restoreProgress(state) })
+            else openGuide()
             refreshInventory()
         })
     }
@@ -644,6 +667,7 @@ ApplicationWindow {
                         MenuSeparator {}
                         MenuItem { text: "Load full preset…"; onTriggered: { window.pendingPreset = true; presetDialog.open() } }
                         MenuItem { text: "Clear all choices…"; onTriggered: { window.pendingPreset = false; presetDialog.open() } }
+                        MenuItem { text: "First-run guide…"; onTriggered: window.openGuide() }
                         MenuSeparator { visible: !!window.detailPage }
                         MenuItem { visible: !!window.detailPage; text: "Clear this list"; onTriggered: window.detailPreset(false) }
                         MenuItem { visible: window.detailPage === "plugins" || window.detailPage === "css"; text: "Use recommended choices"; onTriggered: window.detailPreset(true) }
@@ -671,6 +695,17 @@ ApplicationWindow {
                 ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
                 ColumnLayout {
                     width: scroll.availableWidth; spacing: 14
+                    ColumnLayout {
+                        visible: !window.previousRunDismissed && !window.dirty && window.stage < 5 && (!!window.previousRun.hasHistory || !!window.previousRun.historyPlanChanged)
+                        Layout.fillWidth: true
+                        TextLabel { text: window.previousRunText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: 13 }
+                        Flow {
+                            Layout.fillWidth: true; spacing: 8
+                            Action { text: "Resume installation"; visible: !!window.previousRun.resumable && window.previousRun.unfinished > 0 && !window.data.planOnly; enabled: !window.busy && !window.progress.running; onClicked: window.startOperation("resume") }
+                            Action { text: "Review choices"; enabled: !window.progress.running; onClicked: { window.previousRunDismissed = true; window.navigate(4) } }
+                            Action { text: "View last results"; visible: !!window.previousRun.hasHistory; onClicked: window.navigate(5) }
+                        }
+                    }
                     TextLabel { visible: window.stage === 4; text: "Appearance: " + window.appearanceSummary(); Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan }
                     TextLabel {
                         visible: window.detailPage === "css" || window.detailPage === "plugins"
@@ -838,15 +873,23 @@ ApplicationWindow {
                             model: window.dependencyNotes()
                             delegate: TextLabel { required property string modelData; text: "↳  " + modelData; Layout.fillWidth: true; font.pixelSize: 13; color: window.muted }
                         }
-                        Action { text: window.previewPending ? "Checking installation details…" : "Check downloads & space"; enabled: !window.previewPending; onClicked: window.previewPlan() }
+                        Action { text: window.previewPending ? "Checking installation details…" : "Check changes & space"; enabled: !window.previewPending; onClicked: window.previewPlan() }
                         TextLabel { visible: !!window.installPreview.sizeNote; text: window.installPreview.sizeNote || ""; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted }
                         Repeater {
                             model: window.installPreview.volumes || []
                             delegate: TextLabel { required property var modelData; Layout.fillWidth: true; text: window.bytesLabel(modelData.freeBytes) + " free · " + window.bytesLabel(modelData.requiredBytes) + " known allowance" + (modelData.fits ? "" : " · Not enough space"); color: modelData.fits ? window.muted : window.accent }
                         }
                         Repeater {
-                            model: (window.installPreview.items || []).filter(function(item) { return item.visible })
-                            delegate: TextLabel { required property var modelData; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: modelData.name + " · " + ({NEW:"New install",INSTALLED:"Installed",UPDATE:"Update available",UP_TO_DATE:"Up to date",CONFIGURE:"Configure",PRESERVE_SYSTEM:"System app retained"}[modelData.action] || modelData.action) + " · " + modelData.updateCheck + "\n" + window.bytesLabel(modelData.downloadBytes) }
+                            model: window.changeGroups()
+                            delegate: ColumnLayout {
+                                required property var modelData
+                                Layout.fillWidth: true; spacing: 8
+                                TextLabel { text: modelData.title + " (" + modelData.items.length + ")"; font.bold: true; Layout.fillWidth: true }
+                                Repeater {
+                                    model: modelData.items
+                                    delegate: TextLabel { required property var modelData; Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: modelData.name + " · " + modelData.updateCheck + "\nDownload estimate if needed: " + window.bytesLabel(modelData.downloadBytes) + "\n" + (modelData.reviewNotes || []).join("\n") }
+                                }
+                            }
                         }
                         TextLabel { text: "WHAT HAPPENS NEXT"; font.pixelSize: 11; color: window.muted; font.letterSpacing: 1.2; Layout.topMargin: 6 }
                         TextLabel { text: "1. Download and install your selections.\n2. Complete selected vendor setup, sign-in and pairing in Konsole.\n3. Return here to review anything that still needs attention."; Layout.fillWidth: true; font.pixelSize: 13; color: window.muted }
@@ -857,7 +900,7 @@ ApplicationWindow {
                         TextLabel { text: window.installTitle(); font.pixelSize: 21; font.weight: Font.DemiBold }
                         TextLabel {
                             visible: !!window.progress.operation && !!window.progress.summary
-                            text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " installed" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
+                            text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " verified in this installation record" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
                             Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan
                         }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
@@ -892,9 +935,10 @@ ApplicationWindow {
                                     RowLayout {
                                         Layout.fillWidth: true
                                         TextLabel { text: modelData.name || window.featureNames()[modelData.id] || modelData.id; Layout.fillWidth: true; font.pixelSize: 14 }
-                                        TextLabel { text: window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
+                                        TextLabel { text: modelData.resultLabel || window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
                                     }
                                     TextLabel { visible: !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                    TextLabel { visible: !!modelData.nextAction; text: "Next: " + (modelData.nextAction || ""); color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
                                     TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
                                     TextLabel { visible: modelData.status === "RUNNING"; text: "Last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
                                     TextLabel {
@@ -937,12 +981,18 @@ ApplicationWindow {
                 Action {
                     objectName: "primaryAction"
                     primary: true
-                    text: window.stage === 5 && window.progress.running ? (window.progress.operation === "accounts" ? "Setup in progress…" : "Installing…") : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Resume installation" : "Install selections")))
+                    text: window.stage === 5 && window.progress.running ? (window.progress.operation === "accounts" ? "Setup in progress…" : "Installing…") : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : window.previewPending ? "Checking changes…" : !window.installPreview.items || window.installPreview.error ? "Review changes" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? "Continue setup" : window.progress.operation === "accounts" && window.progress.exitCode === 0 ? "Finish" : window.progress.operation === "accounts" ? "Retry setup" : window.progress.operation ? "Resume installation" : "Install selections")))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
                         if (window.detailPage || window.navigationStack.length) window.back()
                         else if (window.stage < 4) window.navigate(window.stage + 1)
-                        else if (window.stage === 4) window.savePlan(!window.data.planOnly)
+                        else if (window.stage === 4) {
+                            if (window.data.planOnly) window.savePlan(false)
+                            else if (window.previewPending) window.notice = "Wait for the installation review to finish."
+                            else if (!window.installPreview.items || window.installPreview.error) { window.previewPlan(); window.notice = "Review the changes and space checks below, then choose Save & install again to confirm." }
+                            else if ((window.installPreview.volumes || []).some(function(volume) { return !volume.fits })) window.problem = "Not enough space for the known allowance. Free space or reduce your choices, then check again."
+                            else window.savePlan(true)
+                        }
                         else if (window.progress.operation === "install" && window.progress.exitCode === 0) window.startOperation("accounts")
                         else if (window.progress.operation === "accounts" && window.progress.exitCode === 0) window.close()
                         else window.startOperation(window.progress.operation === "accounts" ? "accounts" : window.progress.resumable ? "resume" : "install")
@@ -951,6 +1001,25 @@ ApplicationWindow {
             }
         }
     }
+    }
+    Dialog {
+        id: guideDialog
+        objectName: "firstRunGuide"
+        title: "Quick start · " + (window.guideStep + 1) + " of " + window.guidePages.length
+        modal: true; anchors.centerIn: parent
+        width: Math.min(560, window.width - 40); height: Math.min(420, window.height - 40)
+        background: Rectangle { color: window.tone("#1a1128"); radius: 14; border.color: window.violet }
+        contentItem: ColumnLayout {
+            TextLabel { text: window.guidePages[window.guideStep].title; font.pixelSize: 21; font.bold: true; Layout.fillWidth: true }
+            ScrollView { Layout.fillWidth: true; Layout.fillHeight: true; clip: true; contentWidth: availableWidth
+                TextLabel { width: parent.width; text: window.guidePages[window.guideStep].text; font.pixelSize: 15 }
+            }
+            Flow { Layout.fillWidth: true; spacing: 8
+                Action { text: "Skip guide"; onClicked: window.closeGuide() }
+                Action { text: "Back"; visible: window.guideStep > 0; onClicked: window.guideStep-- }
+                Action { text: window.guideStep === 3 ? "Choose my apps" : "Next"; primary: true; onClicked: { if (window.guideStep < 3) window.guideStep++; else window.closeGuide() } }
+            }
+        }
     }
     Dialog {
         id: appearanceDialog

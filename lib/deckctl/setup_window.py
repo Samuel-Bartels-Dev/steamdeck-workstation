@@ -199,6 +199,21 @@ class Session:
                    for row in rows if row['visible']]
         now = time.time()
         for row in visible:
+            status = row.get('status')
+            row['resultLabel'] = ({'Installed and verified.':'Installed', 'Updated and verified.':'Updated',
+                                   'Already up to date; verified.':'Already current',
+                                   'Existing system installation reused and verified.':'Existing installation reused'}
+                                  .get(row.get('message'), 'Verified')) if status == 'DONE' else {
+                                      'FAILED':'Failed','INTERRUPTED':'Interrupted','NEEDS_SETUP':'Needs setup',
+                                      'BLOCKED':'Waiting on dependency','PENDING':'Waiting','RUNNING':'In progress'}.get(status,status)
+            row['nextAction'] = ('Open setup / sign-in and recheck readiness.' if row.get('followup') == 'signin' else
+                                 'Pair your device and recheck readiness.' if row.get('followup') == 'pairing' else
+                                 'Complete vendor setup and recheck readiness.' if row.get('followup') == 'setup' else
+                                 'Use Recheck readiness to inspect the current installation.') if status == 'DONE' else {
+                                     'FAILED':'Read Details, resolve the error, then retry this item.',
+                                     'INTERRUPTED':'Resume to verify completed work and retry unfinished items.',
+                                     'NEEDS_SETUP':'Complete the provider setup, then retry verification.',
+                                     'BLOCKED':'Complete the required dependency first.'}.get(status,'')
             start = row.get('startedAt')
             end = now if row.get('status') == 'RUNNING' else row.get('finishedAt') or row.get('updatedAt', now)
             row['elapsedSeconds'] = max(0, int(end-start)) if isinstance(start, (float, int)) else 0
@@ -219,7 +234,10 @@ class Session:
         summary = {'total': len(visible), 'done': sum(row.get('status') == 'DONE' for row in visible),
                    'attention': sum(row.get('status') in attention for row in visible)}
         return {'running': live, 'operation': operation, 'summary': summary,
-                'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live}
+                'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live,
+                'hasHistory': bool(records), 'historyPlanChanged': bool(state.get('items')) and not matches,
+                'unfinished': sum(records.get(row['key'],{}).get('status') != 'DONE' for row in rows) if records else 0,
+                'lastRunAt': state.get('finishedAt') or state.get('startedAt')}
 
 
 def launch(plan_only=False):

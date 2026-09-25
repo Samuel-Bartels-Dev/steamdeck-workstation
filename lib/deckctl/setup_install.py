@@ -238,7 +238,7 @@ def _run_plan(only, resume, journal):
                         completion = execute(row)
                         install_progress.report('Verifying', 'Checking the installed result.')
                         if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')
-                        record(key, 'DONE', completion if isinstance(completion, str) else 'Installed and verified.')
+                        record(key, 'DONE', completion if isinstance(completion, str) else 'Installation verified.')
                 except NeedsSetup as exc: record(key, 'NEEDS_SETUP', str(exc))
                 except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
                     message = install_log.redact(str(exc))
