@@ -8,7 +8,7 @@ For setup and maintenance entry points, see [Script reference](SCRIPTS.md).
 
 ```text
 usage: deckctl [-h] [--version]
-       {ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+       {preflight,compatibility,test,cleanup,repair,logs,ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
        ...
 
 NAME
@@ -18,7 +18,14 @@ DESCRIPTION
   Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
 
 positional arguments:
-  {ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+  {preflight,compatibility,test,cleanup,repair,logs,ai-workspace,apps,containers,detect,plan,apply,verify,doctor,inventory,support-bundle,post-update,ui,storage,game,remote,backup,restore,travel,ai,repo,profile,launcher,channel,update,export,emulation,media,network,health,terminal,controller,library,aliases,desktop,decky,android,workspace,setup,help}
+    preflight           Check selected installation prerequisites without changing
+                        installed components.
+    compatibility       Report exact, reviewed compatibility evidence.
+    test                Run SAFE diagnostics with a durable timing/result record.
+    cleanup             Clean only verified, unchanged staged project installers.
+    repair              Explicitly repair one selected module or supported target.
+    logs                Manage logs operations.
     ai-workspace        Manage ai-workspace operations.
     apps                Manage apps operations.
     containers          Manage containers operations.
@@ -30,8 +37,8 @@ positional arguments:
                         retries.
     verify              Run enabled module verifiers and report readiness, including
                         hardware context in JSON mode.
-    doctor              Run repair actions for one module, or all enabled modules that
-                        are not READY.
+    doctor              Diagnose one module or all enabled modules without repairing
+                        them.
     inventory           Report the release version, hardware, module readiness, and
                         storage.
     support-bundle      Create a sanitized diagnostic ZIP from an explicit set of
@@ -39,7 +46,7 @@ positional arguments:
     post-update         Reapply user-space integration after a SteamOS update and
                         inspect essential services.
     ui                  Manage ui operations.
-    storage             Manage storage operations.
+    storage             Validate internal storage and optional role-card mounts.
     game                Manage game operations.
     remote              Manage remote operations.
     backup              Manage backup operations.
@@ -76,7 +83,411 @@ options:
   --version             show program's version number and exit
 
 EXAMPLES
-  deckctl  ai-workspace
+  deckctl  preflight
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl preflight
+
+```text
+usage: deckctl preflight [-h] [--json] [--online]
+
+NAME
+  deckctl preflight — Check selected installation prerequisites without changing installed components.
+
+DESCRIPTION
+  Reports architecture, commands, writable destinations, estimated space and compatibility. --online adds bounded HTTPS probes. Exit 0 pass, 1 blocked, 2 warnings. Unknown sizes are not capacity guarantees.
+
+options:
+  -h, --help  show this help message and exit
+  --json      Emit machine-readable JSON instead of the human-readable report.
+  --online    Probe required HTTPS endpoints with bounded timeouts.
+
+EXAMPLES
+  deckctl preflight --json
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl compatibility
+
+```text
+usage: deckctl compatibility [-h] [--json] [--verbose]
+
+NAME
+  deckctl compatibility — Report exact, reviewed compatibility evidence.
+
+DESCRIPTION
+  Read-only local records. Unknown combinations remain UNKNOWN. Exit 0 known supported/tested, 1 unsupported, 2 unknown. Does not certify plugin loading.
+
+options:
+  -h, --help  show this help message and exit
+  --json      Emit machine-readable JSON instead of the human-readable report.
+  --verbose   Explain compatibility evidence policy.
+
+EXAMPLES
+  deckctl compatibility --json
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl test
+
+```text
+usage: deckctl test [-h] [--json] {quick,full,module} [module]
+
+NAME
+  deckctl test — Run SAFE diagnostics with a durable timing/result record.
+
+DESCRIPTION
+  quick checks health and offline preflight; full adds bounded HTTPS probes; module runs one verifier. No container launches, Android boot, installs or repairs. Exit 0 pass, 1 failed, 2 warning/configuration required.
+
+positional arguments:
+  {quick,full,module}  SAFE diagnostics; full adds network probes, not live
+                       container/Android tests.
+  module               Registered module ID, such as decky or terminal; omit where
+                       allowed to cover enabled modules.
+
+options:
+  -h, --help           show this help message and exit
+  --json               Emit machine-readable JSON instead of the human-readable report.
+
+EXAMPLES
+  deckctl test quick --json
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl cleanup
+
+```text
+usage: deckctl cleanup [-h] [--dry-run]
+
+NAME
+  deckctl cleanup — Clean only verified, unchanged staged project installers.
+
+DESCRIPTION
+  Uses the existing fingerprinted cleanup policy. Never sweeps arbitrary temporary files, model caches or user downloads. --dry-run previews changes.
+
+options:
+  -h, --help  show this help message and exit
+  --dry-run   Show intended Decky plugin operations without installing them.
+
+EXAMPLES
+  deckctl cleanup --dry-run
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl repair
+
+```text
+usage: deckctl repair [-h] module
+
+NAME
+  deckctl repair — Explicitly repair one selected module or supported target.
+
+DESCRIPTION
+  May install, update configuration or launch vendor setup. Preserves existing module repair behavior. No implicit repair-all. Docker uses the existing rootless provider; waydroid uses protected Android repair.
+
+positional arguments:
+  module      Registered module ID, such as decky or terminal; omit where allowed to
+              cover enabled modules.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl repair docker
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs
+
+```text
+usage: deckctl logs [-h] {latest,list,errors,show,clean} ...
+
+NAME
+  deckctl logs — Manage logs operations using the commands below.
+
+DESCRIPTION
+  Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
+
+positional arguments:
+  {latest,list,errors,show,clean}
+    latest              Print the latest run directory.
+    list                List recorded runs and results.
+    errors              Show error events from the latest run.
+    show                Show a module or item event stream from the latest run.
+    clean               Remove expired inactive run history safely.
+
+options:
+  -h, --help            show this help message and exit
+
+EXAMPLES
+  deckctl logs latest
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs latest
+
+```text
+usage: deckctl logs latest [-h]
+
+NAME
+  deckctl logs latest — Print the latest run directory.
+
+DESCRIPTION
+  Read-only. Logs are private and should be reviewed before sharing.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl logs latest
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs list
+
+```text
+usage: deckctl logs list [-h]
+
+NAME
+  deckctl logs list — List recorded runs and results.
+
+DESCRIPTION
+  Read-only. RUNNING without an active installer can indicate interruption.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl logs list
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs errors
+
+```text
+usage: deckctl logs errors [-h]
+
+NAME
+  deckctl logs errors — Show error events from the latest run.
+
+DESCRIPTION
+  Read-only structured events; detailed item stderr is in the run directory.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl logs errors
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs show
+
+```text
+usage: deckctl logs show [-h] module
+
+NAME
+  deckctl logs show — Show a module or item event stream from the latest run.
+
+DESCRIPTION
+  Use the exact identifier, for example terminal:ghostty. Read-only.
+
+positional arguments:
+  module      Registered module ID, such as decky or terminal; omit where allowed to
+              cover enabled modules.
+
+options:
+  -h, --help  show this help message and exit
+
+EXAMPLES
+  deckctl logs show terminal:ghostty
+
+FILES
+  ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
+  ~/.local/state/deckctl/  Receipts, recovery records, and update history.
+  ~/.local/share/steamdeck-workstation/  Persistent releases and current link.
+  DECKCTL_CONFIG and DECKCTL_STATE override shared config/state paths; some
+  vendor integrations use their established fixed paths under HOME.
+
+EXIT STATUS
+  0  Operation/report completed. Read per-item states in diagnostic reports.
+  1  Operation failed, or a required component is absent.
+  2  Invalid command usage or a documented configuration-required state.
+  Vendor subprocess errors may propagate their own nonzero status.
+
+SEE ALSO
+  deckctl help; deckctl verify; docs/COMMANDS.md; man deckctl
+```
+
+## deckctl logs clean
+
+```text
+usage: deckctl logs clean [-h] [--all]
+
+NAME
+  deckctl logs clean — Remove expired inactive run history safely.
+
+DESCRIPTION
+  Keeps 10 install/apply/test and 5 repair/update runs; failures 30 days and newest failure indefinitely. --all still preserves active runs, newest failure and unrecognized content.
+
+options:
+  -h, --help  show this help message and exit
+  --all       Remove inactive history except the newest failure; preserve unrecognized
+              files.
+
+EXAMPLES
+  deckctl logs clean
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -1097,13 +1508,13 @@ SEE ALSO
 ## deckctl doctor
 
 ```text
-usage: deckctl doctor [-h] [module]
+usage: deckctl doctor [-h] [--json] [module]
 
 NAME
-  deckctl doctor — Run repair actions for one module, or all enabled modules that are not READY.
+  deckctl doctor — Diagnose one module or all enabled modules without repairing them.
 
 DESCRIPTION
-  May install packages, rewrite managed configuration, or launch vendor repair. Rechecks readiness afterward using the same exit statuses as verify.
+  Read-only verifiers; docker and waydroid expose provider diagnostics. Use explicit repair MODULE to change installed state. Exit statuses match verify.
 
 positional arguments:
   module      Registered module ID, such as decky or terminal; omit where allowed to
@@ -1111,9 +1522,10 @@ positional arguments:
 
 options:
   -h, --help  show this help message and exit
+  --json      Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl doctor decky
+  deckctl doctor docker --json
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -1346,15 +1758,15 @@ SEE ALSO
 ## deckctl storage
 
 ```text
-usage: deckctl storage [-h]
+usage: deckctl storage [-h] [--json]
        {health,recommend,migration-status,verify-migration,migrate-emulation,finalize-emulation-migration}
        ...
 
 NAME
-  deckctl storage — Manage storage operations using the commands below.
+  deckctl storage — Validate internal storage and optional role-card mounts.
 
 DESCRIPTION
-  Choose a subcommand for its prerequisites, expected results, and effects. Help never performs the operation.
+  Without a subcommand checks mount presence, writable flags and optional settings.json storage_devices expectations (uuid, mount, filesystem, required). Does not mount, format or run fsck. Exit 1 invalid, 2 optional missing, 0 pass.
 
 positional arguments:
   {health,recommend,migration-status,verify-migration,migrate-emulation,finalize-emulation-migration}
@@ -1374,9 +1786,10 @@ positional arguments:
 
 options:
   -h, --help            show this help message and exit
+  --json                Emit machine-readable JSON instead of the human-readable report.
 
 EXAMPLES
-  deckctl storage health
+  deckctl storage --json
 
 FILES
   ~/.config/deckctl/       Desired state, selected plugins, captured profiles.
@@ -5712,7 +6125,7 @@ SEE ALSO
 ## deckctl setup install
 
 ```text
-usage: deckctl setup install [-h] [--resume] [--item ITEM]
+usage: deckctl setup install [-h] [--verbose] [--resume] [--item ITEM]
 
 NAME
   deckctl setup install — Install saved choices with persistent per-item results.
@@ -5722,6 +6135,8 @@ DESCRIPTION
 
 options:
   -h, --help   show this help message and exit
+  --verbose    Show unattended provider output while retaining item logs. Interactive
+               vendor prompts always remain visible.
   --resume     Recheck completed items and resume unfinished work.
   --item ITEM  Retry a selected item ID and its dependencies.
 

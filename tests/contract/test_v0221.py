@@ -56,6 +56,6 @@ class ManualCompatibility(unittest.TestCase):
         patch_changes.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.24.json').read_text())['plugin_changes'])
         patch_changes.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         self.assertEqual(changed-patch_changes,set(guard['maintenance_changes'])-patch_changes)
-        self.assertEqual((ROOT/'VERSION').read_text().strip(),'0.2.43')
+        self.assertRegex((ROOT/'VERSION').read_text().strip(),r'^0\.2\.43(?:-rc[1-9]\d*)?$')
 
 if __name__=='__main__':unittest.main(verbosity=2)

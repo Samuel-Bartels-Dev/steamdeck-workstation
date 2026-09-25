@@ -1,5 +1,8 @@
 """Shared palette selection for opt-in, repository-managed appearance files."""
 import re
+import os
+import tempfile
+from pathlib import Path
 from . import core
 
 TARGETS = [
@@ -56,4 +59,12 @@ def write(source, destination):
     text = render(source.read_text())
     destination.parent.mkdir(parents=True, exist_ok=True)
     if not destination.exists() or destination.read_text() != text:
-        destination.write_text(text)
+        fd, name = tempfile.mkstemp(prefix='.deckctl-theme-', dir=destination.parent)
+        try:
+            with os.fdopen(fd, 'w') as stream:
+                stream.write(text)
+                stream.flush()
+                os.fsync(stream.fileno())
+            os.replace(name, destination)
+        finally:
+            Path(name).unlink(missing_ok=True)

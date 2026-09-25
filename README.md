@@ -932,3 +932,13 @@ Desktop have independent checkboxes: Parsec under **Remote & storage**, and chat
 those apps with `deckctl apps install parsec slack whatsapp telegram plex`.
 See [app details](docs/APPS.md). The optional fastfetch + Shell helpers selections
 give `ff` red Sharingan-inspired ASCII artwork.
+
+## Production diagnostics and candidate validation
+
+Use `deckctl preflight`, `deckctl compatibility`, `deckctl storage`,
+`deckctl health`, and read-only `deckctl doctor MODULE` to inspect a system.
+Repairs now require explicit `deckctl repair MODULE`. Installation run history
+is available through `deckctl logs latest` and `deckctl logs errors`.
+See [production operations and physical test commands](docs/PRODUCTION-OPERATIONS.md)
+and [the engineering gap analysis](docs/PRODUCTION-READINESS-REVIEW.md) for
+coverage limits, UNKNOWN compatibility, RC publishing and stable evidence gates.

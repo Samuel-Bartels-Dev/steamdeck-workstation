@@ -29,7 +29,7 @@ def main():
     parser.add_argument('output', nargs='?', default=str(ROOT/'release'), help='Output directory (default: release/). Existing same-version artifacts are replaced only after building the new set.')
     args=parser.parse_args()
     version = (ROOT / 'VERSION').read_text().strip()
-    if not re.fullmatch(r'\d+\.\d+\.\d+', version):
+    if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?', version):
         raise SystemExit('Invalid release version')
     out = Path(args.output).resolve()
     if out == ROOT or out in ROOT.parents:
@@ -40,7 +40,7 @@ def main():
     zip_name = f'STEAMDECK-SETUP-v{version}.zip'
     sum_name = f'steamdeck-workstation-v{version}-SHA256SUMS.txt'
     out.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix='deckctl-release-') as temporary:
+    with tempfile.TemporaryDirectory(prefix='.deckctl-release-', dir=out) as temporary:
         work = Path(temporary)
         tar_path = work / tar_name
         # Explicit per-file inventory prevents recursive inclusion of an output folder.

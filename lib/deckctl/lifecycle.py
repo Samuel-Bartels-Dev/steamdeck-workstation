@@ -182,14 +182,17 @@ def health(as_json=False):
     modules={m:core.module_status(m) for m in core.topo(core.enabled_modules())}
     setup=core.setup_state(); latest=_latest_backup(); hardware=core.detect_hardware(); storage=core.storage_health(quiet=True)
     network={'dns':False,'tailscale':False}
-    try: socket.getaddrinfo('github.com',443); network['dns']=True
-    except Exception: pass
+    # Offline health never blocks on DNS; explicit preflight --online owns network probes.
+    network['dns'] = None
     if shutil.which('tailscale'):
         try: network['tailscale']=subprocess.run(['tailscale','status'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=5).returncode==0
         except Exception: pass
-    data={'hardware':hardware,'modules':modules,'storage':storage,'setup':setup,'latest_backup':str(latest) if latest else None,'network':network}
+    from . import preflight
+    storage_checks = preflight.storage_report()
+    data={'storage_checks':storage_checks, 'hardware':hardware,'modules':modules,'storage':storage,'setup':setup,'latest_backup':str(latest) if latest else None,'network':network}
     if as_json: print(json.dumps(data,indent=2)); return data
     print('DECKCTL HEALTH')
+    for row in storage_checks: print('Storage', row['name'], row['status'], row.get('message', ''))
     b=hardware.get('battery',{}); print(f"Hardware     {hardware.get('model')} SteamOS={hardware.get('is_steamos')}")
     if b: print(f"Battery      charge={b.get('charge_percent')}% health={b.get('health_percent')}%")
     bad=[]
@@ -198,6 +201,6 @@ def health(as_json=False):
         if st in ('FAILED','NOT_INSTALLED'): bad.append(m)
     print(f"Guided setup completed={len(setup.get('completed',[]))} skipped={len(setup.get('skipped',[]))}")
     print(f"Latest backup {latest or 'NONE'}")
-    print(f"Network       DNS={'PASS' if network['dns'] else 'WARN'} Tailscale={'PASS' if network['tailscale'] else 'WARN'}")
+    print(f"Network       DNS=NOT_CHECKED Tailscale={'PASS' if network['tailscale'] else 'WARN'}")
     print('RESULT       '+('HEALTHY / REVIEW CONFIG_REQUIRED ITEMS' if not bad else 'ATTENTION REQUIRED: '+', '.join(bad)))
     return data

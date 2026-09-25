@@ -31,17 +31,19 @@ Command groups:
 Tip: run `deckctl <command> -h` for command-specific help.
 """)
     sp=p.add_subparsers(dest='cmd',required=True)
+    from . import production_cli
+    production_cli.add_parser(sp)
     ai_workspace.add_parser(sp)
     apps.add_parser(sp)
     containers.add_parser(sp)
     sp.add_parser('detect'); sp.add_parser('plan'); sp.add_parser('apply')
     v=sp.add_parser('verify'); v.add_argument('--json',action='store_true')
-    d=sp.add_parser('doctor'); d.add_argument('module',nargs='?')
+    d=sp.add_parser('doctor'); d.add_argument('module',nargs='?'); d.add_argument('--json',action='store_true')
     inv=sp.add_parser('inventory'); inv.add_argument('--json',action='store_true')
     sp.add_parser('support-bundle')
     pu=sp.add_parser('post-update')
     ui=sp.add_parser('ui'); uisp=ui.add_subparsers(dest='sub',required=True); us=uisp.add_parser('safe'); us.add_argument('--minimal',action='store_true'); uisp.add_parser('restore')
-    st=sp.add_parser('storage'); ssp=st.add_subparsers(dest='sub',required=True); sh=ssp.add_parser('health'); sh.add_argument('--json',action='store_true'); sr=ssp.add_parser('recommend'); sr.add_argument('game'); sr.add_argument('--system'); ssp.add_parser('migration-status'); smv=ssp.add_parser('verify-migration'); smv.add_argument('--json',action='store_true'); ssp.add_parser('migrate-emulation'); sf=ssp.add_parser('finalize-emulation-migration'); sf.add_argument('--yes',action='store_true')
+    st=sp.add_parser('storage'); st.add_argument('--json',action='store_true'); ssp=st.add_subparsers(dest='sub',required=False); sh=ssp.add_parser('health'); sh.add_argument('--json',action='store_true'); sr=ssp.add_parser('recommend'); sr.add_argument('game'); sr.add_argument('--system'); ssp.add_parser('migration-status'); smv=ssp.add_parser('verify-migration'); smv.add_argument('--json',action='store_true'); ssp.add_parser('migrate-emulation'); sf=ssp.add_parser('finalize-emulation-migration'); sf.add_argument('--yes',action='store_true')
     gm=sp.add_parser('game'); gsp=gm.add_subparsers(dest='sub',required=True); gr=gsp.add_parser('register'); gr.add_argument('name'); gr.add_argument('--launcher',required=True); gr.add_argument('--path',required=True); gr.add_argument('--storage-role',choices=['internal','pc_games','emulation'],required=True); grd=gsp.add_parser('ready'); grd.add_argument('name'); gd=gsp.add_parser('doctor'); gd.add_argument('name')
     rm=sp.add_parser('remote'); rsp=rm.add_subparsers(dest='sub',required=True); rr=rsp.add_parser('register'); rr.add_argument('name'); rr.add_argument('--target',required=True); rr.add_argument('--mac'); rr.add_argument('--relay'); rr.add_argument('--sunshine-port',type=int,default=47984); rt=rsp.add_parser('test'); rt.add_argument('name'); rw=rsp.add_parser('wake'); rw.add_argument('name'); rwait=rsp.add_parser('wait'); rwait.add_argument('name'); rwait.add_argument('--timeout',type=int,default=90); rh=rsp.add_parser('host-kit'); rh.add_argument('name'); rh.add_argument('--out')
     bk=sp.add_parser('backup'); bksp=bk.add_subparsers(dest='sub',required=True); bksp.add_parser('saves'); rst=sp.add_parser('restore'); rst.add_argument('archive',nargs='?'); rst.add_argument('--dry-run',action='store_true'); rst.add_argument('--category',action='append',help='Restore only this category; repeat to select several.'); rst.add_argument('--yes',action='store_true')
@@ -66,7 +68,7 @@ Tip: run `deckctl <command> -h` for command-specific help.
     ad=sp.add_parser('android',help='Install, retry, repair, or deliberately reinstall Waydroid'); adsp=ad.add_subparsers(dest='sub',required=True); ast=adsp.add_parser('status',help='Show real Android readiness'); ast.add_argument('--json',action='store_true'); adsp.add_parser('install',help='Fresh install; choose Android 13 with Google Play'); adsp.add_parser('retry',help='Fresh install if absent; protected repair if an image exists'); adsp.add_parser('repair',help='Protected host repair preserving Android state'); adsp.add_parser('reinstall',help='Deliberately recreate Android using upstream protected archive flow')
     ws=sp.add_parser('workspace',help='Notion/ChatGPT/Claude desktop-style Chrome apps'); wssp=ws.add_subparsers(dest='sub',required=True); wst=wssp.add_parser('status'); wst.add_argument('--json',action='store_true'); wssp.add_parser('setup'); wssp.add_parser('notion-mcp',help='Show Notion MCP agent-connection guidance')
     setup=sp.add_parser('setup'); setupsp=setup.add_subparsers(dest='sub',required=True); srun=setupsp.add_parser('run'); srun.add_argument('--step'); sc=setupsp.add_parser('customize'); choice=sc.add_mutually_exclusive_group(); choice.add_argument('--defaults',action='store_true',help='Save the repository’s full default module plan.'); choice.add_argument('--minimal',action='store_true',help='Select only required base support and no desktop apps.'); sc.add_argument('--module',action='append',help='Selected module root; repeat to set a custom module plan.'); sc.add_argument('--app',action='append',help='Selected desktop app key; repeat to replace the app selection.'); setupsp.add_parser('status'); sreport=setupsp.add_parser('report'); sreport.add_argument('--json',action='store_true'); setupsp.add_parser('open'); sclean=setupsp.add_parser('cleanup'); sclean.add_argument('--dry-run',action='store_true'); srst=setupsp.add_parser('reset'); srst.add_argument('step',nargs='?')
-    si=setupsp.add_parser('install'); si.add_argument('--resume', action='store_true', help='Recheck completed items and resume unfinished work.'); si.add_argument('--item', help='Retry a selected item ID and its dependencies.'); pv=setupsp.add_parser('preview'); pv.add_argument('--online', action='store_true', help='Check supported providers for available updates.')
+    si=setupsp.add_parser('install'); si.add_argument('--verbose', action='store_true', help='Show unattended provider output while retaining item logs. Interactive vendor prompts always remain visible.'); si.add_argument('--resume', action='store_true', help='Recheck completed items and resume unfinished work.'); si.add_argument('--item', help='Retry a selected item ID and its dependencies.'); pv=setupsp.add_parser('preview'); pv.add_argument('--online', action='store_true', help='Check supported providers for available updates.')
     hp=sp.add_parser('help'); hp.add_argument('command',nargs='*')
     p.add_argument('--version', action='version', version=(core.ROOT/'VERSION').read_text().strip())
     from .helptext import decorate
@@ -86,19 +88,27 @@ def main(argv=None):
             parser=children[word]
         parser.print_help()
         return 0
+    from . import production_cli
+    result = production_cli.dispatch(args)
+    if result is not None: return result
     if args.cmd=='ai-workspace': return ai_workspace.dispatch(args)
     if args.cmd=='apps': return apps.dispatch(args)
     if args.cmd=='containers': return containers.dispatch(args)
     if args.cmd=='detect': print(json.dumps(core.detect_hardware(),indent=2)); return 0
     if args.cmd=='plan': core.plan(); return 0
-    if args.cmd=='apply': return core.apply()
+    if args.cmd=='apply': return production_cli.operation('apply', core.apply, check=True)
     if args.cmd=='verify': return core.status_exit(core.verify(args.json))
-    if args.cmd=='doctor': return core.doctor(args.module)
+    if args.cmd=='doctor':
+        from . import diagnostics
+        return diagnostics.diagnose(args.module, args.json)
     if args.cmd=='inventory': core.inventory(args.json); return 0
     if args.cmd=='support-bundle': reliability.support_bundle(); return 0
     if args.cmd=='post-update': return reliability.post_update()
     if args.cmd=='ui' and args.sub=='safe': return reliability.ui_safe(args.minimal)
     if args.cmd=='ui' and args.sub=='restore': return reliability.ui_restore()
+    if args.cmd=='storage' and args.sub is None:
+        from . import preflight
+        return preflight.storage_command(args.json)
     if args.cmd=='storage' and args.sub=='health': core.storage_health(args.json); return 0
     if args.cmd=='storage' and args.sub=='recommend': core.storage_recommend(args.game,args.system); return 0
     if args.cmd=='storage' and args.sub=='verify-migration': return 0 if storage_ops.verify_migration(args.json)['status']=='VERIFIED' else 2
@@ -135,7 +145,7 @@ def main(argv=None):
         return 0
     if args.cmd=='update' and args.update_sub in (None,'check'): return reliability.update_check()
     if args.cmd=='update' and args.update_sub=='preview': return upgrade_plan.preview(args.archive,args.source,args.json)
-    if args.cmd=='update' and args.update_sub=='apply': return reliability.update_apply(args.archive)
+    if args.cmd=='update' and args.update_sub=='apply': return production_cli.operation('update', lambda: reliability.update_apply(args.archive))
     if args.cmd=='update' and args.update_sub=='rollback': return reliability.update_rollback()
     if args.cmd=='export': core.export_state(); return 0
     if args.cmd=='emulation' and args.sub=='bios-audit': core.emulation_bios_audit(args.source); return 0
@@ -160,7 +170,10 @@ def main(argv=None):
     if args.cmd=='media' and args.sub=='keeper' and args.keeper_sub=='setup': return core.media_keeper_setup()
     if args.cmd=='media' and args.sub=='keeper' and args.keeper_sub=='status': core.media_keeper_status(); return 0
     if args.cmd=='network' and args.sub=='test': network.test(args.host,args.json); return 0
-    if args.cmd=='health': lifecycle.health(args.json); return 0
+    if args.cmd=='health':
+        data = lifecycle.health(args.json)
+        if any(row['status'] == 'FAIL' for row in data.get('storage_checks', [])): return 1
+        return core.status_exit(data['modules'])
     if args.cmd=='terminal' and args.sub=='status': return terminal.status(args.json)
     if args.cmd=='terminal' and args.sub=='apply': return terminal.apply(args.config_only,args.refresh)
     if args.cmd=='terminal' and args.sub=='reset': return terminal.reset(args.keep_tools)
@@ -187,7 +200,7 @@ def main(argv=None):
     if args.cmd=='workspace' and args.sub=='notion-mcp': return workspace.notion_mcp()
     if args.cmd=='setup' and args.sub=='install':
         from . import setup_install
-        return setup_install.run(only=args.item, resume=args.resume)
+        return production_cli.operation('install', lambda: setup_install.run(only=args.item, resume=args.resume, verbose=args.verbose), check=True)
     if args.cmd=='setup' and args.sub=='preview':
         from . import setup_plan
         print(json.dumps(setup_plan.preview(online=args.online), indent=2))
