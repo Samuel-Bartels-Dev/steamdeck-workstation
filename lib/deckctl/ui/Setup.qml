@@ -121,6 +121,15 @@ ApplicationWindow {
             return item.id === logView.item && ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(item.status) >= 0
         })
     }
+    property double clockSeconds: Date.now()/1000
+    function githubLimitText() {
+        var limit = progress.githubLimit
+        if (!limit) return ""
+        if (!limit.resetAt) return "GitHub API is rate limited; no reset time was provided. Independent installs can continue. Retry affected items later."
+        var remaining = Math.max(0, Math.ceil(limit.resetAt-clockSeconds))
+        return remaining > 0 ? "GitHub API reset expected in " + elapsedLabel(remaining) + " (" + new Date(limit.resetAt*1000).toLocaleTimeString() + "). Independent installs can continue." : "GitHub’s reset time has passed. Retry affected items when ready; availability has not been rechecked."
+    }
+    Timer { interval: 1000; repeat: true; running: window.stage === 5 && !!window.progress.githubLimit; onTriggered: window.clockSeconds = Date.now()/1000 }
     function elapsedLabel(seconds) {
         var mins = Math.floor((seconds || 0) / 60)
         return mins ? mins + "m " + (seconds % 60) + "s" : (seconds || 0) + "s"
@@ -987,6 +996,7 @@ ApplicationWindow {
                             text: (window.progress.summary ? window.progress.summary.done + " of " + window.progress.summary.total + " verified in this installation record" + (window.progress.summary.attention ? " · " + window.progress.summary.attention + " need attention" : "") : "")
                             Layout.fillWidth: true; font.pixelSize: 13; color: window.cyan
                         }
+                        TextLabel { visible: !!window.progress.githubLimit; text: window.githubLimitText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: 13 }
                         TextLabel { visible: !!window.progress.failureMessage; text: window.progress.failureMessage || ""; Layout.fillWidth: true; color: window.accent; font.pixelSize: 13 }
                         Flow {
                             visible: window.progress.running; Layout.fillWidth: true; spacing: 8

@@ -47,8 +47,13 @@ while a run is active. They include other applications on the Deck, exclude virt
 devices to avoid double counting, and show unavailable counters as gaps. They are
 not per-download byte measurements. The rolling history is limited to 60 samples;
 no monitoring daemon is installed. Provider-reported item progress remains separate.
-GitHub API exhaustion stays a blocking preflight failure with reset time and retry
-instructions, rather than being mislabeled as a DNS problem.
+GitHub API exhaustion is a preflight warning with reset time and retry instructions.
+Independent items can continue; an item that requires the unavailable API must still
+complete its own download and verification. Failed items remain retryable and their
+dependents remain blocked. Other preflight safety failures still block the run.
+The install screen shows a countdown and local reset time from the latest recorded
+GitHub preflight response. The timer makes no API calls and never auto-retries installs.
+When it expires, the UI invites a retry without claiming availability was rechecked.
 
 Known interactive vendor/privileged providers are deferred when they do not
 already verify. They show **Continue in terminal** after the pass, rather than

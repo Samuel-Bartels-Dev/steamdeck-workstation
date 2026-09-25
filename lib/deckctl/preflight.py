@@ -63,6 +63,8 @@ def network():
     endpoints = ('https://api.github.com', 'https://github.com', 'https://flathub.org/repo/flathub.flatpakrepo')
     for endpoint in endpoints:
         host = endpoint.split('/')[2]
+        rate_limited = False
+        reset_at = None
         message = 'HTTPS probe failed; check DNS, network, proxy and TLS.'
         try:
             result = subprocess.run(['curl', '--head', '--fail', '--silent', '--show-error',
@@ -79,14 +81,17 @@ def network():
             if not passed and status.isdigit():
                 message = 'HTTPS endpoint returned HTTP '+status+'. Retry later; check upstream availability or access restrictions.'
             if not passed and host == 'api.github.com' and status in ('403', '429') and headers.get('x-ratelimit-remaining') == '0':
-                message = 'GitHub API rate limit exhausted. Wait for the allowance to reset, then Resume installation. Completed installs are preserved.'
+                rate_limited = True
+                message = 'GitHub API rate limit exhausted. Independent items can continue. Items needing this API may fail; retry those after reset. Completed installs are preserved.'
                 try:
                     reset = datetime.fromtimestamp(int(headers['x-ratelimit-reset']), timezone.utc)
+                    reset_at = int(reset.timestamp())
                     message += ' Reset: '+reset.strftime('%Y-%m-%d %H:%M:%S UTC')+'.'
                 except (KeyError, ValueError, OverflowError, OSError): pass
         except (OSError, subprocess.TimeoutExpired): passed = False
-        rows.append({'name': host, 'status': 'PASS' if passed else 'FAIL',
-                     'message': 'HTTPS endpoint reachable' if passed else message})
+        rows.append({'name': host, 'status': 'PASS' if passed else 'WARN' if rate_limited else 'FAIL',
+                     'message': 'HTTPS endpoint reachable' if passed else message,
+                     'rate_limited':rate_limited, 'reset_at':reset_at})
     return rows
 
 
