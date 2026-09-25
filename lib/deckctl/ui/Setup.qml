@@ -466,6 +466,9 @@ ApplicationWindow {
         if (status === "RUNNING") return window.tone("#42f5ff")
         return muted
     }
+    function sectionCount(section) {
+        return section.items.filter(function(item) { return itemSelected(item) }).length
+    }
     onClosing: function(event) {
         if (progress.running || busy) {
             event.accepted = false
@@ -524,7 +527,7 @@ ApplicationWindow {
             opacity: action.enabled ? 1 : 0.45
         }
         background: Rectangle {
-            radius: 10
+            radius: 12
             color: action.primary ? (action.down ? window.tone("#df30b6") : window.accent) : (action.hovered ? window.tone("#352046") : window.tone("#261735"))
             border.width: action.activeFocus ? 2 : 1
             border.color: action.activeFocus ? window.cyan : (action.primary ? window.accent : window.tone("#533960"))
@@ -543,17 +546,23 @@ ApplicationWindow {
         property string inventoryDetail: ""
         property int selectedCount: 0
         property bool selected: false
-        implicitHeight: Math.max(94, card.contentItem.implicitHeight + 24) + (optionsPage ? 54 : 0)
+        implicitHeight: Math.max(108, card.contentItem.implicitHeight + 28) + (optionsPage ? 54 : 0)
         hoverEnabled: true
         bottomPadding: optionsPage ? 54 : 0
         ToolTip.visible: hovered && !!inventoryDetail
         ToolTip.delay: 700
         ToolTip.text: inventoryDetail
         background: Rectangle {
-            radius: 10
-            color: !card.navigation && card.selected ? window.tone("#2a1736") : (card.hovered ? window.tone("#2b1c3a") : window.tone("#1a1128"))
-            border.width: card.activeFocus ? 2 : 1
+            radius: 14
+            color: !card.navigation && card.selected ? window.tone("#2a1736") : (card.hovered || card.activeFocus ? window.tone("#2b1c3a") : window.tone("#1a1128"))
+            border.width: card.activeFocus ? 3 : 1
             border.color: card.activeFocus ? window.cyan : (!card.navigation && card.selected ? window.tone("#c745a7") : window.tone("#493055"))
+            Rectangle {
+                visible: card.selected && !card.navigation
+                width: 4; radius: 2; height: parent.height - 24
+                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                color: window.accent
+            }
         }
         contentItem: RowLayout {
             spacing: 14
@@ -567,7 +576,7 @@ ApplicationWindow {
             ColumnLayout {
                 Layout.leftMargin: card.navigation ? 18 : 0
                 Layout.fillWidth: true; Layout.rightMargin: 16; spacing: 6
-                TextLabel { text: card.heading; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                TextLabel { text: card.heading; font.pixelSize: 16; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 TextLabel { text: card.detail; color: !card.navigation && card.selected ? window.tone("#e2c5e6") : window.muted; font.pixelSize: 13; Layout.fillWidth: true }
                 TextLabel { visible: !!card.inventoryLabel; text: card.inventoryLabel; color: card.inventoryStatus === "UPDATE" ? window.accent : window.muted; font.pixelSize: 12; Layout.fillWidth: true }
 
@@ -615,13 +624,17 @@ ApplicationWindow {
                         Layout.fillWidth: true; implicitHeight: window.height < 620 ? 48 : 58
                         enabled: window.loaded && !window.busy && !window.progress.running && (index !== 5 || window.saved)
                         onClicked: window.navigate(index)
-                        background: Rectangle { radius: 10; color: window.stage === nav.index ? window.tone("#35203f") : "transparent"; border.color: nav.activeFocus ? window.accent : "transparent" }
+                        background: Rectangle {
+                            radius: 12; color: window.stage === nav.index ? window.tone("#35203f") : nav.hovered ? window.tone("#261735") : "transparent"
+                            border.width: nav.activeFocus ? 2 : 0; border.color: window.cyan
+                            Rectangle { visible: window.stage === nav.index; width: 3; height: parent.height - 16; radius: 2; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; color: window.accent }
+                        }
                         contentItem: RowLayout {
                             spacing: 12
                             Text { Layout.leftMargin: 12; text: String(nav.index+1).padStart(2,"0"); color: window.stage === nav.index ? window.cyan : window.tone("#ac87be"); font.pixelSize: 13 }
                             ColumnLayout {
                                 Layout.fillWidth: true; spacing: 4
-                                TextLabel { text: nav.modelData; font.pixelSize: 13; font.weight: Font.DemiBold; color: window.stage === nav.index ? window.ink : window.muted; Layout.fillWidth: true }
+                                TextLabel { text: nav.modelData; font.pixelSize: 14; font.weight: Font.DemiBold; color: window.stage === nav.index ? window.ink : window.muted; Layout.fillWidth: true }
                                 TextLabel { text: window.stageHints[nav.index]; font.pixelSize: 10; color: window.muted; Layout.fillWidth: true; elide: Text.ElideRight; wrapMode: Text.NoWrap }
                             }
                         }
@@ -651,7 +664,7 @@ ApplicationWindow {
                 TextLabel { text: window.selectionCount() + " in your plan"; color: window.muted; font.pixelSize: 12 }
                 Action { text: window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS" ? "Setup check" : window.inventoryPending ? "Checking Deck…" : "Deck status"; implicitHeight: 36; onClicked: statusDrawer.open() }
             }
-            TextLabel { text: window.stage === 5 ? window.installTitle() : window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 27 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
+            TextLabel { text: window.stage === 5 ? window.installTitle() : window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 30 : 36; font.weight: Font.Bold; Layout.fillWidth: true }
             TextLabel { visible: window.stage !== 5; text: window.detailPage === "css" ? "Decky › CSS Loader. Choose the components you want to manage." : window.detailPage === "plugins" ? "Add-ons for Decky Loader. CSS Loader has its own component choices." : window.detailPage ? "Check only the items you want. Browsing does not select or install anything." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
             RowLayout {
                 visible: !!window.detailPage || window.navigationStack.length > 0
@@ -790,10 +803,13 @@ ApplicationWindow {
                         delegate: ColumnLayout {
                             required property var modelData
                             Layout.fillWidth: true; spacing: 10
+                            Layout.topMargin: 10
                             RowLayout {
                                 visible: !window.detailPage
                                 Layout.fillWidth: true
-                                TextLabel { text: modelData.title; color: window.cyan; font.pixelSize: 17; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                                Rectangle { Layout.preferredWidth: 4; Layout.preferredHeight: 22; radius: 2; color: window.cyan }
+                                TextLabel { text: modelData.title; color: window.ink; font.pixelSize: 19; font.weight: Font.Bold; Layout.fillWidth: true; Layout.leftMargin: 6 }
+                                TextLabel { text: window.sectionCount(modelData) + " / " + modelData.items.length + " selected"; color: window.muted; font.pixelSize: 12 }
                             }
                             TextLabel { visible: !window.detailPage; text: modelData.description; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
                             GridLayout {
