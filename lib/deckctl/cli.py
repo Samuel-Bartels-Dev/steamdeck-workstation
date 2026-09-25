@@ -3,6 +3,13 @@ import argparse, json, subprocess, sys
 from . import ai_workspace, apps, containers, core, controller, storage_ops, library, lifecycle, network, hostkit, decky_installer, css_stack, reliability, terminal, launchers, android, workspace, desktop, provisioning, setup_builder, upgrade_plan, shortcut_ops
 
 def repo_validate():
+    from . import runtime_package
+    if (core.ROOT/runtime_package.MANIFEST).exists():
+        try: count = runtime_package.validate(core.ROOT)
+        except (OSError, ValueError, TypeError) as exc:
+            print('RUNTIME VALIDATION FAILED: '+str(exc)); return 1
+        print(f'RUNTIME INTEGRITY PASS — {count} files. Development regression tests run from the source checkout, not this installed runtime.')
+        return 0
     return subprocess.run([sys.executable,str(core.ROOT/'tests/contract/test_repo.py')],cwd=core.ROOT).returncode
 
 def build_parser():

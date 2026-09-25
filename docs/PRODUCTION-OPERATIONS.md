@@ -4,6 +4,27 @@ This engineering pass adds foundations; it does **not** certify this release on
 fresh hardware. See [the inspection and gap analysis](PRODUCTION-READINESS-REVIEW.md)
 and [existing hardware checklist](HARDWARE-TESTING.md).
 
+## Installed runtime versus development source
+
+Permanent installations keep the CLI, QML UI, libraries, modules, configuration,
+compatibility records, companion-host payloads, licenses, user documentation and
+installation/support helpers. Tests, Git history, CI workflows, AI adapters,
+development task notes and build/lint tools stay out of the installed runtime.
+No developer checkout is needed to use or update `deckctl`.
+
+The downloaded release/USB archive still contains source and tests. Its existing
+full regression gate runs before the lean copy is promoted. This change reduces
+permanent installation content, not the release download size. Source checkouts
+continue to run the full suite with `deckctl repo validate`.
+
+On an installed runtime, that command explicitly reports **RUNTIME INTEGRITY PASS**:
+file hashes, modes, required files and module action targets match its generated
+manifest. It does not claim to run development regression tests. The manifest
+checks accidental damage; it is not a signature or substitute for release checksums.
+Updates and rollback retain their existing versioned-directory/link mechanism.
+Existing older full installations are retained for rollback, not automatically pruned.
+Developer commands such as generating project tasks require a source checkout.
+
 ## Commands and state
 
 Normal UI **Install**, **Resume**, and **Retry** run directly with an inline live

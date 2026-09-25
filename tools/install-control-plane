@@ -2,9 +2,12 @@
 from pathlib import Path
 import shutil, sys, re, json, tempfile, os, hashlib, argparse, fcntl
 
-parser = argparse.ArgumentParser(description='Install the persistent deckctl control plane with atomic release-link promotion.', epilog='Copies a trusted local repository to ~/.local/share/steamdeck-workstation/releases/VERSION; installs shell aliases and the man page. Existing different content under the same version is refused. No vendor applications are installed. Exit 0 on success; nonzero on validation/copy errors.')
+parser = argparse.ArgumentParser(description='Install the persistent deckctl control plane with atomic release-link promotion.', epilog='Copies runtime files from a trusted local repository to ~/.local/share/steamdeck-workstation/releases/VERSION; installs shell aliases and the man page. Existing different content under the same version is refused. No vendor applications are installed. Exit 0 on success; nonzero on validation/copy errors.')
 parser.add_argument('source', nargs='?', default=str(Path(__file__).resolve().parents[1]), help='Trusted repository directory (default: this repository).')
 source = Path(parser.parse_args().source).resolve()
+sys.path.insert(0, str(source/'lib'))
+from deckctl import runtime_package
+if (source/runtime_package.MANIFEST).exists(): runtime_package.validate(source)
 version = (source / "VERSION").read_text().strip()
 if not re.fullmatch(r'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?', version): raise SystemExit('Invalid release version')
 if not (source/'bin/deckctl').is_file(): raise SystemExit('Source is missing bin/deckctl')
@@ -41,14 +44,18 @@ def inventory(root):
 
 if source != release:
     if release.exists():
-        if inventory(source) != inventory(release):
+        if (release/runtime_package.MANIFEST).exists(): runtime_package.validate(release)
+        if ((runtime_package.inventory(source) != runtime_package.inventory(release)) if (release/runtime_package.MANIFEST).exists() else (inventory(source) != inventory(release))):
             raise SystemExit('Different content already exists for this release version; use a new version or explicitly preserve/move the old release first')
     else:
-        inventory(source)
+        runtime_package.inventory(source)
         stage = Path(tempfile.mkdtemp(prefix='.install-', dir=release.parent))
         try:
-            ignore = shutil.ignore_patterns('.git', 'support-bundles', '__pycache__', '*.pyc')
-            shutil.copytree(source, stage/'repo', ignore=ignore)
+            runtime = stage/'repo'; runtime.mkdir()
+            for relative in runtime_package.inventory(source):
+                target = runtime/relative; target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source/relative, target)
+            runtime_package.write_manifest(runtime)
             (stage/'repo').rename(release)
         finally:
             shutil.rmtree(stage)
