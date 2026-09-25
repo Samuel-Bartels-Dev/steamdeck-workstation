@@ -87,6 +87,17 @@ ApplicationWindow {
     property bool showPalettePreview: false
     property var finishItems: []
     property var importPreview: ({})
+    property var deckInventory: ({items: {}, running: false})
+    property bool inventoryPending: false
+    function refreshInventory() {
+        inventoryPending = true
+        request("inventory", {}, function(result) { deckInventory = result; inventoryPending = !!result.running })
+    }
+    function inventoryFor(item) {
+        var prefix = item.kind === "component" ? item.group : item.kind
+        var key = prefix + ":" + item.id
+        return (deckInventory.items || {})[key] || ({label: inventoryPending ? "Checking this Deck…" : "Not checked", status: "UNKNOWN"})
+    }
     property var installPreview: ({})
     property bool previewPending: false
     property var progress: ({running: false, modules: [], operation: null})
@@ -407,7 +418,12 @@ ApplicationWindow {
         request("catalog", null, function(result) {
             saved = result.hasSavedPlan; data = result; paletteId = result.palette; appearanceChoices = result.appearance; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
             if (!result.hasSavedPlan) { preset(false); dirty = false; notice = "Start with only what you need. Nothing installs until you review and confirm." }
+            refreshInventory()
         })
+    }
+    Timer {
+        interval: 1000; running: window.inventoryPending; repeat: true
+        onTriggered: window.request("inventory", null, function(result) { window.deckInventory = result; window.inventoryPending = !!result.running })
     }
     Timer {
         interval: 1000; running: window.previewPending; repeat: true
@@ -418,7 +434,7 @@ ApplicationWindow {
     }
     Timer {
         interval: 1500; running: window.loaded && window.stage === 5; repeat: true
-        onTriggered: window.request("progress", null, function(result) { window.progress = result })
+        onTriggered: window.request("progress", null, function(result) { var wasRunning = window.progress.running; window.progress = result; if (wasRunning && !result.running) window.refreshInventory() })
     }
 
     component TextLabel: Label {
@@ -453,6 +469,8 @@ ApplicationWindow {
         property string optionsPage: ""
         property bool navigation: false
         property string requirement: ""
+        property string inventoryLabel: ""
+        property string inventoryStatus: ""
         property int selectedCount: 0
         property bool selected: false
         implicitHeight: Math.max(104, card.contentItem.implicitHeight + 32) + (optionsPage ? 54 : 0)
@@ -478,6 +496,7 @@ ApplicationWindow {
                 Layout.fillWidth: true; Layout.rightMargin: 16; spacing: 6
                 TextLabel { text: card.heading; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 TextLabel { text: card.detail; color: !card.navigation && card.selected ? window.tone("#e2c5e6") : window.muted; font.pixelSize: 13; Layout.fillWidth: true }
+                TextLabel { visible: !!card.inventoryLabel; text: card.inventoryLabel; color: card.inventoryStatus === "UPDATE" ? window.accent : window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
                 TextLabel { visible: !!card.requirement; text: "Included · required by " + card.requirement; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
                 TextLabel { visible: card.navigation; text: card.selectedCount ? card.selectedCount + " selected · Browse" : "Browse individual options"; color: window.accent; font.pixelSize: 12 }
             }
@@ -600,6 +619,11 @@ ApplicationWindow {
                 color: window.problem ? window.tone("#442035") : window.tone("#281d3e")
                 TextLabel { id: banner; anchors.fill: parent; anchors.margins: 12; text: window.problem || window.notice; color: window.problem ? window.tone("#ffd0e9") : window.tone("#e3d0fa"); font.pixelSize: 13 }
             }
+            RowLayout {
+                Layout.fillWidth: true
+                TextLabel { Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: window.inventoryPending ? "Checking this Deck and available updates… " + (window.deckInventory.completed || 0) + "/" + (window.deckInventory.total || 0) : "Device status is separate from your selections. Sign-in may still be needed." }
+                Action { text: "Refresh status"; enabled: !window.inventoryPending && !window.progress.running; onClicked: window.refreshInventory() }
+            }
             ScrollView {
                 id: scroll
                 Layout.fillWidth: true; Layout.fillHeight: true
@@ -699,6 +723,8 @@ ApplicationWindow {
                                         objectName: "choice-" + modelData.id
                                         Layout.fillWidth: true; Layout.preferredWidth: 1; Layout.fillHeight: true
                                         heading: modelData.name; detail: modelData.summary
+                                        inventoryLabel: window.inventoryFor(modelData).label
+                                        inventoryStatus: window.inventoryFor(modelData).status
                                         requirement: window.requiredBy(modelData)
                                         optionsPage: modelData.kind === "module" && modelData.id === "decky" ? "plugins" : modelData.kind === "plugin" && modelData.id === "SDH-CssLoader" ? "css" : ""
                                         selected: window.itemSelected(modelData)
@@ -761,7 +787,7 @@ ApplicationWindow {
                                             required property var modelData
                                             Layout.fillWidth: true; spacing: 4
                                             TextLabel { text: "✓  " + modelData.name + (window.requiredBy(modelData) ? " · included" : ""); Layout.fillWidth: true; font.pixelSize: 14 }
-                                            TextLabel { text: modelData.summary; Layout.fillWidth: true; Layout.leftMargin: 20; color: window.muted; font.pixelSize: 12 }
+                                            TextLabel { text: modelData.summary + "\n" + window.inventoryFor(modelData).label; Layout.fillWidth: true; Layout.leftMargin: 20; color: window.muted; font.pixelSize: 12 }
                                         }
                                     }
                                 }

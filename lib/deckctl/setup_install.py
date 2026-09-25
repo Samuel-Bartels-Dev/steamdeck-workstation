@@ -53,18 +53,29 @@ def lock():
 
 def _run(args, env=None):
     if args and args[0] == 'flatpak':
-        return run_log.run_step(args, env, verbose=_verbose.get())
+        from .flatpak_progress import Reporter
+        reporter = Reporter()
+        run_log.run_step(args, dict(os.environ if env is None else env, LC_ALL='C'),
+                         verbose=_verbose.get(), on_output=reporter)
+        return reporter.last_phase
     result = subprocess.run(args, env=env)
     if result.returncode: raise RuntimeError('Installer exited with code '+str(result.returncode)+'. See Konsole for its explanation.')
 
 
 def _flatpak(app_id):
+    install_progress.report('Checking installation', 'Checking existing user and system installations.')
     found = setup_plan.command(['flatpak', 'info', '--show-commit', app_id])
     if found:
         if setup_plan.command(['flatpak', 'info', '--user', '--show-commit', app_id]):
-            _run(['flatpak', 'update', '--user', '-y', app_id])
-        return
+            install_progress.report('Checking for updates', 'Already installed; checking for available updates.')
+            phase = _run(['flatpak', 'update', '--user', '-y', app_id])
+            return 'Already up to date; verified.' if phase == 'Up to date' else 'Updated and verified.' if phase == 'Updating' else 'Update check completed; verified.'
+        else:
+            install_progress.report('Using existing installation', 'System installation found; updates remain managed by its owner.')
+        return 'Existing system installation reused and verified.'
+    install_progress.report('Installing', 'Application is missing; installing the selected Flatpak.')
     _run(['flatpak', 'install', '--user', '-y', 'flathub', app_id])
+    return 'Installed and verified.'
 
 
 def _module(mid):
@@ -84,7 +95,7 @@ def execute(row):
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
     if 'flatpak' in row:
-        _flatpak(row['flatpak']); return
+        return _flatpak(row['flatpak'])
     if row['kind'] == 'support': return
     if key == 'module:ai-workspace': ai_workspace.configure(); return
     if row['kind'] == 'module': _module(row['owner']); return
@@ -224,10 +235,10 @@ def _run_plan(only, resume, journal):
                             if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
                                 raise RuntimeError('Not enough free space for this item’s staging allowance plus 1 GiB headroom.')
                         install_progress.report('Installing', 'Provider is running. Use Konsole for any prompts.')
-                        execute(row)
+                        completion = execute(row)
                         install_progress.report('Verifying', 'Checking the installed result.')
                         if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')
-                        record(key, 'DONE', 'Installed and verified.')
+                        record(key, 'DONE', completion if isinstance(completion, str) else 'Installed and verified.')
                 except NeedsSetup as exc: record(key, 'NEEDS_SETUP', str(exc))
                 except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
                     message = install_log.redact(str(exc))

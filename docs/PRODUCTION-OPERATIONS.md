@@ -48,6 +48,20 @@ forced-full-disk, card removal during writes and power-cut tests are not automat
 
 ## Logs
 
+Opening the setup UI starts a read-only background inventory, including options
+you have not selected. Cards show installed, not installed, needs setup, and
+update status. Supported update providers distinguish **Update available** from
+**Up to date**; unavailable or unsupported checks remain explicitly unknown.
+System-managed Flatpaks are identified separately. These checks never select
+options or install updates for you. Use **Refresh status** to check again; the UI
+also refreshes when an installation finishes.
+
+During Flatpak operations, the UI distinguishes checking, installing, updating,
+and already-current results. When Flatpak supplies progress, its percentage,
+speed and ETA appear in the current step. These are Flatpak transaction progress,
+not an invented byte count or overall installer percentage. Other providers may
+still offer less detailed progress. UI changes take effect on the next launch.
+
 The established project state root remains `~/.local/state/deckctl`, overridable
 with `DECKCTL_STATE`. Each CLI setup-install/apply/update-apply, explicit repair,
 and SAFE test has a unique private directory under `logs/` with:

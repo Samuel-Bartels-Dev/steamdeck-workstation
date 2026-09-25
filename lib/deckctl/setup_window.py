@@ -34,6 +34,7 @@ class Session:
         self.preview_result = {}
         self.preview_thread = None
         self.import_archive = None
+        self.inventory_scan = None
 
     def snapshot(self):
         manifests = core.module_manifests()
@@ -81,6 +82,12 @@ class Session:
                 items.append({**catalog[key], **reference})
             data['layout'].append({**section, 'items': items})
         return data
+
+    def inventory(self, refresh=False):
+        from . import setup_inventory
+        if refresh and (self.inventory_scan is None or not self.inventory_scan.snapshot()['running']):
+            self.inventory_scan = setup_inventory.Scan(setup_inventory.catalog_rows(self.snapshot()))
+        return self.inventory_scan.snapshot() if self.inventory_scan else {'items':{}, 'running':False, 'completed':0, 'total':0}
 
     def save(self, payload):
         if setup_install.running() or (self.process and self.process.poll() is None):
@@ -242,7 +249,9 @@ def launch(plan_only=False):
                     payload = json.loads(self.rfile.read(size))
                     if not isinstance(payload, dict):
                         raise ValueError('Expected an object')
-                    if route == 'save':
+                    if route == 'inventory':
+                        result = session.inventory(refresh=True)
+                    elif route == 'save':
                         result = session.save(payload)
                     elif route == 'start':
                         result = session.start(payload.get('operation'), payload.get('item'))
@@ -256,6 +265,8 @@ def launch(plan_only=False):
                         result = setup_finish.action(payload.get('item'), payload.get('operation'))
                     else:
                         raise ValueError('Unknown operation')
+                elif route == 'inventory':
+                    result = session.inventory()
                 elif route == 'catalog':
                     result = session.snapshot()
                 elif route == 'finish':
@@ -287,5 +298,6 @@ def launch(plan_only=False):
                                       f'http://127.0.0.1:{server.server_port}/{token}/'], env=env)
             return result or (2 if plan_only and session.selected is None else 0)
         finally:
+            if session.inventory_scan: session.inventory_scan.close()
             server.shutdown()
             thread.join()

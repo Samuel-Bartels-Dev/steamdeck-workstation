@@ -180,7 +180,7 @@ def command(action, module=None, all_runs=False):
     return 0
 
 
-def run_step(args, env=None, verbose=False):
+def run_step(args, env=None, verbose=False, on_output=None):
     """Capture unattended command output; interactive providers keep their own terminal."""
     import subprocess
     from collections import deque
@@ -192,17 +192,19 @@ def run_step(args, env=None, verbose=False):
             while True:
                 chunk = process.stdout.read1(4096)
                 if not chunk: break
-                pending += chunk
+                pending += chunk.replace(b'\r', b'\n')
                 while b'\n' in pending:
                     line, pending = pending.split(b'\n', 1)
                     text = install_log.redact(line.decode('utf-8', errors='replace'))
                     recent.append(text[-2000:]); install_log.note(text)
+                    if on_output: on_output(text)
                     if verbose: print(text, flush=True)
                 if len(pending) > 65536:
                     install_log.note('[oversized provider line omitted]'); pending = b''
             if pending:
                 text = install_log.redact(pending.decode('utf-8', errors='replace'))
                 recent.append(text[-2000:]); install_log.note(text)
+                if on_output: on_output(text)
             code = process.wait()
         except BaseException:
             process.terminate()
