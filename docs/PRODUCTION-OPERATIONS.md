@@ -6,6 +6,16 @@ and [existing hardware checklist](HARDWARE-TESTING.md).
 
 ## Commands and state
 
+On a fresh or reimaged Steam Deck, setup and preflight inspect the current account's
+password status with `passwd --status`. If missing or locked, the UI explains how
+to open Konsole and run `passwd`, then offers **Recheck password**. Password typing
+is intentionally invisible in the terminal. No password is collected by the UI,
+logged, or passed as a command argument. An unavailable check is a warning, not a
+claim that a password exists. User-space installs remain available; installers
+requiring administrator access still authenticate through their normal prompts.
+A set password does not prove sudo policy authorization; `sudo -v` in Konsole can
+check that explicitly. The automatic check never runs an authentication prompt.
+
 Run from the candidate checkout while testing, so you test this implementation:
 
 ```bash

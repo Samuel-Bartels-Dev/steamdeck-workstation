@@ -56,6 +56,8 @@ class Session:
                 'palettes': css_stack.palette_catalog(),
                 'palette': css_stack.palette_id(), 'appearance': appearance.selection(), 'appearanceTargets': appearance.TARGETS}
         descriptions = core.load_json(core.ROOT/'config/setup-copy.json', {})
+        from . import preflight
+        data['sudoReadiness'] = preflight.sudo_readiness()
         sections = dict(data)
         sections['modules'] = [item for group in data['groups'] for item in group['modules']]
         sections['components'] = [item for items in data['components'].values() for item in items]
@@ -272,6 +274,9 @@ def launch(plan_only=False):
                         raise ValueError('Unknown operation')
                 elif route == 'inventory':
                     result = session.inventory()
+                elif route == 'sudo-readiness':
+                    from . import preflight
+                    result = preflight.sudo_readiness()
                 elif route == 'catalog':
                     result = session.snapshot()
                 elif route == 'finish':

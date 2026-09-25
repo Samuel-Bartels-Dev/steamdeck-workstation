@@ -16,6 +16,30 @@ from deckctl import core, run_log, compatibility, diagnostics, cli, preflight
 
 
 class Production(unittest.TestCase):
+    def test_password_readiness_never_prompts_or_confuses_locked_with_set(self):
+        import pwd
+        import subprocess
+        user = pwd.getpwuid(os.getuid()).pw_name
+        for value, expected in [('P','PASSWORD_SET'),('NP','PASSWORD_MISSING'),('L','PASSWORD_LOCKED'),('unexpected','UNKNOWN')]:
+            with patch.object(preflight.shutil,'which',return_value='/usr/bin/sudo'), patch.object(preflight.subprocess,'run',return_value=subprocess.CompletedProcess([],0,user+' '+value,'password-like sensitive stderr')) as run:
+                result = preflight.sudo_readiness()
+                self.assertEqual(result['state'],expected)
+                self.assertEqual(result['status'],'PASS' if value == 'P' else 'WARN')
+                self.assertNotIn('sensitive',str(result))
+                run.assert_called_once()
+                self.assertEqual(run.call_args.args[0],['passwd','--status',user])
+                self.assertEqual(run.call_args.kwargs['timeout'],5)
+        with patch.object(preflight.shutil,'which',return_value=None), patch.object(preflight.subprocess,'run') as run:
+            self.assertEqual(preflight.sudo_readiness()['state'],'UNAVAILABLE'); run.assert_not_called()
+        with patch.object(preflight.shutil,'which',return_value='/usr/bin/sudo'), patch.object(preflight.subprocess,'run',side_effect=subprocess.TimeoutExpired('passwd',5)):
+            self.assertEqual(preflight.sudo_readiness()['state'],'UNKNOWN')
+
+    def test_setup_exposes_fresh_install_password_guidance(self):
+        from deckctl import setup_window
+        warning = dict(status='WARN',state='PASSWORD_MISSING',message='Run passwd in Konsole')
+        with patch.object(preflight,'sudo_readiness',return_value=warning):
+            self.assertEqual(setup_window.Session().snapshot()['sudoReadiness'],warning)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

@@ -616,6 +616,12 @@ ApplicationWindow {
                 TextLabel { Layout.fillWidth: true; text: window.detailPage === "plugins" ? "Choosing a plugin includes Decky Loader." : window.detailPage === "css" ? "Choosing a theme includes CSS Loader and Decky." : "Your edits stay in this plan."; color: window.muted; font.pixelSize: 12 }
             }
             RowLayout {
+                visible: !!window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS"
+                Layout.fillWidth: true
+                TextLabel { Layout.fillWidth: true; text: window.data.sudoReadiness ? window.data.sudoReadiness.message : ""; color: window.accent; font.pixelSize: 12 }
+                Action { text: "Recheck password"; enabled: !window.progress.running; onClicked: window.request("sudo-readiness", null, function(result) { var next = Object.assign({}, window.data); next.sudoReadiness = result; window.data = next }) }
+            }
+            RowLayout {
                 visible: window.stage < 4
                 Layout.fillWidth: true; spacing: 10
                 TextField {

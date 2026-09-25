@@ -11,7 +11,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'lib'))
-from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options, appearance
+from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options, appearance, preflight
 
 
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
@@ -46,6 +46,7 @@ UI.Setup {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                if (app.data.sudoReadiness.state !== "PASSWORD_MISSING") throw new Error("Fresh-install password guidance missing")
                 if (app.inventoryFor({kind:"app",id:"discord"}).label !== "Update available") return
                 app.selectUpdates()
                 if (app.selectedApps.indexOf("discord") < 0 || app.inventoryDetails({kind:"app",id:"discord"}).indexOf("1 → 2") < 0) throw new Error("Update selection or versions missing")
@@ -181,6 +182,9 @@ UI.Setup {
                 confirmed.append(key)
                 return {'confirmed': True}
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
+            password_check = patch.object(preflight,'sudo_readiness',return_value={'status':'WARN','state':'PASSWORD_MISSING','message':'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo. Password entry stays in Konsole; typed characters are not displayed. Then recheck here. User-space installs can continue.'})
+            password_check.start()
+            self.addCleanup(password_check.stop)
             with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
