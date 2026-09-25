@@ -16,6 +16,45 @@ from deckctl import core, run_log, compatibility, diagnostics, cli, preflight
 
 
 class Production(unittest.TestCase):
+    def test_lean_runtime_install_repeat_verify_and_corruption(self):
+        import subprocess
+        from deckctl import runtime_package
+        home = Path(self.temp.name)/'runtime-home'; home.mkdir()
+        env = dict(os.environ, HOME=str(home))
+        installer = ROOT/'tools/install-control-plane'
+        for _ in range(2):
+            result = subprocess.run([str(installer), str(ROOT)], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        installed = home/'.local/share/steamdeck-workstation/current'
+        for name in ('tests', '.github', 'tasks', 'AGENTS.md', 'tools/build-release', 'docs/ai'):
+            self.assertFalse((installed/name).exists(), name)
+        self.assertTrue((installed/'lib/deckctl/ui/Setup.qml').is_file())
+        self.assertTrue((installed/'host').is_dir())
+        result = subprocess.run([str(installed/'bin/deckctl'), 'repo', 'validate'], env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('RUNTIME INTEGRITY PASS', result.stdout)
+        self.assertNotIn('REPO VALIDATION PASS', result.stdout)
+        result = subprocess.run([str(installed/'tools/install-control-plane'), str(installed)], env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        for args in (['setup','customize','--help'], ['health','--help'], ['update','--help']):
+            result = subprocess.run([str(installed/'bin/deckctl'), *args], env=env, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        result = subprocess.run([str(installed/'bin/deckctl'), 'ai', 'task', 'base', 'example'], env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('source checkout', result.stderr)
+        self.assertFalse((installed/'tasks').exists())
+        target = installed/'lib/deckctl/ui/Setup.qml'
+        original = target.read_bytes(); target.write_bytes(b'broken')
+        with self.assertRaisesRegex(ValueError, 'integrity mismatch'): runtime_package.validate(installed)
+        result = subprocess.run([str(installed/'tools/install-control-plane'), str(installed)], env=env, capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        target.write_bytes(original)
+        extra = installed/'unexpected.txt'; extra.write_text('not runtime')
+        with self.assertRaisesRegex(ValueError, 'non-runtime'): runtime_package.validate(installed)
+        extra.unlink()
+        target.unlink(); target.symlink_to(ROOT/'lib/deckctl/ui/Setup.qml')
+        with self.assertRaisesRegex(ValueError, 'symlink'): runtime_package.validate(installed)
+
     def test_password_readiness_never_prompts_or_confuses_locked_with_set(self):
         import pwd
         import subprocess

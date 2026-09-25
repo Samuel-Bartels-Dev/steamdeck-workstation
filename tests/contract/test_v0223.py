@@ -119,14 +119,11 @@ class ExistingInstallation(unittest.TestCase):
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.24.json').read_text())['plugin_changes'])
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
         self.assertEqual(changed-maintenance,set(guard['maintenance_changes'])-maintenance)
-        for name in ('lib/deckctl/android.py','modules/decky/css-stack.json','tools/install-control-plane'):
-            if name == 'tools/install-control-plane':
-                # Only the explicit RC suffix grammar changed; retain the historical
-                # full-file guard for every other byte of the control plane.
-                original = (ROOT/name).read_bytes().replace(br'\d+\.\d+\.\d+(?:-rc[1-9]\d*)?', br'\d+\.\d+\.\d+')
-                self.assertEqual(hashlib.sha256(original).hexdigest(), guard['files'][name]['sha256'])
-            else:
-                self.assertNotIn(name,changed)
+        # Control-plane copying now deliberately selects a lean runtime. Its
+        # install/repeat/conflict and corruption contracts are exercised in
+        # test_v0220.py and test_production.py, rather than freezing old bytes.
+        for name in ('lib/deckctl/android.py','modules/decky/css-stack.json'):
+            self.assertNotIn(name,changed)
 
 
 

@@ -358,11 +358,13 @@ def support_bundle():
 def ai_context(mid):
     if mid not in module_manifests(): raise SystemExit(f"Unknown module: {mid}")
     _,m=module_manifests()[mid]
-    print("Read:\n- AGENTS.md")
+    print("Read:" + ("\n- AGENTS.md" if (ROOT/"AGENTS.md").is_file() else "\nInstalled runtime: use a source checkout for project development instructions."))
     print(f"- modules/{mid}/{m.get('documentation',{}).get('primary','README.md')}")
     print("\nCurrent status:"); print(json.dumps(module_status(mid),indent=2))
 
 def ai_task(mid,desc):
+    if (ROOT/"runtime-manifest.json").exists():
+        raise ValueError("Project task generation requires a source checkout; installed runtime files are not a development workspace.")
     if mid not in module_manifests(): raise SystemExit(f"Unknown module: {mid}")
     stamp=time.strftime('%Y%m%d-%H%M%S'); slug=re.sub(r'[^a-z0-9]+','-',desc.lower()).strip('-')[:48]; p=ROOT/'tasks/active'/f"DECK-{stamp}-{slug}.md"
     p.parent.mkdir(parents=True, exist_ok=True)
