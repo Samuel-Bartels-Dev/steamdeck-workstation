@@ -79,6 +79,37 @@ class CSSPalettes(Isolated):
         write_json(core.STATE/'ui-safe.json', {'active': True})
         self.assertFalse(css.component_ready(names[0]))
 
+    def test_empty_selection_never_reports_palette_applied(self):
+        import contextlib
+        import io
+        self.choose('ocean', [])
+        from deckctl import appearance
+        self.assertFalse(appearance.enabled('css'))
+        status = css.palette_status()
+        self.assertEqual(status['state'], 'NO_TARGETS')
+        self.assertIn('not applied to Game Mode', status['message'])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output): self.assertEqual(css.status(), 0)
+        self.assertTrue(output.getvalue().startswith('UNCHANGED'))
+        self.assertNotIn('READY', output.getvalue())
+
+    def test_explicit_enabled_empty_selection_is_an_error(self):
+        from deckctl import setup_builder
+        self.choose('ocean', [])
+        write_json(core.CONFIG_HOME/'appearance.json', {'css':True})
+        self.assertFalse(css.readiness()[0])
+        self.assertEqual(css.palette_status()['state'], 'INVALID')
+        self.assertEqual(css.apply(), 2)
+        self.assertFalse(css.THEMES_DIR.exists())
+        before = (core.CONFIG_HOME/'css-selection.json').read_bytes()
+        with self.assertRaisesRegex(ValueError, 'no CSS components'):
+            setup_builder.save_plan(['base'], [], css=[], appearance_choices={'css':True})
+        with self.assertRaisesRegex(ValueError, 'no CSS components'):
+            setup_builder.save_plan(['base'], [], css=[])
+        self.assertEqual((core.CONFIG_HOME/'css-selection.json').read_bytes(),before)
+        write_json(core.CONFIG_HOME/'appearance.json', {'css':False})
+        self.assertTrue(css.readiness()[0])
+
     def test_no_css_selection_does_not_start_backend(self):
         self.choose('graphite', [])
         self.assertEqual(css.apply(), 0)

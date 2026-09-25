@@ -218,3 +218,14 @@ preferences through their normal interfaces; provisioning does not overwrite
 those settings. Audio Loader remains available alongside Game Theme Music.
 
 Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.
+
+## Selected palette versus applied palette
+
+The appearance dialog and review page describe the selected palette as intent.
+Saved Game Mode status separately reports verified configuration, unverified
+configuration, preserved colors, or an invalid selection. Enabling Game Mode
+recoloring with zero CSS components is invalid: choose components or turn that
+appearance target off. Save and preflight reject that combination; CSS apply
+also refuses it. An intentionally disabled, empty selection is a no-op and reports
+UNCHANGED rather than claiming that a palette applied. Existing themes are never
+selected, recolored or removed merely to resolve an empty selection.

@@ -49,6 +49,15 @@ UI.Setup {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                app.choosePalette("ocean")
+                app.setAppearance("css", true)
+                if (!app.cssSelectionError()) throw new Error("Invalid enabled empty theming accepted")
+                if (app.cssPalettePlanText().indexOf("no CSS components are selected") < 0) throw new Error("Palette with no targets looks applied")
+                app.setAppearance("css", false)
+                if (app.cssPalettePlanText().indexOf("recoloring is off") < 0) throw new Error("Disabled Game Mode appearance missing")
+                app.setAppearance("css", true)
+                app.dirty = false
+
                 app.openGuide()
                 app.guideStep = 3
                 app.closeGuide()

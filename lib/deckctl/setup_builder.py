@@ -103,10 +103,15 @@ def plugin_items():
 
 def save_plan(modules, selected_apps, launchers=None, plugins=None, css=None, components=None, palette=None, appearance_choices=None):
     from . import appearance
+    effective_appearance = core.load_json(core.CONFIG_HOME/'appearance.json', {}) if appearance_choices is None else appearance_choices
+    css_requested = isinstance(effective_appearance, dict) and effective_appearance.get('css') is True
     if appearance_choices is not None: appearance_choices = appearance.validate(appearance_choices)
     if palette is not None: palette=css_stack.validate_palette(palette)
     if components is not None: components=component_options.validate(components)
     if css is not None: css=css_stack.validate_selection(css)
+    if css_requested and not (css if css is not None else css_stack.selection()):
+        raise ValueError('Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off.')
+    if appearance_choices is not None and css == [] and not css_requested: appearance_choices['css'] = False
     if launchers is not None: launchers=gaming_options.validate(launchers)
     if plugins is not None:
         known={item['id'] for item in plugin_items()}

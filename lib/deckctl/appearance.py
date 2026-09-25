@@ -24,7 +24,11 @@ def validate(value):
 
 
 def selection():
-    return validate(core.load_json(core.CONFIG_HOME/'appearance.json', {}))
+    value = core.load_json(core.CONFIG_HOME/'appearance.json', {})
+    if isinstance(value, dict) and 'css' not in value:
+        css = core.load_json(core.CONFIG_HOME/'css-selection.json', {})
+        if isinstance(css, dict) and css.get('selected') == []: value = {**value, 'css':False}
+    return validate(value)
 
 
 def enabled(target):

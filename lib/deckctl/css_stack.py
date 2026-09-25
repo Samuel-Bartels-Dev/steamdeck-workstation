@@ -377,10 +377,18 @@ def _manifest_hash():
     return hashlib.sha256(raw).hexdigest()
 
 
+def selection_error():
+    requested = core.load_json(core.CONFIG_HOME/'appearance.json', {}).get('css') is True
+    if requested and not selection():
+        return 'Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off.'
+    return None
+
+
 def readiness():
     """Read-only, persisted-state verification; never treats a receipt alone as proof."""
     try:
         stack = _stack()
+        if selection_error(): return False, selection_error()
         if not stack['required'] and not stack['recommended']:
             return True, 'No CSS components selected; existing themes are unchanged'
         if not core._decky_loader_present():
@@ -437,13 +445,14 @@ def component_ready(name):
 
 def apply(only=None):
     try:
+        if selection_error(): raise CSSError(selection_error())
         if (core.STATE / 'ui-safe.json').exists():
             raise CSSError('UI safe mode is active; restore it before applying CSS')
         if only is not None and only not in selection(): raise ValueError('CSS component is not selected')
         if only is not None and component_ready(only): return 0
         ok, reason = readiness()
         if ok:
-            print('READY — ' + reason)
+            print(('UNCHANGED' if not selection() else 'READY') + ' — ' + reason)
             return 0
         if not core._decky_loader_present():
             raise CSSError('Install Decky Loader first')
@@ -551,9 +560,29 @@ def apply(only=None):
         return 2
 
 
+def palette_status():
+    """Report saved intent separately from verified Game Mode configuration."""
+    stack = _stack()
+    count = len(stack['required']) + len(stack['recommended'])
+    selected = next(item['name'] for item in palette_catalog() if item['id'] == palette_id())
+    if selection_error():
+        state, message = 'INVALID', selected + ' selected · ' + selection_error()
+    elif not count:
+        state, message = 'NO_TARGETS', selected + ' selected · not applied to Game Mode. No CSS components selected; existing theme colors are unchanged.'
+    elif not stack.get('apply_palette', True):
+        state, message = 'PRESERVED', selected + ' selected · Game Mode recoloring is off. Existing theme colors are preserved.'
+    else:
+        ready, reason = readiness()
+        state = 'VERIFIED' if ready else 'UNVERIFIED'
+        message = selected + (' · saved palette verified for selected CSS components.' if ready else ' selected · Game Mode application not verified. ' + reason)
+    return {'selectedPalette':selected, 'componentCount':count, 'state':state, 'message':message}
+
+
 def status():
     ok, reason = readiness()
-    print(('READY' if ok else 'CONFIG_REQUIRED') + ' — ' + reason)
+    palette = palette_status()
+    print(('UNCHANGED' if palette['state'] in ('NO_TARGETS','PRESERVED') else 'READY' if ok else 'CONFIG_REQUIRED') + ' — ' + reason)
+    print(palette['message'])
     installed = _installed_themes()
     for section in ('required', 'recommended', 'optional'):
         for item in _stack()[section]:
