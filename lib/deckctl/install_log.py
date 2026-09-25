@@ -43,9 +43,9 @@ def capture(key):
     directory = core.STATE/'install-logs'
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = path_for(key)
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_NOFOLLOW, 0o600)
     os.fchmod(fd, 0o600)
-    with os.fdopen(fd, 'w', encoding='utf-8') as output:
+    with os.fdopen(fd, 'w+', encoding='utf-8') as output:
         count = 0
         guard = threading.Lock()
         def save(text):
@@ -53,8 +53,18 @@ def capture(key):
         def write(text):
             nonlocal count
             clean = redact(text)
-            encoded = clean.encode()[:max(0, LIMIT-count)]
+            encoded = clean.encode()[-LIMIT:]
             try:
+                if count + len(encoded) > LIMIT:
+                    output.seek(0)
+                    previous = output.read().encode()
+                    # Drop whole old lines, retaining recent diagnostics within the cap.
+                    room = min(LIMIT//2, max(0, LIMIT-len(encoded)))
+                    keep = previous[-room:] if room else b''
+                    keep = keep.partition(b'\n')[2]
+                    output.seek(0); output.truncate()
+                    output.write(keep.decode('utf-8', errors='ignore'))
+                    count = len(keep)
                 output.write(encoded.decode('utf-8', errors='ignore'))
                 output.flush()
                 count += len(encoded)

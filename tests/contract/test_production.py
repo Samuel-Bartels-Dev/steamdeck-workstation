@@ -234,6 +234,37 @@ class Production(unittest.TestCase):
             self.assertIn('system installation reused', setup_install._flatpak('com.discordapp.Discord'))
             run.assert_not_called()
 
+    def test_inventory_local_missing_timeout_and_installed(self):
+        import subprocess
+        from deckctl import setup_inventory
+        row = {'key':'app:discord','flatpak':'com.discordapp.Discord'}
+        for code, stdout, stderr, status in [(0,'commit','', 'INSTALLED'), (1,'','error: not installed','MISSING')]:
+            with patch.object(setup_inventory.subprocess,'run',return_value=subprocess.CompletedProcess([],code,stdout,stderr)):
+                self.assertEqual(setup_inventory.local(row)['status'],status)
+        for failure in [subprocess.TimeoutExpired('flatpak',8), OSError('missing executable')]:
+            with patch.object(setup_inventory.subprocess,'run',side_effect=failure), self.assertRaises(type(failure)):
+                setup_inventory.local(row)
+        with patch.object(setup_inventory.subprocess,'run',return_value=subprocess.CompletedProcess([],1,'','permission denied')), self.assertRaises(RuntimeError):
+            setup_inventory.local(row)
+        self.assertFalse(core.STATE.exists())
+
+    def test_inventory_scan_is_nonblocking_and_close_stops_queued_checks(self):
+        import threading
+        from deckctl import setup_inventory
+        release = threading.Event(); entered = threading.Event(); calls = []
+        def probe(row):
+            calls.append(row['key']); entered.set(); release.wait(2)
+            return dict(key=row['key'], installed=False, status='MISSING')
+        with patch.object(setup_inventory,'local',side_effect=probe):
+            scan = setup_inventory.Scan([{'key':str(i)} for i in range(20)])
+            try:
+                self.assertTrue(entered.wait(1))
+                self.assertTrue(scan.snapshot()['running'])
+                scan.close()
+                self.assertFalse(scan.snapshot()['running'])
+            finally: release.set()
+        self.assertLessEqual(len(calls),4)
+
     def test_inventory_distinguishes_updates_and_failed_update_checks(self):
         from deckctl import setup_inventory, setup_plan
         row = {'key':'app:discord'}

@@ -42,6 +42,7 @@ class Experience(unittest.TestCase):
         with patch.object(setup_plan, 'present', return_value=(True, {'scope': 'user', 'commit': 'old'})), patch.object(setup_plan, 'command', side_effect=['new', 'Download size: 100.0 MB\nInstalled size: 250.0 MB']):
             result = setup_plan.inspect(row, online=True)
             self.assertEqual(result['action'], 'UPDATE')
+            self.assertEqual((result['installedVersion'],result['availableVersion']),('old','new'))
             self.assertGreaterEqual(result['spaceBytes'], 350000000)
         self.assertIsNone(setup_plan._size('Download size: unknown', 'Download size'))
 
@@ -134,6 +135,44 @@ class Experience(unittest.TestCase):
         with patch.object(setup_plan, 'items', return_value=(self.plan, rows)), patch.object(setup_plan, 'storage_budget', return_value=(self.root, None, '')), patch.object(setup_install, 'execute', side_effect=lambda row: calls.append(row['key'])), patch.object(setup_install, 'verify', return_value=True):
             self.assertEqual(setup_install.run(only='b'), 0)
         self.assertEqual(calls, ['a', 'b'])
+
+    def test_resume_after_interrupt_and_extraction_failure_preserves_healthy_work(self):
+        rows = [dict(key=k, name=k, kind='component', requires=[]) for k in ('healthy','broken')]
+        personal = self.root/'personal-config'; personal.write_text('keep me')
+        calls = []
+        def interrupted(row):
+            calls.append(row['key'])
+            if row['key'] == 'broken': raise KeyboardInterrupt()
+        with patch.object(setup_plan,'items',return_value=(self.plan,rows)), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',return_value=True):
+            with patch.object(setup_install,'execute',side_effect=interrupted):
+                self.assertEqual(setup_install.run(),2)
+            self.assertEqual(setup_install.snapshot()['items']['broken']['status'],'INTERRUPTED')
+            for failure in (RuntimeError('Interrupted extraction'), OSError('Network disconnected')):
+                with patch.object(setup_install,'execute',side_effect=failure) as execute:
+                    self.assertEqual(setup_install.run(resume=True),1)
+                    self.assertEqual([c.args[0]['key'] for c in execute.call_args_list],['broken'])
+            with patch.object(setup_install,'execute') as execute:
+                self.assertEqual(setup_install.run(resume=True),0)
+                self.assertEqual([c.args[0]['key'] for c in execute.call_args_list],['broken'])
+        self.assertEqual(personal.read_text(),'keep me')
+
+    def test_quiet_provider_reports_activity_without_inventing_failure(self):
+        rows = [dict(key='a',name='A',visible=True)]
+        core.save_json(setup_install.state_path(), {'fingerprint':setup_plan.fingerprint(self.plan), 'items':{'a':{'status':'RUNNING','startedAt':100,'updatedAt':110}}})
+        with patch.object(setup_plan,'items',return_value=(self.plan,rows)), patch.object(setup_install,'running',return_value=True), patch.object(setup_window.time,'time',return_value=210):
+            item = setup_window.Session().progress()['items'][0]
+        self.assertEqual(item['quietSeconds'],100)
+        self.assertEqual(item['status'],'RUNNING')
+        self.assertIn('quiet operation',item['activityNotice'])
+
+    def test_bounded_log_keeps_latest_output_and_redacts_it(self):
+        with patch.object(install_log,'LIMIT',256), install_log.capture('bounded'):
+            for i in range(40): install_log.note('provider output line '+str(i))
+            install_log.note('LATEST token=private-value')
+        content = install_log.read('bounded')
+        self.assertIn('LATEST token=<redacted>',content)
+        self.assertNotIn('private-value',content)
+        self.assertLessEqual(install_log.path_for('bounded').stat().st_size,256)
 
     def test_interrupted_state_is_read_only_and_lock_excludes_another_runner(self):
         core.save_json(setup_install.state_path(), {'items': {'a': {'status': 'RUNNING'}}})

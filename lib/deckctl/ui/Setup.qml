@@ -30,6 +30,8 @@ ApplicationWindow {
     property string paletteId: "bubblegum"
     property var appearanceChoices: ({})
     property var logView: ({item: "", text: ""})
+    property bool followLog: true
+    property bool logPending: false
     function openAppearance() { appearanceDialog.open() }
     function closeAppearance() { appearanceDialog.close() }
     function closeLog() { logDialog.close() }
@@ -48,6 +50,16 @@ ApplicationWindow {
     }
     function showLog(key) {
         request("log", {item: key}, function(result) { logView = result; logDialog.open() })
+    }
+    function refreshLog() {
+        if (logPending || !logView.item) return
+        logPending = true
+        request("log", {item: logView.item}, function(result) { logPending = false; if (logDialog.visible) logView = result })
+    }
+    function logCanRetry() {
+        return !progress.running && !busy && (progress.items || progress.modules || []).some(function(item) {
+            return item.id === logView.item && ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(item.status) >= 0
+        })
     }
     function elapsedLabel(seconds) {
         var mins = Math.floor((seconds || 0) / 60)
@@ -98,6 +110,23 @@ ApplicationWindow {
         var key = prefix + ":" + item.id
         return (deckInventory.items || {})[key] || ({label: inventoryPending ? "Checking this Deck…" : "Not checked", status: "UNKNOWN"})
     }
+    function inventoryDetails(item) {
+        var result = inventoryFor(item), parts = []
+        function version(value) { return /^[a-f0-9]{64}$/.test(value) ? value.slice(0, 12) + " (commit)" : value }
+        if (result.installedVersion && result.availableVersion) parts.push(version(result.installedVersion) + " → " + version(result.availableVersion))
+        if (result.note && result.note !== "Checked") parts.push(result.note)
+        if (result.checkedAt) parts.push("Checked " + new Date(result.checkedAt * 1000).toLocaleTimeString())
+        return parts.join(" · ")
+    }
+    function selectUpdates() {
+        var items = data.layout.reduce(function(all, section) { return all.concat(section.items) }, [])
+        items = items.concat(detailItems("plugins"), detailItems("css"))
+        var count = 0
+        items.forEach(function(item) {
+            if (inventoryFor(item).status === "UPDATE" && !itemSelected(item)) { toggleItem(item); count++ }
+        })
+        notice = count ? count + " updates added to your choices. Review before installing; existing choices are kept." : "No additional updates to select."
+    }
     property var installPreview: ({})
     property bool previewPending: false
     property var progress: ({running: false, modules: [], operation: null})
@@ -131,7 +160,7 @@ ApplicationWindow {
                 var result = JSON.parse(xhr.responseText)
                 if (xhr.status !== 200) throw new Error(result.error || "Setup could not complete this action.")
                 callback(result)
-            } catch (e) { busy = false; problem = e.message || "Setup connection lost. Close and reopen this window." }
+            } catch (e) { busy = false; if (route === "log") logPending = false; problem = e.message || "Setup connection lost. Close and reopen this window." }
         }
         xhr.send(payload === null ? null : JSON.stringify(payload))
     }
@@ -471,6 +500,7 @@ ApplicationWindow {
         property string requirement: ""
         property string inventoryLabel: ""
         property string inventoryStatus: ""
+        property string inventoryDetail: ""
         property int selectedCount: 0
         property bool selected: false
         implicitHeight: Math.max(104, card.contentItem.implicitHeight + 32) + (optionsPage ? 54 : 0)
@@ -497,6 +527,7 @@ ApplicationWindow {
                 TextLabel { text: card.heading; font.pixelSize: 15; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 TextLabel { text: card.detail; color: !card.navigation && card.selected ? window.tone("#e2c5e6") : window.muted; font.pixelSize: 13; Layout.fillWidth: true }
                 TextLabel { visible: !!card.inventoryLabel; text: card.inventoryLabel; color: card.inventoryStatus === "UPDATE" ? window.accent : window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
+                TextLabel { visible: !!card.inventoryDetail; text: card.inventoryDetail; color: window.muted; font.pixelSize: 11; Layout.fillWidth: true }
                 TextLabel { visible: !!card.requirement; text: "Included · required by " + card.requirement; color: window.cyan; font.pixelSize: 12; Layout.fillWidth: true }
                 TextLabel { visible: card.navigation; text: card.selectedCount ? card.selectedCount + " selected · Browse" : "Browse individual options"; color: window.accent; font.pixelSize: 12 }
             }
@@ -623,6 +654,7 @@ ApplicationWindow {
                 Layout.fillWidth: true
                 TextLabel { Layout.fillWidth: true; font.pixelSize: 12; color: window.muted; text: window.inventoryPending ? "Checking this Deck and available updates… " + (window.deckInventory.completed || 0) + "/" + (window.deckInventory.total || 0) : "Device status is separate from your selections. Sign-in may still be needed." }
                 Action { text: "Refresh status"; enabled: !window.inventoryPending && !window.progress.running; onClicked: window.refreshInventory() }
+                Action { text: "Select updates"; enabled: !window.inventoryPending && !window.progress.running && !window.busy; onClicked: window.selectUpdates() }
             }
             ScrollView {
                 id: scroll
@@ -725,6 +757,7 @@ ApplicationWindow {
                                         heading: modelData.name; detail: modelData.summary
                                         inventoryLabel: window.inventoryFor(modelData).label
                                         inventoryStatus: window.inventoryFor(modelData).status
+                                        inventoryDetail: window.inventoryDetails(modelData)
                                         requirement: window.requiredBy(modelData)
                                         optionsPage: modelData.kind === "module" && modelData.id === "decky" ? "plugins" : modelData.kind === "plugin" && modelData.id === "SDH-CssLoader" ? "css" : ""
                                         selected: window.itemSelected(modelData)
@@ -856,6 +889,8 @@ ApplicationWindow {
                                         TextLabel { text: window.statusLabel(modelData.status); color: window.stateColor(modelData.status); font.pixelSize: 12 }
                                     }
                                     TextLabel { visible: !!modelData.message; text: modelData.message || ""; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
+                                    TextLabel { visible: !!modelData.activityNotice; text: modelData.activityNotice || ""; color: window.accent; font.pixelSize: 12; Layout.fillWidth: true }
+                                    TextLabel { visible: modelData.status === "RUNNING"; text: "Last activity " + window.elapsedLabel(modelData.quietSeconds) + " ago"; color: window.muted; font.pixelSize: 12; Layout.fillWidth: true }
                                     TextLabel {
                                         visible: modelData.status === "RUNNING" || !!modelData.startedAt
                                         text: (modelData.status === "RUNNING" ? (modelData.phase || "Installing") + " · " : "Elapsed · ") + window.elapsedLabel(modelData.elapsedSeconds)
@@ -877,7 +912,7 @@ ApplicationWindow {
                                         text: window.bytesLabel(modelData.downloaded) + (modelData.total > 0 ? " of " + window.bytesLabel(modelData.total) : " downloaded · total size unavailable")
                                         font.pixelSize: 12; color: window.muted; Layout.fillWidth: true
                                     }
-                                    Action { objectName: "viewInstallLog"; text: "View log"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
+                                    Action { objectName: "viewInstallLog"; text: "Details / live output"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
                                     Action { text: "Retry this item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
                                 }
                             }
@@ -966,7 +1001,7 @@ ApplicationWindow {
     Dialog {
         id: logDialog
         objectName: "installLogDialog"
-        title: "Installation log"
+        title: "Installation details · " + window.logView.item
         background: Rectangle { color: window.tone("#1a1128"); radius: 14; border.color: window.violet }
         anchors.centerIn: parent; width: Math.min(760, window.width - 40); height: Math.min(540, window.height - 40)
         modal: true; standardButtons: Dialog.Close
@@ -975,11 +1010,18 @@ ApplicationWindow {
             TextLabel { visible: !!window.logView.truncated; text: "Showing the last 64 KiB."; font.pixelSize: 12 }
             ScrollView {
                 Layout.fillWidth: true; Layout.fillHeight: true; clip: true
-                TextArea { text: window.logView.text || "No diagnostic output yet."; readOnly: true; textFormat: TextEdit.PlainText; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere; font.family: "monospace"; font.pixelSize: 12 }
+                TextArea { id: logText; objectName: "liveLogText"; text: window.logView.text || "No diagnostic output yet."; readOnly: true; textFormat: TextEdit.PlainText; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere; font.family: "monospace"; font.pixelSize: 12 }
             }
-            Action { text: "Refresh log"; onClicked: window.showLog(window.logView.item) }
+            CheckBox { text: "Live refresh (pause to select text)"; checked: window.followLog; onToggled: window.followLog = checked }
+            Flow {
+                Layout.fillWidth: true; spacing: 8
+                Action { text: "Refresh"; enabled: !window.logPending; onClicked: window.refreshLog() }
+                Action { text: "Copy output"; onClicked: { logText.selectAll(); logText.copy(); logText.deselect() } }
+                Action { text: "Retry this item"; enabled: window.logCanRetry(); onClicked: { window.closeLog(); window.startOperation("retry", window.logView.item) } }
+            }
         }
     }
+    Timer { interval: 1500; repeat: true; running: logDialog.visible && window.followLog && window.progress.running; onTriggered: window.refreshLog() }
     Dialog {
         id: importDialog
         title: "Import this setup?"
