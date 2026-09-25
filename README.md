@@ -925,6 +925,8 @@ Each app, tool and local model has one checkbox in its home section. Editors liv
 
 The setup UI uses **browsing cards** for categories and **checkboxes** for individual installs. Browsing never changes your plan. Fresh setups start with no optional selections; saved plans are restored when reopened. Decky Loader owns plugin choices, and CSS Loader owns its component choices. Search within a category, review the actual selected items, then save or install. Full-preset and clear-all actions ask before replacing your choices.
 
+When Decky plugins or CSS changes need administrator permission, setup opens a KDE password dialog before starting the installation queue. The password goes directly to sudo and is never saved or logged by deckctl. Authorization ends with the run; an expired ticket may require another prompt. Cancel leaves those items retryable while independent apps can continue. Initial vendor setup wizards still have their own interactive steps.
+
 Every curated option includes a short explanation of its purpose, benefit, and relevant requirements. The same description appears in review so you can check why you selected it before installing. Sidebar labels and review links follow the same section order.
 
 Parsec, Slack, WhatsApp (via the third-party Whatsie client), Telegram and Plex

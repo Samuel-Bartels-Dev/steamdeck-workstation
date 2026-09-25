@@ -413,6 +413,8 @@ ApplicationWindow {
         if (!detailPage) searchText = section.title
     }
     function installTitle() {
+        if (progress.running && progress.controls && progress.controls.cancel) return "Cancelling installation"
+        if (progress.running && progress.queueStatus === "AUTHENTICATING") return "Waiting for administrator permission"
         if (progress.controls && progress.controls.cancel && !progress.running) return "Installation cancelled"
         if (progress.running && progress.queueStatus === "PAUSED") return "Queue paused"
         if (progress.running) return progress.operation === "accounts" ? "Finish setup in Konsole" : "Installing your selections"
@@ -1185,7 +1187,7 @@ ApplicationWindow {
                 visible: resultRow.expanded; Layout.fillWidth: true; spacing: 8
                 Action { objectName: "viewInstallLog"; text: "Details"; visible: !!modelData.hasLog; onClicked: window.showLog(modelData.id) }
                 Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
-                Action { text: "Continue in terminal"; visible: ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
+                Action { text: "Continue in terminal"; visible: modelData.terminalRequired === true && ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }
         }
