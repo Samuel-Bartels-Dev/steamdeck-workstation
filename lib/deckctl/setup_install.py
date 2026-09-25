@@ -20,6 +20,28 @@ def state_path(): return core.STATE/'setup-items.json'
 def lock_path(): return core.STATE/'setup-items.lock'
 
 
+def queue_control():
+    raw = os.environ.get('DECKCTL_UI_CONTROL')
+    if os.environ.get('DECKCTL_UI_RUN') != '1' or not raw: return {}
+    path = Path(raw)
+    if path.parent != core.STATE or not path.name.startswith('setup-control-') or path.is_symlink():
+        raise ValueError('Invalid UI queue control path')
+    return core.load_json(path, {})
+
+
+def queue_checkpoint(state):
+    while True:
+        control = queue_control()
+        if control.get('cancel'): raise KeyboardInterrupt()
+        paused = bool(control.get('pause'))
+        status = 'PAUSED' if paused else 'RUNNING'
+        if state.get('queueStatus') != status:
+            state['queueStatus'] = status
+            core.save_json(state_path(), state)
+        if not paused: return
+        time.sleep(.2)
+
+
 def running():
     try:
         with lock_path().open('rb') as stream:
@@ -224,6 +246,7 @@ def _run_plan(only, resume, journal):
             for row in rows:
                 key = row['key']
                 if key not in wanted: continue
+                queue_checkpoint(state)
                 if (resume or only is not None) and records[key]['status'] == 'DONE' and verify(row): continue
                 blockers = [parent for parent in row['requires'] if records.get(parent, {}).get('status') != 'DONE']
                 if blockers:
@@ -258,11 +281,14 @@ def _run_plan(only, resume, journal):
                 finally:
                     run_log.archive_item(key)
         except (KeyboardInterrupt, EOFError):
+            state['queueStatus'] = 'CANCELLED' if queue_control().get('cancel') else 'INTERRUPTED'
             for key in wanted:
                 if records[key]['status'] == 'RUNNING': record(key, 'INTERRUPTED', 'Interrupted; resume to retry this item.')
             print('\nProgress saved. Run deckctl setup install --resume.')
+            core.save_json(state_path(), state)
             return 2
         state['finishedAt'] = time.time()
+        state['queueStatus'] = 'FINISHED'
         core.save_json(state_path(), state)
         failed = any(records[key]['status'] == 'FAILED' for key in wanted)
         pending = any(records[key]['status'] != 'DONE' for key in wanted)

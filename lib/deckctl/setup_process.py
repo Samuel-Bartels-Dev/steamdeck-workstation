@@ -1,6 +1,8 @@
 """On-demand noninteractive setup process and private, bounded UI output."""
 import os
 import select
+import signal
+import secrets
 import subprocess
 import threading
 import time
@@ -18,13 +20,41 @@ def snapshot(fingerprint):
 
 
 def start(command, fingerprint):
+    control_path = core.STATE/('setup-control-'+secrets.token_hex(16)+'.json')
+    control = {'pause':False,'cancel':False}
+    core.save_json(control_path, control)
     data = {'fingerprint':fingerprint, 'startedAt':time.time(), 'text':'Starting installation…\n', 'exitCode':None}
     core.save_json(path(), data)
-    process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
-                               stderr=subprocess.STDOUT, start_new_session=True,
-                               env=dict(os.environ, DECKCTL_UI_RUN='1', PYTHONUNBUFFERED='1'))
+    try:
+        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+                                   stderr=subprocess.STDOUT, start_new_session=True,
+                                   env=dict(os.environ, DECKCTL_UI_RUN='1', DECKCTL_UI_CONTROL=str(control_path), PYTHONUNBUFFERED='1'))
+    except BaseException:
+        control_path.unlink(missing_ok=True)
+        raise
     finished = threading.Event()
+    cancelled_at = None
     class Handle:
+        def control(self, action):
+            nonlocal cancelled_at
+            if action == 'force':
+                if process.poll() is not None or cancelled_at is None or time.monotonic()-cancelled_at < 10:
+                    raise ValueError('Cancel first and allow ten seconds for the provider to stop.')
+                try: os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError: pass
+                return dict(control)
+            if process.poll() is not None or control['cancel']: raise ValueError('This run has finished or cancellation is already pending.')
+            if action not in ('pause','continue','cancel'): raise ValueError('Unknown queue action')
+            control.update(pause=action == 'pause', cancel=action == 'cancel')
+            core.save_json(control_path, control)
+            if action == 'cancel':
+                cancelled_at = time.monotonic()
+                try: os.killpg(process.pid, signal.SIGINT)
+                except ProcessLookupError: pass
+            return dict(control)
+        def controls(self):
+            return dict(control, available=self.poll() is None,
+                        forceAvailable=process.poll() is None and cancelled_at is not None and time.monotonic()-cancelled_at >= 10)
         def poll(self): return process.poll() if finished.is_set() else None
         def wait(self, timeout=None):
             if not finished.wait(timeout): raise subprocess.TimeoutExpired(command, timeout)
@@ -64,6 +94,8 @@ def start(command, fingerprint):
             data['exitCode'] = process.wait()
             data['finishedAt'] = time.time()
             try: save()
-            finally: finished.set()
+            finally:
+                try: control_path.unlink(missing_ok=True)
+                finally: finished.set()
     threading.Thread(target=collect, daemon=True).start()
     return Handle()

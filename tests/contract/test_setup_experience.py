@@ -13,6 +13,87 @@ from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder
 
 
 class Experience(unittest.TestCase):
+    def test_queue_pause_waits_at_boundary_and_continue_releases_it(self):
+        import threading
+        import time
+        control = core.STATE/'setup-control-test.json'
+        core.save_json(control,{'pause':True})
+        state = {}
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1','DECKCTL_UI_CONTROL':str(control)}):
+            thread = threading.Thread(target=setup_install.queue_checkpoint,args=(state,))
+            thread.start()
+            try:
+                deadline = time.monotonic()+2
+                while state.get('queueStatus') != 'PAUSED' and time.monotonic()<deadline: time.sleep(.01)
+                self.assertEqual(state.get('queueStatus'),'PAUSED')
+                self.assertTrue(thread.is_alive())
+            finally:
+                core.save_json(control,{'pause':False}); thread.join(2)
+            self.assertFalse(thread.is_alive()); self.assertEqual(state['queueStatus'],'RUNNING')
+            core.save_json(control,{'cancel':True})
+            with self.assertRaises(KeyboardInterrupt): setup_install.queue_checkpoint(state)
+
+    def test_owned_run_controls_cancel_and_cleanup(self):
+        from deckctl import setup_process
+        process = setup_process.start([sys.executable,'-c','import time; time.sleep(30)'],'controls')
+        try:
+            self.assertTrue(process.control('pause')['pause'])
+            self.assertFalse(process.control('continue')['pause'])
+            self.assertTrue(process.control('cancel')['cancel'])
+            self.assertNotEqual(process.wait(5),0)
+            self.assertFalse(process.controls()['available'])
+            with self.assertRaises(ValueError): process.control('pause')
+            self.assertEqual(list(core.STATE.glob('setup-control-*')),[])
+        finally:
+            if process.poll() is None: process.control('cancel'); process.wait(5)
+
+    def test_force_stop_requires_cancel_and_grace_period(self):
+        from deckctl import setup_process
+        import time
+        ready = core.STATE/'force-ready'
+        command = [sys.executable, '-c',
+                   'import signal,time,pathlib; signal.signal(signal.SIGINT, signal.SIG_IGN); '
+                   'pathlib.Path('+repr(str(ready))+').touch(); time.sleep(30)']
+        process = setup_process.start(command, 'force-test')
+        try:
+            deadline = time.monotonic()+3
+            while not ready.exists() and time.monotonic()<deadline: time.sleep(.01)
+            self.assertTrue(ready.exists())
+            with self.assertRaises(ValueError): process.control('force')
+            process.control('cancel')
+            with self.assertRaises(ValueError): process.control('force')
+            time.sleep(10.1)
+            self.assertTrue(process.controls()['forceAvailable'])
+            process.control('force')
+            self.assertEqual(process.wait(5), -9)
+            self.assertFalse(process.controls()['available'])
+        finally:
+            if process.poll() is None:
+                time.sleep(10.1)
+                if not process.controls()['cancel']: process.control('cancel'); time.sleep(10.1)
+                process.control('force'); process.wait(5)
+
+    def test_activity_rates_resets_missing_devices_and_bounded_history(self):
+        from deckctl import setup_activity
+        sampler = setup_activity.Sampler()
+        snapshots = [dict(network={'wifi':(100,)},disk={'disk':(100,200)}),dict(network={'wifi':(300,)},disk={'disk':(500,800)}),dict(network={'wifi':(1,)},disk={})]
+        with patch.object(setup_activity,'counters',side_effect=snapshots), patch.object(setup_activity.time,'monotonic',side_effect=[0,2,4]):
+            self.assertIsNone(sampler.sample()[-1]['network'])
+            result = sampler.sample()[-1]
+            self.assertEqual((result['network'],result['read'],result['write']),(100,200,300))
+            result = sampler.sample()[-1]
+            self.assertIsNone(result['network']); self.assertIsNone(result['read'])
+        with patch.object(setup_activity,'counters',return_value={'network':{},'disk':{}}), patch.object(setup_activity.time,'monotonic',side_effect=range(6,150,2)):
+            for _ in range(65): sampler.sample()
+        self.assertEqual(len(sampler.history),60)
+
+    def test_activity_excludes_virtual_disks_and_uses_sector_bytes(self):
+        from deckctl import setup_activity
+        physical = self.root/'block/nvme0n1'; (physical/'device').mkdir(parents=True)
+        (physical/'stat').write_text('1 0 10 0 1 0 20 0 0 0 0')
+        virtual = self.root/'block/dm-0'; virtual.mkdir(); (virtual/'stat').write_text('1 0 999 0 1 0 999 0 0 0 0')
+        self.assertEqual(setup_activity.counters(self.root)['disk'],{'nvme0n1':(5120,10240)})
+
     def test_ui_install_resume_retry_do_not_launch_konsole(self):
         from deckctl import setup_process
         session = setup_window.Session(); session.selected = ['base']

@@ -186,7 +186,16 @@ UI.Setup {
                 if (!app.logCanRetry()) throw new Error("Failed item retry unavailable")
                 app.closeLog()
                 app.dirty = false
+                app.progress = {running:true,operation:"install",controls:{available:true,pause:false,cancel:false},summary:{total:3,done:1,attention:0},activity:[{network:1048576,read:2097152,write:1048576},{network:2097152,read:3145728,write:2097152}],modules:[{id:"active",name:"Ghostty",status:"RUNNING",phase:"Updating",message:"Downloading update",elapsedSeconds:10},{id:"queued",name:"Slack",status:"PENDING"},{id:"done",name:"Discord",status:"DONE"}]}
+                if (app.installRows().map(function(x) { return x.id }).join(",") !== "active,queued") throw new Error("Queue grouping is incorrect")
+                app.showCompleted = true
+                if (app.installRows()[2].queueHeading !== "COMPLETED · 1") throw new Error("Completed queue section missing")
+                app.progress = Object.assign({},app.progress,{queueStatus:"PAUSED"})
+                if (app.installTitle() !== "Queue paused") throw new Error("Pause state not reflected")
+                app.progress = Object.assign({},app.progress,{queueStatus:"RUNNING"})
                 // OPTIONAL_SCREENSHOT
+                app.close()
+                if (!app.visible || !app.closeRequested) throw new Error("Closing an active run did not offer cancellation")
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
             }
         }
