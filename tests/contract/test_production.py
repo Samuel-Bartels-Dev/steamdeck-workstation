@@ -73,6 +73,22 @@ class Production(unittest.TestCase):
             self.assertFalse(setup_plan.present(row)[0])
             self.assertEqual(setup_inventory.local(row)['status'], 'MISSING')
 
+    def test_release_verifier_prints_redacted_failure_tail(self):
+        import importlib.util
+        import subprocess
+        spec = importlib.util.spec_from_file_location('verify_release', ROOT/'tools/verify-release.py')
+        verifier = importlib.util.module_from_spec(spec); spec.loader.exec_module(verifier)
+        log = Path(self.temp.name)/'verify.log'
+        def fail(command, **kwargs):
+            kwargs['stdout'].write('AssertionError: extracted regression failed\naccess_token=private-value\n')
+            raise subprocess.CalledProcessError(1,command)
+        output = io.StringIO()
+        with patch.object(verifier.subprocess,'run',side_effect=fail), contextlib.redirect_stderr(output):
+            with self.assertRaises(subprocess.CalledProcessError):
+                verifier.validate_tree(ROOT,(ROOT/'VERSION').read_text().strip(),log)
+        self.assertIn('extracted regression failed',output.getvalue())
+        self.assertNotIn('private-value',output.getvalue())
+
     def test_password_readiness_never_prompts_or_confuses_locked_with_set(self):
         import pwd
         import subprocess

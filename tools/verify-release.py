@@ -13,6 +13,8 @@ import tempfile
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT/'lib'))
+from deckctl.install_log import redact
 JUNK = {'.git', '__pycache__', 'release', 'support-bundles', '.pytest_cache'}
 
 
@@ -55,8 +57,15 @@ def validate_tree(tree, version, log):
         raise ValueError('Wrong extracted release version')
     for entry in ('install.sh', 'bin/deckctl', 'tools/build-release', 'tools/package-release.py', 'tools/verify-release.py'):
         if not os.access(tree / entry, os.X_OK): raise ValueError('Missing executable: ' + entry)
-    with log.open('w') as output:
-        subprocess.run([str(tree / 'bin/deckctl'), 'repo', 'validate'], cwd=tree, stdout=output, stderr=subprocess.STDOUT, check=True)
+    try:
+        with log.open('w') as output:
+            subprocess.run([str(tree / 'bin/deckctl'), 'repo', 'validate'], cwd=tree, stdout=output, stderr=subprocess.STDOUT, check=True)
+    except subprocess.CalledProcessError:
+        with log.open('rb') as output:
+            output.seek(max(0, log.stat().st_size-24000))
+            tail = output.read().decode('utf-8', errors='replace')
+        print('Extracted release validation failed. Recent test output:\n'+redact(tail), file=sys.stderr)
+        raise
 
 
 def main():
