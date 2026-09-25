@@ -49,6 +49,20 @@ UI.Setup {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
+                app.choosePalette("ocean")
+                app.setAppearance("css", true)
+                if (!app.cssSelectionError()) throw new Error("Invalid enabled empty theming accepted")
+                if (app.cssPalettePlanText().indexOf("no CSS components are selected") < 0) throw new Error("Palette with no targets looks applied")
+                app.progress = {running:false,cssPalette:{installedComponents:["Chromahon (QAM)"]}}
+                if (app.cssSelectionError() || app.cssPaletteTargets().length !== 1) throw new Error("Installed theme requires reselection")
+                if (app.pageValues("css").length !== 0) throw new Error("Palette selected an installation")
+                if (app.cssPalettePlanText().indexOf("included automatically") < 0) throw new Error("Automatic palette targets unexplained")
+                app.progress = ({running:false})
+                app.setAppearance("css", false)
+                if (app.cssPalettePlanText().indexOf("recoloring is off") < 0) throw new Error("Disabled Game Mode appearance missing")
+                app.setAppearance("css", true)
+                app.dirty = false
+
                 app.openGuide()
                 app.guideStep = 3
                 app.closeGuide()
@@ -243,7 +257,7 @@ UI.Setup {
             console_check = patch.object(setup_window.Session,'console',return_value={'text':'Checking selected tools…\nGhostty: verification needs attention.\nInstallation pass complete. Review the results below.'})
             console_check.start()
             self.addCleanup(console_check.stop)
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
+            with patch.object(css_stack, 'THEMES_DIR', base/'themes'), patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])

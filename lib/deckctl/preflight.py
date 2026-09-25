@@ -100,6 +100,9 @@ def report(rows=None, online=False):
     comp = compatibility.report()
     checks = []
     def add(name, status, message): checks.append({'name': name, 'status': status, 'message': message})
+    from . import css_stack
+    css_error = css_stack.selection_error()
+    if css_error: add('Game Mode theme selection', 'FAIL', css_error)
     host = comp['system']
     add('architecture', 'PASS' if host['architecture'] == 'x86_64' else 'FAIL', host['architecture'])
     add('SteamOS', 'PASS' if host['os'] == 'steamos' else 'WARN', 'Detected '+host['os']+' '+host['version'])

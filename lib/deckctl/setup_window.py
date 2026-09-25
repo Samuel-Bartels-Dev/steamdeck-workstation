@@ -56,6 +56,7 @@ class Session:
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
                 'planOnly': self.plan_only,
                 'palettes': css_stack.palette_catalog(),
+                'cssPalette':css_stack.palette_status(),
                 'palette': css_stack.palette_id(), 'appearance': appearance.selection(), 'appearanceTargets': appearance.TARGETS}
         descriptions = core.load_json(core.ROOT/'config/setup-copy.json', {})
         from . import preflight
@@ -275,7 +276,7 @@ class Session:
             failures = [line for line in console.get('text', '').splitlines() if line.startswith('FAIL ')]
             failure = '\n'.join(failures[-3:])
         return {'running': live, 'operation': operation, 'summary': summary, 'failureMessage':failure,
-                'githubLimit':self.github_limit(),
+                'githubLimit':self.github_limit(), 'cssPalette':css_stack.palette_status(),
                 'controls':controls, 'queueStatus':state.get('queueStatus'),
                 'activity':self.activity.sample() if live else self.activity.history,
                 'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live,

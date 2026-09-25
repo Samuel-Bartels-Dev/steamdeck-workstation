@@ -217,4 +217,19 @@ These are install-only additions. Pair devices and choose personal music/tab
 preferences through their normal interfaces; provisioning does not overwrite
 those settings. Audio Loader remains available alongside Game Theme Music.
 
-Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Apply and verification use that exact selection. Existing themes remain installed and retain their settings when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.
+Selecting CSS Loader also exposes **CSS components**: choose any subset of the curated theme components, including optional layouts, or clear all to install only the plugin. Installation uses that selection. Palette changes also discover installed supported color themes automatically, without reselecting or downloading them. Existing themes remain installed when deselected; disable any previously enabled themes in CSS Loader if desired. Additional Store themes and individual style controls remain available in CSS Loader itself.
+
+## Selected palette versus applied palette
+
+The appearance dialog and review page describe the selected palette as intent.
+Saved Game Mode status separately reports verified configuration, unverified
+configuration, preserved colors, or an invalid selection. Enabling Game Mode
+recoloring includes installed supported CSS themes automatically, even with an
+empty installation checklist. Choose a palette and apply changes; installation
+selections are not changed. Installed-only targets retain their enabled state
+and non-color options. Unrelated themes are untouched. Missing live backend
+themes produce a retryable error instead of an unrequested download.
+
+When neither installed supported themes nor selected new components exist,
+Game Mode recoloring requires choosing components or turning that appearance
+target off. A disabled, empty selection is a no-op and reports UNCHANGED.

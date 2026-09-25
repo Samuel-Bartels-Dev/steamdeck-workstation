@@ -92,11 +92,24 @@ ApplicationWindow {
     }
     property bool followLog: true
     property bool logPending: false
+    function cssPaletteTargets() {
+        var installed = (progress.cssPalette || data.cssPalette || {}).installedComponents || []
+        return installed.concat(pageValues("css")).filter(function(name, index, all) { return all.indexOf(name) === index })
+    }
+    function cssSelectionError() {
+        return appearanceChoices.css === true && cssPaletteTargets().length === 0 ? "Game Mode theming is enabled but no CSS components are selected. Choose components or turn Game Mode theming off." : ""
+    }
+    function cssPalettePlanText() {
+        if (cssSelectionError()) return "Selection error: " + cssSelectionError()
+        if (appearanceChoices.css === false) return "Selected palette: " + activePalette.name + ". Game Mode recoloring is off; existing colors will stay."
+        if (cssPaletteTargets().length === 0) return "Selected palette: " + activePalette.name + ". It will not apply to Game Mode: no CSS components selected. Existing colors will stay."
+        return "Selected palette: " + activePalette.name + ". Will apply to " + cssPaletteTargets().length + " supported CSS themes when you apply changes. Installed themes are included automatically; no need to select them again."
+    }
     function openAppearance() { appearanceDialog.open() }
     function closeAppearance() { appearanceDialog.close() }
     function closeLog() { logDialog.close() }
     function appearanceTargetSelected(key) {
-        return key === "css" ? pageValues("css").length > 0 : pageValues("terminal").indexOf(key) >= 0
+        return key === "css" ? cssPaletteTargets().length > 0 : pageValues("terminal").indexOf(key) >= 0
     }
     function appearanceSummary() {
         var names = (data.appearanceTargets || []).filter(function(target) {
@@ -439,9 +452,11 @@ ApplicationWindow {
         var components = {}
         Object.keys(data.defaultComponents).forEach(function(key) { components[key] = full ? data.defaultComponents[key].slice() : [] })
         selectedComponents = components
+        if (!full) appearanceChoices = Object.assign({}, appearanceChoices, {css:false})
         selectedOnly = false; searchText = ""; saved = false; dirty = true; notice = full ? "Full workstation selected. Make it your own below." : "Starting small. Add only what you need."
     }
     function savePlan(install) {
+        if (cssSelectionError()) { problem = cssSelectionError(); openAppearance(); return }
         busy = true; problem = ""; notice = ""
         var components = {}
         Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
@@ -924,7 +939,7 @@ ApplicationWindow {
                                 id: reviewIntro; anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 18; spacing: 8
                                 TextLabel { text: "A setup that fits you"; font.pixelSize: 19; font.weight: Font.DemiBold }
                                 TextLabel { text: "Save this plan for later, or install your choices. Existing apps and personal data are kept."; Layout.fillWidth: true; color: window.tone("#e2c5e6"); font.pixelSize: 14 }
-                                TextLabel { visible: window.pageValues("css").length > 0; text: window.appearanceChoices.css === false ? "CSS colors: keep current appearance" : "Theme palette: " + window.activePalette.name + " · for selected CSS Loader color controls"; Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
+                                TextLabel { text: window.cssPalettePlanText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: 14 }
                             }
                         }
                         Flow {
@@ -1255,7 +1270,7 @@ ApplicationWindow {
             clip: true; contentWidth: availableWidth
             ColumnLayout {
                 width: appearanceDialog.availableWidth; spacing: 12
-                TextLabel { text: "Choose one palette, then where it applies."; Layout.fillWidth: true; color: window.muted }
+                TextLabel { text: "Choose a palette for your workstation. Installed supported Game Mode themes follow automatically when you apply changes."; Layout.fillWidth: true; color: window.muted }
                 ComboBox {
                     Layout.fillWidth: true; model: window.paletteOptions; textRole: "name"
                     currentIndex: window.paletteOptions.findIndex(function(p) { return p.id === window.paletteId })
@@ -1269,7 +1284,11 @@ ApplicationWindow {
                         delegate: Rectangle { required property string modelData; width: 36; height: 20; radius: 6; color: window.tone(modelData); border.color: window.muted }
                     }
                 }
-                TextLabel { text: "Apply to selected tools"; font.weight: Font.DemiBold; Layout.fillWidth: true }
+                TextLabel { text: window.cssPalettePlanText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: 13 }
+                TextLabel { text: "Saved Game Mode status: " + ((window.progress.cssPalette || window.data.cssPalette || {}).message || "Not checked"); Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
+                Action { visible: !!window.cssSelectionError(); text: "Turn Game Mode theming off"; onClicked: window.setAppearance("css", false) }
+                Action { text: "Install additional Game Mode themes"; enabled: !window.progress.running && !window.busy; onClicked: { window.closeAppearance(); window.browse("css") } }
+                TextLabel { text: "Appearance preferences"; font.weight: Font.DemiBold; Layout.fillWidth: true }
                 Repeater {
                     model: window.data.appearanceTargets || []
                     delegate: ColumnLayout {
@@ -1289,7 +1308,7 @@ ApplicationWindow {
                             checked: window.appearanceChoices[modelData.id] !== false
                             onClicked: window.setAppearance(modelData.id, checked)
                         }
-                        TextLabel { text: modelData.summary + (window.appearanceTargetSelected(modelData.id) ? "" : " · Tool not selected; preference only"); Layout.fillWidth: true; Layout.leftMargin: 30; font.pixelSize: 12; color: window.muted }
+                        TextLabel { text: modelData.summary + (modelData.id === "css" && window.cssSelectionError() ? " · Selection required" : window.appearanceTargetSelected(modelData.id) ? "" : " · Tool not selected; preference only"); Layout.fillWidth: true; Layout.leftMargin: 30; font.pixelSize: 12; color: window.muted }
                     }
                 }
                 TextLabel { text: "These switches never install extra software. Off keeps the current appearance; it does not reset it. Changes apply when you save and install. Personal Ghostty configuration is preserved; its theme must reference deckctl-bubble-gum-rave to follow this palette. Unsupported Decky plugins keep their own colors."; Layout.fillWidth: true; color: window.muted; font.pixelSize: 12 }
