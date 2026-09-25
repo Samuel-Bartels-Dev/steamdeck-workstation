@@ -609,12 +609,19 @@ ApplicationWindow {
             Layout.fillHeight: true; color: window.tone("#120b1d")
             ColumnLayout {
                 anchors.fill: parent; anchors.margins: 16; spacing: 8
-                Rectangle {
-                    visible: window.height >= 600; Layout.topMargin: window.height < 620 ? 0 : 10; width: 42; height: 42; radius: 12; color: window.accent
-                    Text { anchors.centerIn: parent; text: "W"; color: window.tone("#20091e"); font.pixelSize: 24; font.bold: true }
+                RowLayout {
+                    Layout.fillWidth: true; Layout.topMargin: window.height < 620 ? 0 : 10; spacing: 10
+                    Rectangle {
+                        Layout.preferredWidth: 42; Layout.preferredHeight: 42; radius: 13; color: window.accent
+                        Text { anchors.centerIn: parent; text: "W"; color: window.tone("#20091e"); font.pixelSize: 24; font.bold: true }
+                    }
+                    ColumnLayout {
+                        Layout.fillWidth: true; spacing: 1
+                        TextLabel { text: "DECK"; font.pixelSize: 16; font.weight: Font.Bold; font.letterSpacing: 1.1 }
+                        TextLabel { text: "WORKSTATION"; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 1.3; color: window.muted }
+                    }
                 }
-                TextLabel { text: "DECK\nWORKSTATION"; font.pixelSize: 17; font.weight: Font.Bold; lineHeight: 1.18; Layout.topMargin: 10 }
-                TextLabel { visible: window.height >= 600; text: "Choose your tools"; color: window.muted; font.pixelSize: 13; Layout.bottomMargin: window.height < 620 ? 4 : 16 }
+                TextLabel { visible: window.height >= 600; text: "Build your Deck, your way"; color: window.muted; font.pixelSize: 12; Layout.bottomMargin: window.height < 620 ? 4 : 16 }
                 Repeater {
                     model: window.stageNames
                     delegate: AbstractButton {
@@ -659,13 +666,35 @@ ApplicationWindow {
             Layout.margins: window.width < 950 ? 18 : 28; spacing: 12
             RowLayout {
                 Layout.fillWidth: true
-                TextLabel { text: window.stage < 4 ? "BUILD YOUR SETUP" : "YOUR WORKSTATION"; font.pixelSize: 11; font.letterSpacing: 1.8; color: window.accent }
+                TextLabel { text: "SETUP / " + String(window.stage + 1).padStart(2, "0") + " OF 06"; font.pixelSize: 11; font.letterSpacing: 1.6; color: window.cyan }
                 Item { Layout.fillWidth: true }
-                TextLabel { text: window.selectionCount() + " in your plan"; color: window.muted; font.pixelSize: 12 }
+                Rectangle {
+                    Layout.preferredWidth: planCount.implicitWidth + 24; Layout.preferredHeight: 32
+                    radius: 16; color: window.tone("#261735"); border.color: window.tone("#493055")
+                    TextLabel { id: planCount; anchors.centerIn: parent; text: window.selectionCount() + " selected"; color: window.ink; font.pixelSize: 12; font.weight: Font.DemiBold }
+                }
                 Action { text: window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS" ? "Setup check" : window.inventoryPending ? "Checking Deck…" : "Deck status"; implicitHeight: 36; onClicked: statusDrawer.open() }
             }
-            TextLabel { text: window.stage === 5 ? window.installTitle() : window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 30 : 36; font.weight: Font.Bold; Layout.fillWidth: true }
-            TextLabel { visible: window.stage !== 5; text: window.detailPage === "css" ? "Decky › CSS Loader. Choose the components you want to manage." : window.detailPage === "plugins" ? "Add-ons for Decky Loader. CSS Loader has its own component choices." : window.detailPage ? "Check only the items you want. Browsing does not select or install anything." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 15; Layout.fillWidth: true }
+            Rectangle {
+                Layout.fillWidth: true; implicitHeight: window.height < 620 ? 108 : 126; radius: 18
+                gradient: Gradient {
+                    orientation: Gradient.Horizontal
+                    GradientStop { position: 0.0; color: window.tone("#35203f") }
+                    GradientStop { position: 1.0; color: window.tone("#1a1128") }
+                }
+                border.color: window.tone("#493055")
+                ColumnLayout {
+                    anchors.fill: parent; anchors.leftMargin: 22; anchors.rightMargin: 22; anchors.topMargin: 15; anchors.bottomMargin: 17; spacing: 4
+                    TextLabel { text: window.stage === 5 ? "FINISH STRONG" : window.detailPage ? "FINE TUNE YOUR SETUP" : "YOUR DECK · YOUR CHOICES"; color: window.cyan; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 1.5 }
+                    TextLabel { text: window.stage === 5 ? window.installTitle() : window.detailPage ? window.pageTitle(window.detailPage) : window.stageNames[window.stage]; font.pixelSize: window.width < 950 ? 26 : 32; font.weight: Font.Bold; Layout.fillWidth: true }
+                    TextLabel { visible: window.stage !== 5; text: window.detailPage === "css" ? "Choose the CSS components you want to manage." : window.detailPage === "plugins" ? "Choose your Decky add-ons. CSS Loader has its own options." : window.detailPage ? "Choose only what you want. Nothing installs while browsing." : window.stageDescriptions[window.stage]; color: window.muted; font.pixelSize: 13; Layout.fillWidth: true }
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
+                    height: 3; color: window.tone("#402c4e")
+                    Rectangle { height: parent.height; width: parent.width * (window.stage + 1) / 6; color: window.accent }
+                }
+            }
             RowLayout {
                 visible: !!window.detailPage || window.navigationStack.length > 0
                 Layout.fillWidth: true
