@@ -209,6 +209,19 @@ class Session:
         return {'item': item, 'text': text[-65536:], 'truncated': len(text) > 65536,
                 'updatedAt': install_log.path_for(item).stat().st_mtime}
 
+    def github_limit(self):
+        from . import run_log
+        try:
+            latest = next((row for row in run_log.runs() if row['operation'] == 'install'), None)
+            if not latest: return None
+            plan = run_log.read_json(Path(latest['directory'])/'plan.json')
+            for check in plan.get('preflight', {}).get('checks', []):
+                if check.get('name') == 'api.github.com' and check.get('rate_limited'):
+                    reset = check.get('reset_at')
+                    return {'resetAt':reset if type(reset) is int and reset > 0 else None, 'checkedAt':latest['started_at']}
+        except (OSError, ValueError, TypeError, AttributeError): pass
+        return None
+
     def progress(self):
         state = setup_install.snapshot()
         plan, rows = setup_plan.items()
@@ -262,6 +275,7 @@ class Session:
             failures = [line for line in console.get('text', '').splitlines() if line.startswith('FAIL ')]
             failure = '\n'.join(failures[-3:])
         return {'running': live, 'operation': operation, 'summary': summary, 'failureMessage':failure,
+                'githubLimit':self.github_limit(),
                 'controls':controls, 'queueStatus':state.get('queueStatus'),
                 'activity':self.activity.sample() if live else self.activity.history,
                 'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live,

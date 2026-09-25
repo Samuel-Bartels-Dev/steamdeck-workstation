@@ -286,18 +286,43 @@ class Production(unittest.TestCase):
             self.assertEqual(call.kwargs['timeout'], 15)
             self.assertIn('--max-time', call.args[0])
 
-    def test_network_rate_limit_is_actionable_and_still_blocks(self):
+    def test_network_rate_limit_is_actionable_without_blocking_independent_items(self):
         import subprocess
         response = subprocess.CompletedProcess([], 22,
             'HTTP/1.1 200 Connection established\r\n\r\nHTTP/2 403\r\n'
             'x-ratelimit-remaining: 0\r\nx-ratelimit-reset: 1790325901\r\n', '')
         with patch.object(preflight.subprocess, 'run', return_value=response):
             rows = preflight.network()
-        self.assertEqual(rows[0]['status'], 'FAIL')
+        self.assertEqual(rows[0]['status'], 'WARN')
+        self.assertEqual(rows[1]['status'], 'FAIL')
+        self.assertIn('Independent items can continue', rows[0]['message'])
         self.assertIn('rate limit exhausted', rows[0]['message'])
         self.assertIn('08:45:01 UTC', rows[0]['message'])
+        self.assertEqual(rows[0]['reset_at'],1790325901)
+        self.assertTrue(rows[0]['rate_limited'])
         self.assertNotIn('DNS', rows[0]['message'])
         self.assertIn('HTTP 403', rows[1]['message'])
+
+    def test_ui_rate_limit_uses_saved_preflight_without_network_requests(self):
+        from deckctl import setup_window
+        with run_log.execution('install') as journal:
+            core.save_json(journal.path/'plan.json', {'preflight':{'checks':[{'name':'api.github.com','rate_limited':True,'reset_at':1790325901}]}})
+            with patch.object(preflight,'network',side_effect=AssertionError('No API polling')):
+                limit = setup_window.Session().github_limit()
+            self.assertEqual(limit['resetAt'],1790325901)
+            core.save_json(journal.path/'plan.json', {'preflight':{'checks':[]}})
+            self.assertIsNone(setup_window.Session().github_limit())
+
+    def test_preflight_warning_continues_but_safety_failure_blocks(self):
+        from deckctl import production_cli
+        from unittest.mock import Mock
+        for status, expected_calls in (('WARN',1),('FAIL',0)):
+            callback = Mock(return_value=0)
+            report = {'status':status, 'checks':[{'name':'check','status':status,'message':'test'}]}
+            with patch.object(preflight,'report',return_value=report), contextlib.redirect_stdout(io.StringIO()):
+                result = production_cli.operation('install', callback, check=True)
+            self.assertEqual(callback.call_count,expected_calls)
+            self.assertEqual(result,0 if expected_calls else 1)
 
     def test_flatpak_progress_reports_update_and_noop_without_fake_bytes(self):
         from deckctl import flatpak_progress, install_progress

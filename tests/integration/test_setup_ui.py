@@ -193,6 +193,12 @@ UI.Setup {
                 app.progress = Object.assign({},app.progress,{queueStatus:"PAUSED"})
                 if (app.installTitle() !== "Queue paused") throw new Error("Pause state not reflected")
                 app.progress = Object.assign({},app.progress,{queueStatus:"RUNNING"})
+                app.clockSeconds = 1000
+                app.progress = Object.assign({},app.progress,{githubLimit:{resetAt:1060}})
+                if (app.githubLimitText().indexOf("1m 0s") < 0) throw new Error("GitHub reset countdown missing")
+                app.clockSeconds = 1061
+                if (app.githubLimitText().indexOf("has not been rechecked") < 0) throw new Error("Expired timer falsely claims API availability")
+
                 // OPTIONAL_SCREENSHOT
                 app.close()
                 if (!app.visible || !app.closeRequested) throw new Error("Closing an active run did not offer cancellation")
