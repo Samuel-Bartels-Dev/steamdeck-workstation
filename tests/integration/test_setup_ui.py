@@ -132,6 +132,10 @@ UI.Setup {
                 if (app.stage !== 3 || ids().indexOf("parsec") < 0) throw new Error("Review edit did not open the right group")
                 app.back()
                 if (app.stage !== 4) throw new Error("Done editing did not return to review")
+                app.progress = {running:true, queueStatus:"AUTHENTICATING", operation:"install", modules:[]}
+                if (app.installTitle() !== "Waiting for administrator permission") throw new Error("Password wait looks like a stuck install")
+                app.progress.controls = {cancel:true}
+                if (app.installTitle() !== "Cancelling installation") throw new Error("Cancellation hidden by password wait")
                 app.progress = {running:false, operation:"install", exitCode:1, modules:[]}
                 if (app.installTitle() !== "Setup needs attention") throw new Error("Failure shown as successful")
                 app.savePlan(false)

@@ -233,3 +233,22 @@ themes produce a retryable error instead of an unrequested download.
 When neither installed supported themes nor selected new components exist,
 Game Mode recoloring requires choosing components or turning that appearance
 target off. A disabled, empty selection is a no-op and reports UNCHANGED.
+
+## Administrator permission in the setup window
+
+Before a UI run that needs plugin installation or CSS changes, KDE opens a masked
+password dialog. The password goes directly to sudo through its native askpass
+pipe; it never passes through the setup HTTP API, configuration, console, or logs.
+Only the narrow directory repair and Decky restart commands run as administrator.
+The installer itself remains your normal user.
+
+The run starts with a fresh sudo ticket and invalidates its session ticket on
+completion, failure, or normal cancellation. No password is retained and no
+background renewal runs. If the OS ticket expires during a long install, another
+dialog may appear. Forced termination relies on sudo's normal process/session
+checks and timeout. On a fresh Deck, set the account password with `passwd` first.
+
+Canceling authentication keeps administrator items pending and lets independent
+user-space installs continue. Retry an item to authenticate again. Vendor setup
+wizards (such as initial Decky Loader installation) still use their explicit
+interactive workflow; they are separate from the Decky/CSS password dialog.

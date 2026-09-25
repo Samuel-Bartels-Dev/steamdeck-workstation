@@ -236,6 +236,7 @@ class Session:
         console = setup_process.snapshot(setup_plan.fingerprint(plan))
         for row in visible:
             status = row.get('status')
+            row['terminalRequired'] = setup_install.interactive_provider(row)
             row['resultLabel'] = ({'Installed and verified.':'Installed', 'Updated and verified.':'Updated',
                                    'Already up to date; verified.':'Already current',
                                    'Existing system installation reused and verified.':'Existing installation reused'}

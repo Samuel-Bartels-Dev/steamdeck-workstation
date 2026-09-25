@@ -49,7 +49,8 @@ def _sudo_run(cmd, *, reason: str):
     print(f"\nAdministrator permission required: {reason}")
     print("SteamOS will ask for your sudo password if it is not already cached.")
     try:
-        result = subprocess.run(["sudo", *cmd], check=False)
+        from . import privilege
+        result = subprocess.run(privilege.command(cmd), env=privilege.environment(), check=False)
     except FileNotFoundError as exc:
         raise InstallError("sudo is not available; cannot repair Decky plugin permissions") from exc
     if result.returncode != 0:
@@ -226,13 +227,14 @@ def _save_receipts(data):
 
 def _restart_decky():
     # The stable Decky installer normally creates a system service. Try that first.
+    from . import privilege
     attempts = [
-        ["sudo", "systemctl", "restart", "plugin_loader"],
+        privilege.command(["systemctl", "restart", "plugin_loader"]),
         ["systemctl", "--user", "restart", "plugin_loader"],
     ]
     for cmd in attempts:
         try:
-            r = subprocess.run(cmd, check=False)
+            r = subprocess.run(cmd, env=privilege.environment(), check=False)
             if r.returncode == 0:
                 return True
         except FileNotFoundError:

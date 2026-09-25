@@ -9,7 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan, install_log, install_progress, run_log
+from . import core, setup_plan, install_log, install_progress, run_log, privilege
 
 
 class NeedsSetup(RuntimeError):
@@ -116,6 +116,9 @@ def execute(row):
     """Only catalog-owned commands may reach this dispatcher."""
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
+    if os.environ.get('DECKCTL_UI_RUN') == '1' and privilege.needed(row):
+        if verify(row): return 'Existing installation verified.'
+        privilege.command([])  # Refuse mutation without this runner's authorization.
     if os.environ.get('DECKCTL_UI_RUN') == '1' and interactive_provider(row):
         if verify(row): return 'Existing installation verified.'
         raise NeedsSetup('This provider needs interactive setup. Choose Continue in terminal for this item; other installations can continue here.')
@@ -153,7 +156,9 @@ def execute(row):
         if workspace.setup(only=name): raise RuntimeError('Web shortcut creation failed')
         return
     if key.startswith('media:'):
-        if name == 'keeper': raise NeedsSetup('Open KeeperFill setup to approve the browser extension and sign in.')
+        if name == 'keeper':
+            if core._keeper_installed(): return 'Existing installation verified.'
+            raise NeedsSetup('Install KeeperFill in Chrome, then retry. Sign-in and vault unlock stay in Chrome.')
         helper = Path.home()/'.local/share/deckctl/media'; helper.mkdir(parents=True, exist_ok=True)
         for source in ('services.json', 'setup-media.sh'): shutil.copy2(core.ROOT/'modules/media'/source, helper/source)
         _run(['bash', str(helper/'setup-media.sh'), '--all'], env=dict(os.environ, DECKCTL_CONFIG=str(core.CONFIG_HOME), DECKCTL_MEDIA_ITEM=name))
@@ -181,11 +186,9 @@ def execute(row):
 
 
 def interactive_provider(row):
-    # Vendor wizards, optional repair prompts and Decky privilege changes retain
-    # their existing terminal workflow; never feed passwords through the UI.
-    return (row['kind'] in ('plugin','css','css-profile') or
-            row['key'] in ('remote:tailscale','launcher:battlenet','dev:distrobox') or
-            (row['kind'] == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:library')))
+    # Vendor wizards still need their interactive workflow. Decky/CSS use askpass.
+    return (row['key'] in ('remote:tailscale','launcher:battlenet','dev:distrobox') or
+            (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:library')))
 
 
 def verify(row):
@@ -226,7 +229,7 @@ def _run_plan(only, resume, journal):
             wanted.add(key)
             for parent in by_key[key]['requires']: include(parent)
         include(only)
-    with lock():
+    with lock(), privilege.Session() as permission:
         core.save_json(journal.path/'plan.json', {**core.load_json(journal.path/'plan.json', {}), 'plan': plan, 'items': rows, 'requested_item': only, 'resume': resume})
         fingerprint = setup_plan.fingerprint(plan)
         previous = core.load_json(state_path(), {})
@@ -243,11 +246,23 @@ def _run_plan(only, resume, journal):
             if status != 'RUNNING':
                 run_log.event(key, status, message, duration_ms=round((time.time()-records[key].get('startedAt', time.time()))*1000))
         try:
+            admin_error = None
+            admin_rows = [row for row in rows if row['key'] in wanted and privilege.needed(row)]
+            if os.environ.get('DECKCTL_UI_RUN') == '1' and any(not verify(row) for row in admin_rows):
+                state['queueStatus'] = 'AUTHENTICATING'
+                core.save_json(state_path(), state)
+                print('Administrator permission needed before installation. Complete the KDE password dialog; the password is not saved.', flush=True)
+                try: permission.prepare()
+                except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                    admin_error = str(exc)
+                    print(admin_error, flush=True)
             for row in rows:
                 key = row['key']
                 if key not in wanted: continue
                 queue_checkpoint(state)
                 if (resume or only is not None) and records[key]['status'] == 'DONE' and verify(row): continue
+                if admin_error and privilege.needed(row) and not verify(row):
+                    record(key, 'NEEDS_SETUP', admin_error); continue
                 blockers = [parent for parent in row['requires'] if records.get(parent, {}).get('status') != 'DONE']
                 if blockers:
                     record(key, 'BLOCKED', 'Finish '+', '.join(by_key[parent]['name'] for parent in blockers)+' first.'); continue

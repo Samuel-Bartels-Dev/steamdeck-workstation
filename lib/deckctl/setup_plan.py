@@ -236,8 +236,10 @@ def _size(details, label):
 def review_notes(row):
     key = row['key']
     notes = []
-    if key in ('module:decky','module:android','remote:tailscale') or row['kind'] in ('plugin','css','css-profile'):
-        notes.append('May request sudo for vendor setup, service restart or permission repair.')
+    if row['kind'] in ('plugin','css','css-profile'):
+        notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
+    elif key in ('module:decky','module:android','remote:tailscale'):
+        notes.append('Vendor setup may need its interactive window or Konsole, including sudo authorization.')
     elif 'flatpak' in row:
         notes.append('Uses the existing system app or installs in your user account.')
     else:
