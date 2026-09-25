@@ -203,6 +203,23 @@ class Experience(unittest.TestCase):
             self.assertEqual(setup_install.run(),0)
             prepare.assert_not_called()
 
+    def test_keeper_existing_extension_is_reused_and_login_remains_separate(self):
+        row = dict(key='media:keeper', name='KeeperFill', kind='component', owner='media',
+                   component='keeper', requires=[], visible=True, followup='signin')
+        with patch.object(core, '_keeper_installed', return_value=True), patch.object(setup_install, '_run') as install, patch.object(core, 'media_keeper_setup') as setup:
+            self.assertEqual(setup_install.execute(row), 'Existing installation verified.')
+            self.assertTrue(setup_install.verify(row))
+            install.assert_not_called(); setup.assert_not_called()
+            with patch.object(setup_plan, 'items', return_value=(self.plan,[row])):
+                result = setup_finish.rows()[0]
+                self.assertTrue(result['installed'])
+                self.assertEqual(result['status'], 'Needs sign-in')
+                self.assertTrue(result['canConfirm'])
+        with patch.object(core, '_keeper_installed', return_value=False):
+            with self.assertRaisesRegex(setup_install.NeedsSetup, 'Install KeeperFill in Chrome'):
+                setup_install.execute(row)
+            self.assertFalse(setup_install.verify(row))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

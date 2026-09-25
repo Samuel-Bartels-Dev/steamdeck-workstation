@@ -156,7 +156,9 @@ def execute(row):
         if workspace.setup(only=name): raise RuntimeError('Web shortcut creation failed')
         return
     if key.startswith('media:'):
-        if name == 'keeper': raise NeedsSetup('Open KeeperFill setup to approve the browser extension and sign in.')
+        if name == 'keeper':
+            if core._keeper_installed(): return 'Existing installation verified.'
+            raise NeedsSetup('Install KeeperFill in Chrome, then retry. Sign-in and vault unlock stay in Chrome.')
         helper = Path.home()/'.local/share/deckctl/media'; helper.mkdir(parents=True, exist_ok=True)
         for source in ('services.json', 'setup-media.sh'): shutil.copy2(core.ROOT/'modules/media'/source, helper/source)
         _run(['bash', str(helper/'setup-media.sh'), '--all'], env=dict(os.environ, DECKCTL_CONFIG=str(core.CONFIG_HOME), DECKCTL_MEDIA_ITEM=name))
