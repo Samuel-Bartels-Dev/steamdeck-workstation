@@ -47,6 +47,10 @@ UI.Setup {
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
                 if (app.inventoryFor({kind:"app",id:"discord"}).label !== "Update available") return
+                app.selectUpdates()
+                if (app.selectedApps.indexOf("discord") < 0 || app.inventoryDetails({kind:"app",id:"discord"}).indexOf("1 → 2") < 0) throw new Error("Update selection or versions missing")
+                app.toggleItem({kind:"app",id:"discord"})
+                app.dirty = false
                 function choose(id) {
                     var item=app.currentItems().filter(function(x) { return x.id === id })[0]
                     if (!item) throw new Error("Missing choice " + id)
@@ -137,6 +141,13 @@ UI.Setup {
                     return
                 }
                 if (!app.logView.text || app.logView.text.indexOf("Extracting") < 0) throw new Error("Log viewer did not load diagnostics")
+                if (app.experienceStage === 4) {
+                    app.experienceStage = 5; app.refreshLog(); return
+                }
+                if (app.logPending) return
+                if (app.logView.text.indexOf("Latest output") < 0) throw new Error("Live details did not refresh")
+                app.progress = {running:false,modules:[{id:"terminal:ghostty",status:"FAILED"}]}
+                if (!app.logCanRetry()) throw new Error("Failed item retry unavailable")
                 app.closeLog()
                 app.dirty = false
                 Qt.exit(app.allModules().indexOf("dev") >= 0 ? 0 : 3)
@@ -156,6 +167,10 @@ UI.Setup {
                 self.assertEqual(operation, 'accounts', 'Retry must not install software')
                 return dict(running=False, operation=operation, exitCode=0, modules=[])
             confirmed = []
+            log_reads = []
+            def fake_log(session, item):
+                log_reads.append(item)
+                return {'item':item,'text':'Extracting runtime: diagnostic test' + (' Latest output' if len(log_reads)>1 else '')}
             def fake_preview(session, payload):
                 session.preview_result = {'running': False, 'items': [{'visible': True, 'name': 'Slack', 'action': 'UPDATE', 'updateCheck': 'Checked', 'downloadBytes': 1000000}], 'volumes': [], 'sizeNote': 'Test provider estimate'}
                 return session.preview_result
@@ -166,7 +181,7 @@ UI.Setup {
                 confirmed.append(key)
                 return {'confirmed': True}
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
-            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE'}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', return_value={'item':'terminal:ghostty','text':'Extracting runtime: diagnostic test'}), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
+            with patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
                 self.assertEqual(operations, ['accounts'])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])

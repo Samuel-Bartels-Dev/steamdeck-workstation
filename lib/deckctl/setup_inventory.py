@@ -77,7 +77,7 @@ class Scan:
                 # One unavailable provider must not prevent the rest of the catalog scan.
                 result = {**(result or {}), 'key':row['key'],
                           'label':'Installed · couldn’t check updates' if result and result.get('installed') else 'Couldn’t check', 'status':'UNKNOWN',
-                          'note':'Provider check failed. Refresh to retry.', 'checkedAt':time.time()}
+                          'note':'Provider unavailable or timed out. Check connectivity and refresh to retry.', 'checkedAt':time.time()}
             with self.guard:
                 self.results[row['key']] = result
                 self.completed += 1

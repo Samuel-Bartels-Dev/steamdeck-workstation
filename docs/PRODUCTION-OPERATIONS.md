@@ -56,6 +56,29 @@ System-managed Flatpaks are identified separately. These checks never select
 options or install updates for you. Use **Refresh status** to check again; the UI
 also refreshes when an installation finishes.
 
+Cards include the check time and installed → available versions when the provider
+exposes them. Flatpak versions are compared by immutable commit; shortened hashes
+are labelled as commits. **Select updates** adds available updates to your choices
+without removing existing selections or starting an installation. Review the plan
+before saving and installing.
+
+**Details / live output** opens a copyable diagnostic view inside setup. Live
+refresh can be paused while selecting text, and failed/interrupted items can be
+retried there after the current operation finishes. Per-item logs retain the most
+recent 1 MiB; the viewer displays the last 64 KiB. Phase events, captured errors and
+unattended Flatpak output are available here; interactive vendor stdout and input
+still belong to Konsole. This is a diagnostic viewer, not an embedded terminal.
+
+Every running item shows elapsed time and time since its last progress event or
+log write. After 90 seconds without activity, setup suggests inspecting details
+and Konsole. Silence alone neither fails the item nor proves it is waiting for
+input. Quiet extraction or vendor buffering can produce the same symptom.
+
+Resume re-verifies previously completed items before skipping them. Interrupted
+or failed items are retried through their existing provider. Automated tests inject
+interruption and extraction failure into the runner; they do not certify every
+vendor's recovery after a reboot or power loss.
+
 During Flatpak operations, the UI distinguishes checking, installing, updating,
 and already-current results. When Flatpak supplies progress, its percentage,
 speed and ETA appear in the current step. These are Flatpak transaction progress,

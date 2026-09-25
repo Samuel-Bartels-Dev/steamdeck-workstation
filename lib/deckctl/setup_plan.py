@@ -242,6 +242,8 @@ def inspect(row, online=False):
         remote = command(['flatpak', 'remote-info', scope, '--show-commit', evidence.get('origin') or 'flathub', evidence.get('ref') or row['flatpak']], timeout=20)
         if remote:
             result['updateCheck'] = 'Checked'
+            result['installedVersion'] = evidence.get('commit')
+            result['availableVersion'] = remote
             if installed: result['action'] = 'UP_TO_DATE' if remote == evidence.get('commit') else 'UPDATE'
         else: result['updateCheck'] = 'Unavailable; installer will check'
         details = command(['flatpak', 'remote-info', scope, evidence.get('origin') or 'flathub', evidence.get('ref') or row['flatpak']], timeout=20)
