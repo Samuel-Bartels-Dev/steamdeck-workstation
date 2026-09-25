@@ -1,4 +1,4 @@
-"""Durable per-item installer. Runs on demand in Konsole; no startup service."""
+"""Durable per-item installer. Runs on demand; no startup service."""
 from __future__ import annotations
 from contextlib import contextmanager
 from contextvars import ContextVar
@@ -59,7 +59,7 @@ def _run(args, env=None):
                          verbose=_verbose.get(), on_output=reporter)
         return reporter.last_phase
     result = subprocess.run(args, env=env)
-    if result.returncode: raise RuntimeError('Installer exited with code '+str(result.returncode)+'. See Konsole for its explanation.')
+    if result.returncode: raise RuntimeError('Installer exited with code '+str(result.returncode)+'. See the live output or item log for its explanation.')
 
 
 def _flatpak(app_id):
@@ -81,7 +81,7 @@ def _flatpak(app_id):
 def _module(mid):
     if mid == 'decky' and core._decky_loader_present(): return
     result = core.run_action(mid, 'install')
-    if result is not None and result.returncode: raise RuntimeError('Module installer failed; see Konsole.')
+    if result is not None and result.returncode: raise RuntimeError('Module installer failed; see the live output or item log.')
     if mid == 'decky':
         if core._decky_loader_present(): return
         raise NeedsSetup('Open Decky Loader setup below, finish its installer, then resume your plugins.')
@@ -94,13 +94,16 @@ def execute(row):
     """Only catalog-owned commands may reach this dispatcher."""
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
+    if os.environ.get('DECKCTL_UI_RUN') == '1' and interactive_provider(row):
+        if verify(row): return 'Existing installation verified.'
+        raise NeedsSetup('This provider needs interactive setup. Choose Continue in terminal for this item; other installations can continue here.')
     if 'flatpak' in row:
         return _flatpak(row['flatpak'])
     if row['kind'] == 'support': return
     if key == 'module:ai-workspace': ai_workspace.configure(); return
     if row['kind'] == 'module': _module(row['owner']); return
     if key.startswith('terminal:'):
-        if terminal.apply(only=name): raise RuntimeError('Tool installation needs attention; see Konsole.')
+        if terminal.apply(only=name): raise RuntimeError('Tool installation needs attention; see the live output or item log.')
         return
     if key in ('dev:codex', 'dev:claude-code'):
         script = 'install-codex.sh' if name == 'codex' else 'install-claude.sh'
@@ -147,12 +150,20 @@ def execute(row):
         if decky_installer.install_selected(only=name, assume_yes=True): raise NeedsSetup('Plugin needs attention in the Decky Plugin Store.')
         return
     if row['kind'] == 'css':
-        if css_stack.apply(only=name): raise NeedsSetup('This CSS component needs attention; see Konsole.')
+        if css_stack.apply(only=name): raise NeedsSetup('This CSS component needs attention; see the live output or item log.')
         return
     if row['kind'] == 'css-profile':
         if css_stack.apply(): raise NeedsSetup('CSS colors or recovery profile did not verify.')
         return
     raise ValueError('Unsupported install item: '+key)
+
+
+def interactive_provider(row):
+    # Vendor wizards, optional repair prompts and Decky privilege changes retain
+    # their existing terminal workflow; never feed passwords through the UI.
+    return (row['kind'] in ('plugin','css','css-profile') or
+            row['key'] in ('remote:tailscale','launcher:battlenet','dev:distrobox') or
+            (row['kind'] == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:library')))
 
 
 def verify(row):
@@ -234,7 +245,7 @@ def _run_plan(only, resume, journal):
                             while not anchor.exists(): anchor = anchor.parent
                             if shutil.disk_usage(anchor).free < budget + setup_plan.GIB:
                                 raise RuntimeError('Not enough free space for this item’s staging allowance plus 1 GiB headroom.')
-                        install_progress.report('Installing', 'Provider is running. Use Konsole for any prompts.')
+                        install_progress.report('Installing', 'Provider is running. Follow the live output for details.')
                         completion = execute(row)
                         install_progress.report('Verifying', 'Checking the installed result.')
                         if not verify(row): raise NeedsSetup('Installer finished, but this item still needs setup or verification.')

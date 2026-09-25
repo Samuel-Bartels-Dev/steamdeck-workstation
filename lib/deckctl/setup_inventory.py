@@ -34,7 +34,7 @@ def local(row):
         label = 'Needs attention'; status = 'FAILED'
     else:
         label = 'Not installed'; status = 'MISSING'
-    return {'key':row['key'], 'label':label, 'status':status, 'installed':installed,
+    return {'key':row['key'], 'name':row.get('name',row['key']), 'label':label, 'status':status, 'installed':installed,
             'note':evidence.get('message',''), 'checkedAt':time.time()}
 
 
@@ -75,7 +75,7 @@ class Scan:
                 if result['installed'] and not self.stopped.is_set(): result = remote(row, result)
             except Exception:
                 # One unavailable provider must not prevent the rest of the catalog scan.
-                result = {**(result or {}), 'key':row['key'],
+                result = {**(result or {}), 'key':row['key'], 'name':row.get('name',row['key']),
                           'label':'Installed · couldn’t check updates' if result and result.get('installed') else 'Couldn’t check', 'status':'UNKNOWN',
                           'note':'Provider unavailable or timed out. Check connectivity and refresh to retry.', 'checkedAt':time.time()}
             with self.guard:

@@ -167,20 +167,31 @@ class Session:
             self.selected = core.topo(core.enabled_modules())
         if setup_install.running() or (self.process and self.process.poll() is None):
             raise ValueError('An operation is already running.')
-        terminal = shutil.which('konsole')
-        if not terminal:
-            raise ValueError('Konsole is required for interactive installer prompts.')
         commands = {'install': ['setup', 'install'], 'resume': ['setup', 'install', '--resume'], 'accounts': ['setup', 'run'], 'docker': ['containers', 'provision']}
-        if operation == 'retry':
+        if operation in ('retry', 'interactive'):
             if item not in {row['key'] for row in setup_plan.items()[1]}:
                 raise ValueError('Item is not selected in the saved plan')
-            commands['retry'] = ['setup', 'install', '--item', item]
+            commands[operation] = ['setup', 'install', '--item', item]
         if operation not in commands:
             raise ValueError('Unknown setup operation.')
-        self.process = subprocess.Popen([terminal, '--separate', '--nofork', '-e',
-                                         str(core.ROOT/'bin/deckctl'), *commands[operation]])
-        self.operation = "install" if operation in ("resume", "retry") else operation
+        command = [str(core.ROOT/'bin/deckctl'), *commands[operation]]
+        if operation in ('install','resume','retry'):
+            from . import setup_process
+            self.process = setup_process.start([*command, '--verbose'], setup_plan.fingerprint(setup_plan.items()[0]))
+        else:
+            terminal = shutil.which('konsole')
+            if not terminal: raise ValueError('Konsole is required for this interactive action.')
+            env = dict(os.environ); env.pop('DECKCTL_UI_RUN', None)
+            self.process = subprocess.Popen([terminal, '--separate', '--nofork', '-e', *command], env=env)
+        self.operation = "install" if operation in ("resume", "retry", "interactive") else operation
         return self.progress()
+
+    def console(self):
+        from . import setup_process
+        data = setup_process.snapshot(setup_plan.fingerprint(setup_plan.items()[0]))
+        state = setup_install.snapshot()
+        if data.get('finishedAt', float('inf')) < state.get('startedAt', 0): return {'text':''}
+        return data
 
     def log(self, item):
         if item not in {row['key'] for row in setup_plan.items()[1]}:
@@ -198,6 +209,8 @@ class Session:
         visible = [{**row, **records.get(row['key'], {'status': 'PENDING', 'message': ''}), 'id': row['key']}
                    for row in rows if row['visible']]
         now = time.time()
+        from . import setup_process
+        console = setup_process.snapshot(setup_plan.fingerprint(plan))
         for row in visible:
             status = row.get('status')
             row['resultLabel'] = ({'Installed and verified.':'Installed', 'Updated and verified.':'Updated',
@@ -219,10 +232,11 @@ class Session:
             row['elapsedSeconds'] = max(0, int(end-start)) if isinstance(start, (float, int)) else 0
             path = install_log.path_for(row['key'])
             row['hasLog'] = not path.is_symlink() and path.is_file()
-            activity = max(row.get('updatedAt') or start or now, path.stat().st_mtime if row['hasLog'] else 0)
+            activity = max(row.get('updatedAt') or start or now, path.stat().st_mtime if row['hasLog'] else 0,
+                           console.get('lastOutputAt',0) if status == 'RUNNING' else 0)
             row['quietSeconds'] = max(0, int(now-activity))
             row['activityNotice'] = ('No new output for '+str(row['quietSeconds'])+
-                                     's. This may be a quiet operation or a prompt in Konsole; check Details before retrying.') if row.get('status') == 'RUNNING' and row['quietSeconds'] >= 90 else ''
+                                     's. This may be a quiet operation; check live output and Details before retrying.') if row.get('status') == 'RUNNING' and row['quietSeconds'] >= 90 else ''
         attention = {'FAILED', 'INTERRUPTED', 'NEEDS_SETUP', 'BLOCKED'}
         visible.sort(key=lambda row: 0 if row.get('status') == 'RUNNING' else 1 if row.get('status') in attention else 3 if row.get('status') == 'DONE' else 2)
         code = self.process.poll() if self.process else None
@@ -303,6 +317,8 @@ def launch(plan_only=False):
                     result = session.preview_result
                 elif route == 'progress':
                     result = session.progress()
+                elif route == 'console':
+                    result = session.console()
                 else:
                     raise ValueError('Unknown view')
                 self.reply(200, result)
