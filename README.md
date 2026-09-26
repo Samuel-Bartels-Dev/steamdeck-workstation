@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.43
+# Steam Deck Workstation — v0.2.44-rc1 (candidate)
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -880,7 +880,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.43.md).
+See [candidate release notes](docs/RELEASE-0.2.44-rc1.md). The default bootstrap continues to install the latest stable release.
 
 ## Online releases and recovery
 

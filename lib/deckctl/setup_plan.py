@@ -169,7 +169,11 @@ def present(row):
         path = binary(name)
         version = command([path, '-V' if name == 'tmux' else '--version']) if path else None
         return bool(version), {'version': version}
-    if key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'ai-workspace:ollama'):
+    if key == 'remote:tailscale':
+        from . import tailscale
+        state = tailscale.status()
+        return state['installed'], {**state, 'configured':state['connected']}
+    if key in ('dev:codex', 'dev:claude-code', 'ai-workspace:ollama'):
         name = {'dev:claude-code': 'claude', 'remote:tailscale': 'tailscale', 'ai-workspace:ollama': 'ollama'}.get(key, 'codex')
         path = binary(name)
         version = command([path, '--version']) if path else None

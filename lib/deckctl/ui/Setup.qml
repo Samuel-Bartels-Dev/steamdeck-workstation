@@ -74,12 +74,13 @@ ApplicationWindow {
     property int guideStep: 0
     readonly property var guidePages: [
         {title:"Start in Desktop Mode", text:"From Steam’s Power menu, switch to Desktop Mode. Keep your Deck connected to power and the internet for downloads. This guide is optional and does not change your choices."},
-        {title:"Check your password", text:"Some vendor installers need administrator access. If setup says your password is missing or locked, open Konsole and run passwd. Typed characters stay invisible. Return here and use Recheck password. Never paste passwords into logs or this UI."},
+        {title:"Check your password", text:"Some vendor installers need administrator access. If setup says your password is missing or locked, open Konsole and run passwd. Typed characters stay invisible. Return here and use Recheck password. Decky plugin and palette changes use a KDE password dialog before installation. Never paste passwords into logs or chat."},
         {title:"Choose storage deliberately", text:"Internal storage holds tools and settings. Optional DECK-GAMES and DECK-EMU cards are for the configured game and emulation paths. Insert the intended card before installing components that use it. Check changes & space on the review page shows known allowances; unknown vendor sizes need extra room."},
         {title:"Make it your setup", text:"Choose individual apps and tools; required dependencies are included automatically. Review new installs, updates and configuration changes, then confirm. Afterward, check results and complete any sign-in or pairing. You can save choices for later and resume unfinished installation work."}
     ]
+    readonly property bool guideVisible: guideDialog.visible
     function openGuide() { guideStep = 0; guideDialog.open() }
-    function closeGuide() { guideDialog.close() }
+    function closeGuide() { guideDialog.close(); request("guide-seen", {}, function() {}) }
     function restoreProgress(result) { previousRun = result; progress = result; if (result.running) stage = 5 }
     function previousRunText() {
         if (previousRun.historyPlanChanged) return "Your saved choices or installer version differ from the last run. Review this plan; previous results will not be reused as proof."
@@ -544,7 +545,7 @@ ApplicationWindow {
             saved = result.hasSavedPlan; data = result; paletteId = result.palette; appearanceChoices = result.appearance; selectedComponents = result.selectedComponents; selectedCss = result.selectedCss.slice(); selectedLaunchers = result.selectedLaunchers.slice(); selectedPlugins = result.selectedPlugins.slice(); chosen = result.modules.slice(); selectedApps = result.selectedApps.slice(); loaded = true
             if (!result.hasSavedPlan) { preset(false); dirty = false; notice = "Start with only what you need. Nothing installs until you review and confirm." }
             if (result.hasSavedPlan) request("progress", null, function(state) { restoreProgress(state) })
-            else openGuide()
+            if (!result.guideSeen) Qt.callLater(openGuide)
             refreshInventory()
         })
     }
@@ -1232,6 +1233,7 @@ ApplicationWindow {
                     Action { text: "Select updates"; enabled: !window.inventoryPending && !window.progress.running && !window.busy; onClicked: { window.selectUpdates(); statusDrawer.close() } }
                 }
                 TextLabel { text: "Administrator access"; font.bold: true; Layout.fillWidth: true }
+                TextLabel { text: "Workstation " + (window.data.runtimeVersion || "unknown"); Layout.fillWidth: true; color: window.muted }
                 TextLabel { text: window.data.sudoReadiness ? window.data.sudoReadiness.message : "Not checked"; Layout.fillWidth: true; color: window.muted; font.pixelSize: 13 }
                 Action { text: "Recheck password"; enabled: !window.progress.running; onClicked: window.request("sudo-readiness", null, function(result) { var next = Object.assign({}, window.data); next.sudoReadiness = result; window.data = next }) }
                 TextLabel { text: "Installed tools & updates"; font.bold: true; Layout.fillWidth: true }

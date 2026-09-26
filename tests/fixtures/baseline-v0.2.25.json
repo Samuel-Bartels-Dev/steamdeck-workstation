@@ -1038,8 +1038,10 @@
     "docs/PRINCIPLES.md",
     "tools/install-control-plane",
     "docs/TESTING.md",
-    "tools/verify-release.py"
+    "tools/verify-release.py",
+    "modules/remote/install-tailscale-steamos.sh"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
-  "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved."
+  "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved.",
+  "v0.2.44_tailscale_review": "Connected Tailscale installations skip vendor download and login; existing failed-refresh preservation tests remain enforced. Historical file hashes are unchanged."
 }

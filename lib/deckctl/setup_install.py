@@ -120,7 +120,8 @@ def execute(row):
         if verify(row): return 'Existing installation verified.'
         privilege.command([])  # Refuse mutation without this runner's authorization.
     if os.environ.get('DECKCTL_UI_RUN') == '1' and interactive_provider(row):
-        if verify(row): return 'Existing installation verified.'
+        if verify(row):
+            return setup_plan.present(row)[1].get('message') or 'Existing installation verified.'
         raise NeedsSetup('This provider needs interactive setup. Choose Continue in terminal for this item; other installations can continue here.')
     if 'flatpak' in row:
         return _flatpak(row['flatpak'])
@@ -192,6 +193,9 @@ def interactive_provider(row):
 
 
 def verify(row):
+    if row['key'] == 'remote:tailscale':
+        from . import tailscale
+        return tailscale.status()['connected']
     if row['kind'] == 'support': return True
     if row['kind'] == 'css':
         from . import css_stack

@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import threading
 import time
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability, appearance, install_log
 
 
@@ -28,6 +28,9 @@ APP_DESCRIPTIONS = {
 class Session:
     def __init__(self, plan_only=False):
         self.plan_only = plan_only
+        self.action_lock = threading.Lock()
+        self.progress_lock = threading.Lock()
+        self.progress_cache = {}
         self.process = None
         self.operation = None
         self.selected = None
@@ -55,6 +58,8 @@ class Session:
                 'defaultCss': [item['name'] for category in ('required','recommended') for item in css_stack._stack(unfiltered=True)[category]],
                 'dependencies': {key: item[1].get('depends_on', []) for key, item in manifests.items()},
                 'planOnly': self.plan_only,
+                'runtimeVersion':(core.ROOT/'VERSION').read_text().strip(),
+                'guideSeen':core.load_json(core.CONFIG_HOME/'setup-ui.json', {}).get('guide_seen', False),
                 'palettes': css_stack.palette_catalog(),
                 'cssPalette':css_stack.palette_status(),
                 'palette': css_stack.palette_id(), 'appearance': appearance.selection(), 'appearanceTargets': appearance.TARGETS}
@@ -201,7 +206,8 @@ class Session:
         if not self.process or not hasattr(self.process,'control'):
             raise ValueError('Controls are available only for the UI run started in this window.')
         self.process.control(action)
-        return self.progress()
+        return {**self.progress_cache, 'running':self.process.poll() is None,
+                'operation':self.operation, 'controls':self.process.controls()}
 
     def log(self, item):
         if item not in {row['key'] for row in setup_plan.items()[1]}:
@@ -224,6 +230,15 @@ class Session:
         return None
 
     def progress(self):
+        if not self.progress_lock.acquire(blocking=False):
+            return self.progress_cache
+        try:
+            self.progress_cache = self._progress()
+            return self.progress_cache
+        finally:
+            self.progress_lock.release()
+
+    def _progress(self):
         state = setup_install.snapshot()
         plan, rows = setup_plan.items()
         matches = state.get('fingerprint') == setup_plan.fingerprint(plan)
@@ -312,6 +327,10 @@ def launch(plan_only=False):
                 self.reply(403, {'error': 'Request refused'})
                 return
             route = self.path.removeprefix('/'+token+'/')
+            exclusive = post and route not in ('control', 'log', 'guide-seen')
+            if exclusive and not session.action_lock.acquire(blocking=False):
+                self.reply(409, {'error':'Another setup action is in progress. Please retry when it finishes.'})
+                return
             try:
                 if post:
                     size = int(self.headers.get('Content-Length', '0'))
@@ -320,7 +339,10 @@ def launch(plan_only=False):
                     payload = json.loads(self.rfile.read(size))
                     if not isinstance(payload, dict):
                         raise ValueError('Expected an object')
-                    if route == 'inventory':
+                    if route == 'guide-seen':
+                        core.save_json(core.CONFIG_HOME/'setup-ui.json', {'guide_seen':True})
+                        result = {'saved':True}
+                    elif route == 'inventory':
                         result = session.inventory(refresh=True)
                     elif route == 'save':
                         result = session.save(payload)
@@ -360,6 +382,8 @@ def launch(plan_only=False):
                 pass  # Closing the UI may abandon a pending read-only request.
             except (ValueError, OSError, RuntimeError, SystemExit) as exc:
                 self.reply(400, {'error': str(exc)})
+            finally:
+                if exclusive: session.action_lock.release()
 
         def do_GET(self):
             self.handle_request()
@@ -367,7 +391,7 @@ def launch(plan_only=False):
         def do_POST(self):
             self.handle_request(True)
 
-    with HTTPServer(('127.0.0.1', 0), Handler) as server:
+    with ThreadingHTTPServer(('127.0.0.1', 0), Handler) as server:
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
         try:

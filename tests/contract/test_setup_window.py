@@ -20,6 +20,67 @@ class SetupWindow(unittest.TestCase):
             p = patch.object(core, name, self.home/name)
             p.start(); self.addCleanup(p.stop)
 
+    def test_tailscale_requires_running_backend_and_keeps_dns_warning_visible(self):
+        from deckctl import tailscale
+        import subprocess
+        import json
+        for backend in ('Running','NeedsLogin','Stopped'):
+            with patch.object(tailscale,'binary',return_value='/opt/tailscale/tailscale'), patch.object(tailscale.subprocess,'run',return_value=subprocess.CompletedProcess([],0,json.dumps({'BackendState':backend,'Health':['MagicDNS resolver warning'],'AuthURL':'secret','Peer':{'private':'payload'}}),'')):
+                status = tailscale.status()
+                self.assertEqual(status['connected'],backend=='Running')
+                self.assertNotIn('secret',json.dumps(status))
+                self.assertNotIn('payload',json.dumps(status))
+                self.assertIn('MagicDNS',status['message'])
+                from deckctl import setup_install
+                self.assertEqual(setup_install.verify({'key':'remote:tailscale'}),backend=='Running')
+
+    def test_slow_status_does_not_block_control_http_request(self):
+        import threading
+        import urllib.request
+        import json
+        started, release = threading.Event(), threading.Event()
+        errors = []
+        def slow_snapshot(session):
+            started.set()
+            release.wait(5)
+            return {}
+        def fake_qml(args, **kwargs):
+            url = args[-1]
+            def get():
+                try: urllib.request.urlopen(url+'catalog',timeout=5).read()
+                except Exception as exc: errors.append(exc)
+            worker = threading.Thread(target=get)
+            worker.start()
+            try:
+                self.assertTrue(started.wait(2))
+                request = urllib.request.Request(url+'control',data=json.dumps({'action':'cancel'}).encode(),headers={'Content-Type':'application/json'})
+                with urllib.request.urlopen(request,timeout=2) as response:
+                    self.assertEqual(json.load(response),{'cancelled':True})
+                self.assertFalse(release.is_set())
+            finally:
+                release.set(); worker.join(5)
+            return 0
+        with patch.object(setup_window.shutil,'which',return_value='/fake/qml'), patch.object(setup_window.Session,'snapshot',slow_snapshot), patch.object(setup_window.Session,'control',return_value={'cancelled':True}), patch.object(setup_window.subprocess,'call',side_effect=fake_qml):
+            self.assertEqual(setup_window.launch(),0)
+        self.assertEqual(errors,[])
+
+    def test_control_does_not_run_status_probes(self):
+        session = setup_window.Session()
+        session.process = Mock()
+        session.process.poll.return_value = None
+        session.process.controls.return_value = {'cancel':True}
+        with patch.object(session, 'progress', side_effect=AssertionError('No probes during cancellation')):
+            result = session.control('cancel')
+        self.assertTrue(result['controls']['cancel'])
+        self.assertTrue(result['running'])
+
+    def test_busy_progress_returns_cached_status_instead_of_blocking_controls(self):
+        session = setup_window.Session()
+        session.progress_cache = {'running':True}
+        session.progress_lock.acquire()
+        try: self.assertEqual(session.progress(),{'running':True})
+        finally: session.progress_lock.release()
+
     def test_theme_palette_saves_with_plan_without_enabling_extra_software(self):
         session = setup_window.Session()
         session.save({'modules': ['base'], 'apps': [], 'css': [], 'palette': 'ocean'})

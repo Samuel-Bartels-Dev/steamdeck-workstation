@@ -47,6 +47,8 @@ UI.Setup {
             if (app.capturing) return
             if (!app.attempted) {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
+                if (!app.guideVisible) throw new Error("Fresh setup guide did not open automatically")
+                app.closeGuide()
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
                 app.choosePalette("ocean")
@@ -276,6 +278,7 @@ UI.Setup {
                 self.assertEqual(component_options.selection()['terminal'], ['ghostty'])
                 self.assertIn('dev', core.enabled_modules())
                 self.assertFalse((base/'state').exists())
+                self.assertTrue(core.load_json(base/'config/setup-ui.json', {})['guide_seen'])
 
 
 if __name__ == '__main__':

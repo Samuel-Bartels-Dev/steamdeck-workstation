@@ -20,12 +20,14 @@ def rows():
         followup = row.get('followup', '')
         confirmed = confirmations.get(key) == hashlib.sha256(json.dumps(evidence, sort_keys=True).encode()).hexdigest()
         detected = core._codex_logged_in() if key == 'dev:codex' and installed else core._claude_logged_in() if key == 'dev:claude-code' and installed else False
+        if key == 'remote:tailscale': detected = evidence.get('connected', False)
         ready = installed and (not followup or confirmed or detected)
+        if key == 'remote:tailscale': ready = bool(evidence.get('connected'))
         status = 'Ready' if ready else 'Needs pairing' if installed and followup == 'pairing' else 'Needs sign-in' if installed and followup == 'signin' else 'Needs setup'
         result.append({**row, 'status': status, 'installed': installed,
-                       'note': 'Confirmed by you. Recheck after changing this installation.' if ready and confirmed and followup else 'Complete the staged installer, then confirm setup.' if installed and followup == 'setup' else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
+                       'note': evidence['message'] if key == 'remote:tailscale' else 'Confirmed by you. Recheck after changing this installation.' if ready and confirmed and followup else 'Complete the staged installer, then confirm setup.' if installed and followup == 'setup' else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
                        'canLaunch': bool(key == 'launcher:nonsteamlaunchers' or 'flatpak' in row or key in STEPS or key in ('dev:codex', 'dev:claude-code') or row['owner'] in ('workspace', 'media')),
-                       'canConfirm': installed and followup in ('signin', 'pairing', 'setup') and key not in ('dev:codex', 'dev:claude-code')})
+                       'canConfirm': installed and followup in ('signin', 'pairing', 'setup') and key not in ('dev:codex', 'dev:claude-code', 'remote:tailscale')})
     return result
 
 
