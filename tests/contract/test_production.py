@@ -55,7 +55,7 @@ class Production(unittest.TestCase):
         target.unlink(); target.symlink_to(ROOT/'lib/deckctl/ui/Setup.qml')
         with self.assertRaisesRegex(ValueError, 'symlink'): runtime_package.validate(installed)
 
-    def test_css_inventory_detects_display_name_without_claiming_palette_ready(self):
+    def test_css_inventory_does_not_call_theme_receipt_drift_needs_setup(self):
         from deckctl import css_stack, setup_plan, setup_inventory, setup_install
         themes = Path(self.temp.name)/'themes'
         theme = themes/'CapyMenu (QAM)'; theme.mkdir(parents=True)
@@ -65,9 +65,11 @@ class Production(unittest.TestCase):
             installed, evidence = setup_plan.present(row)
             self.assertTrue(installed); self.assertFalse(evidence['configured'])
             local = setup_inventory.local(row)
-            self.assertEqual(local['label'], 'Installed · needs setup')
+            self.assertEqual(local['label'], 'Installed')
+            self.assertEqual(local['status'], 'INSTALLED')
+            self.assertIn('Theme files detected', local['note'])
             self.assertEqual(setup_plan.inspect(row,online=False)['action'], 'CONFIGURE')
-            self.assertEqual(setup_inventory.remote(row,local)['status'], 'NEEDS_SETUP')
+            self.assertEqual(setup_inventory.remote(row,local)['status'], 'INSTALLED')
             self.assertFalse(setup_install.verify(row))
             (theme/'theme.json').write_text('invalid')
             self.assertFalse(setup_plan.present(row)[0])
