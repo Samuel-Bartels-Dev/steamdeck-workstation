@@ -196,14 +196,17 @@ def run_step(args, env=None, verbose=False, on_output=None):
                 while b'\n' in pending:
                     line, pending = pending.split(b'\n', 1)
                     text = install_log.redact(line.decode('utf-8', errors='replace'))
-                    recent.append(text[-2000:]); install_log.note(text)
+                    recent.append(text[-2000:])
+                    if not verbose: install_log.note(text)
                     if on_output: on_output(text)
                     if verbose: print(text, flush=True)
                 if len(pending) > 65536:
                     install_log.note('[oversized provider line omitted]'); pending = b''
             if pending:
                 text = install_log.redact(pending.decode('utf-8', errors='replace'))
-                recent.append(text[-2000:]); install_log.note(text)
+                recent.append(text[-2000:])
+                if verbose: print(text, flush=True)
+                else: install_log.note(text)
                 if on_output: on_output(text)
             code = process.wait()
         except BaseException:

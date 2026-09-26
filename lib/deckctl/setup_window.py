@@ -1,9 +1,11 @@
 """On-demand Qt Quick setup window using SteamOS's existing QML runtime."""
 from __future__ import annotations
 import json
+from contextlib import contextmanager
 import os
 from pathlib import Path
 import secrets
+import select
 import shutil
 import subprocess
 import threading
@@ -23,6 +25,31 @@ APP_DESCRIPTIONS = {
     'discord': 'Chat and voice for your communities',
     'slack': 'Keep up with your team and workspaces',
 }
+
+
+@contextmanager
+def renderer_diagnostics():
+    """Drain renderer errors into a 16 KiB memory tail, never a growing temp file."""
+    reader, writer = os.pipe()
+    tail = bytearray()
+    stop = threading.Event()
+    def collect():
+        try:
+            while not stop.is_set():
+                if not select.select([reader], [], [], .1)[0]: continue
+                chunk = os.read(reader, 4096)
+                if not chunk: break
+                tail.extend(chunk)
+                del tail[:-16384]
+        finally: os.close(reader)
+    thread = threading.Thread(target=collect, daemon=True)
+    thread.start()
+    try:
+        with os.fdopen(writer, 'wb', buffering=0) as stream: yield stream, tail
+    finally:
+        thread.join(.5)
+        stop.set()
+        thread.join(.2)
 
 
 class Session:
@@ -175,7 +202,11 @@ class Session:
             self.selected = core.topo(core.enabled_modules())
         if setup_install.running() or (self.process and self.process.poll() is None):
             raise ValueError('An operation is already running.')
-        commands = {'install': ['setup', 'install'], 'resume': ['setup', 'install', '--resume'], 'accounts': ['setup', 'run'], 'docker': ['containers', 'provision']}
+        commands = {'install': ['setup', 'install'], 'resume': ['setup', 'install', '--resume']}
+        if operation == 'docker':
+            if 'dev:docker' not in {row['key'] for row in setup_plan.items()[1]}:
+                raise ValueError('Select Docker in your plan first.')
+            commands[operation] = ['setup', 'install', '--item', 'dev:docker']
         if operation in ('retry', 'interactive'):
             if item not in {row['key'] for row in setup_plan.items()[1]}:
                 raise ValueError('Item is not selected in the saved plan')
@@ -183,7 +214,7 @@ class Session:
         if operation not in commands:
             raise ValueError('Unknown setup operation.')
         command = [str(core.ROOT/'bin/deckctl'), *commands[operation]]
-        if operation in ('install','resume','retry'):
+        if operation in ('install','resume','retry','docker'):
             from . import setup_process, setup_activity
             self.activity = setup_activity.Sampler()
             self.process = setup_process.start([*command, '--verbose'], setup_plan.fingerprint(setup_plan.items()[0]))
@@ -192,7 +223,7 @@ class Session:
             if not terminal: raise ValueError('Konsole is required for this interactive action.')
             env = dict(os.environ); env.pop('DECKCTL_UI_RUN', None)
             self.process = subprocess.Popen([terminal, '--separate', '--nofork', '-e', *command], env=env)
-        self.operation = "install" if operation in ("resume", "retry", "interactive") else operation
+        self.operation = "install" if operation in ("resume", "retry", "interactive", "docker") else operation
         return self.progress()
 
     def console(self):
@@ -200,6 +231,11 @@ class Session:
         data = setup_process.snapshot(setup_plan.fingerprint(setup_plan.items()[0]))
         state = setup_install.snapshot()
         if data.get('finishedAt', float('inf')) < state.get('startedAt', 0): return {'text':''}
+        from . import run_log
+        run_id = state.get('run_id', '')
+        if (not data.get('runId') and state.get('fingerprint') == setup_plan.fingerprint(setup_plan.items()[0])
+                and state.get('startedAt', 0) >= data.get('startedAt', 0) and run_log.RUN_NAME.fullmatch(run_id)):
+            data = {**data, 'runId':run_id, 'logDirectory':str(run_log.root()/run_id)}
         return data
 
     def control(self, action):
@@ -213,7 +249,7 @@ class Session:
         if item not in {row['key'] for row in setup_plan.items()[1]}:
             raise ValueError('Unknown installation item')
         text = install_log.read(item)
-        return {'item': item, 'text': text[-65536:], 'truncated': len(text) > 65536,
+        return {'item': item, 'text': text[-65536:], 'truncated': len(text) > 65536, 'logPath':str(install_log.path_for(item)),
                 'updatedAt': install_log.path_for(item).stat().st_mtime}
 
     def github_limit(self):
@@ -275,7 +311,7 @@ class Session:
                            console.get('lastOutputAt',0) if status == 'RUNNING' else 0)
             row['quietSeconds'] = max(0, int(now-activity))
             row['activityNotice'] = ('No new output for '+str(row['quietSeconds'])+
-                                     's. This may be a quiet operation; check live output and Details before retrying.') if row.get('status') == 'RUNNING' and row['quietSeconds'] >= 90 else ''
+                                     's — possibly stalled or a quiet operation. Inspect output before cancelling; this is not a failure result.') if row.get('status') == 'RUNNING' and row['quietSeconds'] >= 90 else ''
         attention = {'FAILED', 'INTERRUPTED', 'NEEDS_SETUP', 'BLOCKED'}
         visible.sort(key=lambda row: 0 if row.get('status') == 'RUNNING' else 1 if row.get('status') in attention else 3 if row.get('status') == 'DONE' else 2)
         code = self.process.poll() if self.process else None
@@ -291,7 +327,11 @@ class Session:
         if not live and code not in (None, 0) and console.get('finishedAt', 0) >= state.get('startedAt', 0):
             failures = [line for line in console.get('text', '').splitlines() if line.startswith('FAIL ')]
             failure = '\n'.join(failures[-3:])
+        from . import setup_activity
+        active = next((row for row in visible if row.get('status') == 'RUNNING'), None)
+        storage = setup_activity.storage_status(active)
         return {'running': live, 'operation': operation, 'summary': summary, 'failureMessage':failure,
+                'network':setup_activity.network_status(), 'storage':storage,
                 'githubLimit':self.github_limit(), 'cssPalette':css_stack.palette_status(),
                 'controls':controls, 'queueStatus':state.get('queueStatus'),
                 'activity':self.activity.sample() if live else self.activity.history,
@@ -396,10 +436,16 @@ def launch(plan_only=False):
         thread.start()
         try:
             env = dict(os.environ, QT_QUICK_CONTROLS_STYLE='Basic')
-            result = subprocess.call([runtime, str(core.ROOT/'lib/deckctl/ui/Setup.qml'), '--',
-                                      f'http://127.0.0.1:{server.server_port}/{token}/'], env=env)
+            with renderer_diagnostics() as (diagnostic, tail):
+                result = subprocess.call([runtime, str(core.ROOT/'lib/deckctl/ui/Setup.qml'), '--',
+                                          f'http://127.0.0.1:{server.server_port}/{token}/'], env=env, stderr=diagnostic)
+            if result:
+                detail = install_log.redact(tail.decode(errors='replace').replace(token, '<session>'))
+                raise ValueError('Qt Quick could not run. The GUI needs QtQuick, QtQuick.Controls, QtQuick.Layouts and QtQuick.Window imports plus a working Desktop Mode display. '
+                                 'No system packages were changed. Use deckctl setup configure from a terminal if the GUI runtime is unavailable.\n'+detail[-4000:])
             return result or (2 if plan_only and session.selected is None else 0)
         finally:
+            if session.process and hasattr(session.process, 'close'): session.process.close()
             if session.inventory_scan: session.inventory_scan.close()
             server.shutdown()
             thread.join()

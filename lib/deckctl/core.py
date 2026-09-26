@@ -750,15 +750,13 @@ def create_setup_shortcut():
     desktop=desktop_icons.desktop_dir()
     desktop.mkdir(parents=True, exist_ok=True)
     shortcut=desktop/"Continue Steam Deck Setup.desktop"
-    # Shell-quote the repository path for the inner bash command.
-    import shlex
-    cmd=f"cd {shlex.quote(str(ROOT))} && ./bin/deckctl setup run; exec bash"
+    command = str(Path.home()/".local/bin/deckctl")
     content="\n".join([
         "[Desktop Entry]",
         "Type=Application",
         "Name=Continue Steam Deck Setup",
-        "Comment=Resume guided steamdeck-workstation setup",
-        "Exec=" + desktop_icons.exec_line(["konsole", "-e", "bash", "-lc", cmd]),
+        "Comment=Review results and resume installation in the setup window",
+        "Exec=" + desktop_icons.exec_line([command, "setup", "customize"]),
         f"Icon={desktop_icons.install_icon('setup')}",
         "Terminal=false",
         "StartupNotify=true",

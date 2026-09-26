@@ -29,8 +29,10 @@ Developer commands such as generating project tasks require a source checkout.
 
 Normal UI **Install**, **Resume**, and **Retry** run directly with an inline live
 output panel, without opening Konsole. Output is redacted and bounded to 64 KiB
-in the private `setup-console.json` latest-run record. Expand, pause, copy, or hide
-output as needed; **Pause output** only stops refreshing the panel.
+in the private `setup-console.json` latest-run record, with bounded durable
+combined and per-item archives under the run directory. **Following latest** can
+be turned off to freeze the displayed history while capture continues. **Details**
+uses this same console for an item; **All steps** returns to combined output.
 
 The install screen groups active, scheduled, attention-needed and completed items.
 **Pause after item** finishes the current item before waiting at the next boundary;
@@ -40,13 +42,18 @@ unresponsive provider. This can leave the current item incomplete: resume verifi
 completed items and retries unfinished work. Cancellation does not uninstall apps.
 Closing an owned active run offers cancellation and closes after the worker exits.
 A viewer of a run started elsewhere can close, but must use the originating window
-or terminal to cancel that run. Unexpected closure can still interrupt the child.
+or terminal to cancel that run. Unexpected renderer closure gracefully cancels its
+owned process group, then applies bounded escalation if the provider ignores it.
 
 Network receive and disk read/write graphs use Linux sysfs counters, sampled only
 while a run is active. They include other applications on the Deck, exclude virtual
 devices to avoid double counting, and show unavailable counters as gaps. They are
 not per-download byte measurements. The rolling history is limited to 60 samples;
-no monitoring daemon is installed. Provider-reported item progress remains separate.
+no monitoring daemon is installed. Separate scales and real timestamps make
+network and disk activity comparable over time without sharing a misleading axis.
+Zero traffic is not offline. Physical carrier evidence distinguishes link available,
+offline and unknown, without claiming Internet reachability. Stale readings and
+completed-run rates are labeled accordingly. Provider progress remains separate.
 GitHub API exhaustion is a preflight warning with reset time and retry instructions.
 Independent items can continue; an item that requires the unavailable API must still
 complete its own download and verification. Failed items remain retryable and their
@@ -57,8 +64,8 @@ When it expires, the UI invites a retry without claiming availability was rechec
 
 Known interactive vendor/privileged providers are deferred when they do not
 already verify. They show **Continue in terminal** after the pass, rather than
-attempting to collect input through the output panel. Guided account setup also
-uses Konsole. This preserves vendor wizards and password prompts; normal UI
+attempting to collect input through the output panel. Finish checks readiness in
+the UI; only explicitly selected interactive setup/authentication actions use Konsole. This preserves vendor wizards and password prompts; normal UI
 workers have disconnected stdin and no controlling terminal. A failed unexpected
 prompt can be retried explicitly in a terminal. No terminal opens automatically
 for a normal install/resume/retry.
@@ -164,16 +171,16 @@ are labelled as commits. **Select updates** adds available updates to your choic
 without removing existing selections or starting an installation. Review the plan
 before saving and installing.
 
-**Details / live output** opens a copyable diagnostic view inside setup. Live
-refresh can be paused while selecting text, and failed/interrupted items can be
-retried there after the current operation finishes. Per-item logs retain the most
-recent 1 MiB; the viewer displays the last 64 KiB. Phase events, captured errors and
-unattended Flatpak output are available here; interactive vendor stdout and input
-still belong to Konsole. This is a diagnostic viewer, not an embedded terminal.
+**Details** selects item output in the single copyable console. Following latest
+can be turned off while selecting text; collection continues. Failed/interrupted
+items can be retried after the current operation finishes. Per-item logs retain the most
+recent 1 MiB; the viewer displays the last 64 KiB. Phase events and UI provider stdout/stderr are available here; explicit
+interactive vendor stdout/stderr and input stay in the requested terminal and are
+not captured as unattended raw logs. This is a diagnostic viewer, not an embedded terminal.
 
 Every running item shows elapsed time and time since its last progress event or
-log write. After 90 seconds without activity, setup suggests inspecting details
-and Konsole. Silence alone neither fails the item nor proves it is waiting for
+log write. After 90 seconds without activity, setup says possibly stalled or quiet and
+suggests inspecting the console before cancellation or retry. Silence alone neither fails the item nor proves it is waiting for
 input. Quiet extraction or vendor buffering can produce the same symptom.
 
 Resume re-verifies previously completed items before skipping them. Interrupted
@@ -194,7 +201,9 @@ and SAFE test has a unique private directory under `logs/` with:
 * `result.json`: operation, version, exit status, run ID and duration.
 * `events.jsonl` and `run.log`: correlated events.
 * `plan.json`: installation/preflight plan or SAFE test result where applicable.
-* Hashed item `.log` files: bounded copies of installer stderr for setup items.
+* Hashed `.log` files: bounded item diagnostics; UI runs also archive combined
+  stdout/stderr including preflight. Explicit interactive authentication output is
+  excluded. The ordinary CLI retains its stdout/TTY behavior.
 
 `logs list`, `logs latest`, `logs errors`, `logs show terminal:ghostty` are
 read-only. `logs clean` keeps 10 install/apply/test runs, 5 repair/update runs,

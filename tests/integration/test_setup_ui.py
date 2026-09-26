@@ -12,15 +12,95 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT/'lib'))
+QT_TEST_RUNNER = shutil.which('qmltestrunner6') or shutil.which('qmltestrunner', path='/usr/lib/qt6/bin')
 from deckctl import apps, core, setup_window, gaming_options, css_stack, component_options, appearance, preflight
 
 
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
 class NativeSetup(unittest.TestCase):
     def test_real_window_saves_app_dependencies_without_installing(self):
-        for width, height in ((1120,720),(800,600),(760,540)):
+        for width, height in ((1280,800),(1120,720),(800,600),(760,540)):
             with self.subTest(size=(width,height)):
                 self.check_flow(width,height)
+
+    @unittest.skipUnless(QT_TEST_RUNNER, 'Qt 6 Quick Test runner unavailable')
+    def test_real_keyboard_focus_activation_and_console_filter(self):
+        with tempfile.TemporaryDirectory() as folder:
+            base = Path(folder)
+            def run_keyboard(args, **kwargs):
+                harness = base/'tst_keyboard.qml'
+                harness.write_text('''import QtQuick
+import QtTest
+import "''' + (ROOT/'lib/deckctl/ui').as_uri() + '''" as UI
+Item {
+    id: fixture
+    property bool keyboardReady: false
+    UI.Setup { id: app; width: 800; height: 600; endpoint: ''' + json.dumps(args[-1]) + ''' }
+    Timer {
+        // Qt 6.4 runs TestCase.when handlers synchronously. Defer to a new
+        // event turn so the catalog callback can finish scheduling the guide.
+        interval: 1; repeat: false; running: app.loaded && keyboardTests.windowShown
+        onTriggered: fixture.keyboardReady = true
+    }
+    TestCase {
+        id: keyboardTests
+        parent: app.contentItem
+        name: "InstallerKeyboard"
+        when: fixture.keyboardReady
+        function find(root, name) {
+            if (root.objectName === name) return root
+            var children = root.children || []
+            for (var i=0; i<children.length; i++) { var result = find(children[i], name); if (result) return result }
+            return null
+        }
+        function test_keyboard() {
+            // Catalog loading schedules the guide with Qt.callLater. Starting
+            // when loaded is not proof that this modal has opened and closed.
+            tryCompare(app, "guideVisible", true, 5000, "First-run guide must open before dismissal")
+            app.closeGuide()
+            tryCompare(app, "guideVisible", false, 5000, "Guide must finish closing before focus checks")
+            app.requestActivate()
+            tryCompare(app, "active", true, 5000, "Keyboard input must target the setup window")
+            var primary = find(app.contentItem, "primaryAction")
+            verify(primary !== null, "Primary action is present")
+            primary.forceActiveFocus()
+            tryCompare(primary, "activeFocus", true, 5000, "Primary action receives keyboard focus")
+            keyClick(Qt.Key_Space)
+            compare(app.stage, 1)
+            primary.forceActiveFocus(); keyClick(Qt.Key_Tab)
+            verify(!primary.activeFocus, "Tab must move focus to another control")
+            keyClick(Qt.Key_Tab, Qt.ShiftModifier); verify(primary.activeFocus)
+            var appearance = findChild(app, "appearanceDialog")
+            verify(appearance !== null, "Appearance dialog is present")
+            app.openAppearance()
+            tryCompare(appearance, "opened", true, 5000, "Appearance modal must be ready for Escape")
+            keyClick(Qt.Key_Escape)
+            tryCompare(appearance, "visible", false, 5000, "Escape closes the appearance modal")
+            primary.forceActiveFocus()
+            tryCompare(primary, "activeFocus", true, 5000, "Focus remains usable after modal dismissal")
+            app.progress = {running:false,operation:"install",exitCode:1,modules:[]}
+            app.navigate(5); app.displayedConsole = "[sample] Installing\\n[sample] FAILED: example error"
+            var errors = find(app.contentItem, "consoleFindErrors")
+            errors.forceActiveFocus()
+            tryCompare(errors, "activeFocus", true, 5000, "Console error filter receives focus")
+            keyClick(Qt.Key_Space)
+            verify(app.errorsOnly)
+            verify(app.displayedOutput().indexOf("FAILED") >= 0)
+            keyClick(Qt.Key_Space)
+            verify(!app.errorsOnly)
+            app.allowClose = true; app.close()
+        }
+    }
+}
+''')
+                result = subprocess.run([QT_TEST_RUNNER, '-input', str(harness)],
+                                        env=kwargs['env'], stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                        text=True, timeout=20)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                return 0
+            env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
+            with patch.object(core,'STATE',base/'state'), patch.object(core,'CONFIG_HOME',base/'config'), patch.object(css_stack,'THEMES_DIR',base/'themes'), patch.dict(os.environ, env), patch.object(setup_window.Session,'inventory',return_value={'items':{},'running':False}), patch.object(setup_window.subprocess,'call',side_effect=run_keyboard):
+                self.assertEqual(setup_window.launch(), 0)
 
     def check_flow(self, width, height):
         with tempfile.TemporaryDirectory() as folder:
@@ -145,14 +225,14 @@ UI.Setup {
                 if (!app.retried) {
                     app.retried=true
                     app.navigate(5)
-                    app.progress={running:false,operation:"accounts",exitCode:1,modules:[]}
+                    app.progress={running:false,operation:"install",exitCode:0,modules:[]}
                     var action=app.findObject(app.contentItem,"primaryAction")
-                    if (!action || action.text !== "Retry setup") throw new Error("Failed account phase has wrong action")
+                    if (!action || action.text !== "Review readiness") throw new Error("Successful installation must stay in the UI for readiness")
                     action.clicked()
                     return
                 }
                 if (app.paletteId !== "ocean" || app.activePalette.name !== "Midnight Ocean") throw new Error("Palette did not apply")
-                if (app.experienceStage < 4 && (app.progress.operation !== "accounts" || app.progress.exitCode !== 0)) throw new Error("Retry switched to installing")
+                if (app.experienceStage < 4 && (app.progress.operation !== "install" || app.progress.exitCode !== 0)) throw new Error("Readiness unexpectedly started another operation")
                 if (app.experienceStage === 0) {
                     app.experienceStage = 1
                     app.navigate(4); app.invalidatePreview()
@@ -205,8 +285,19 @@ UI.Setup {
                 if (app.expandedResult !== "") throw new Error("Row did not collapse")
                 if (!app.logCanRetry()) throw new Error("Failed item retry unavailable")
                 app.closeLog()
+                app.followConsole = false
+                var frozen = app.displayedConsole
+                app.consoleOutput = {text:"new background output"}
+                app.consoleItem = "terminal:ghostty"
+                app.applyLogRefresh({item:"terminal:ghostty",text:"late in-flight response"})
+                app.consoleItem = ""
+                if (app.displayedConsole !== frozen) throw new Error("Reading history was interrupted")
+                app.errorsOnly = true
+                if (app.displayedOutput().indexOf("FAILED") < 0) throw new Error("Error filter hides failure")
+                app.errorsOnly = false
+                app.followConsole = true
                 app.dirty = false
-                app.progress = {running:true,operation:"install",controls:{available:true,pause:false,cancel:false},summary:{total:3,done:1,attention:0},activity:[{network:1048576,read:2097152,write:1048576},{network:2097152,read:3145728,write:2097152}],modules:[{id:"active",name:"Ghostty",status:"RUNNING",phase:"Updating",message:"Downloading update",elapsedSeconds:10},{id:"queued",name:"Slack",status:"PENDING"},{id:"done",name:"Discord",status:"DONE"}]}
+                app.progress = {running:true,operation:"install",controls:{available:true,pause:false,cancel:false},summary:{total:3,done:1,attention:0},network:{status:"LINK_UP",message:"Link available · Internet access not checked",checkedAt:Date.now()/1000},storage:{path:"/home/deck/.local",freeBytes:68719476736,allowanceBytes:536870912,reserveBytes:1073741824,status:"AVAILABLE"},activity:[{time:Date.now()/1000-3,network:1048576,read:2097152,write:1048576},{time:Date.now()/1000-2,network:2097152,read:3145728,write:2097152},{time:Date.now()/1000-1,network:null,read:2097152,write:524288},{time:Date.now()/1000,network:3145728,read:1048576,write:262144}],modules:[{id:"active",name:"Ghostty",status:"RUNNING",phase:"Downloading",message:"Downloading update",elapsedSeconds:10,total:104857600,downloaded:52428800},{id:"queued",name:"Slack",status:"PENDING"},{id:"done",name:"Discord",status:"DONE"}]}
                 if (app.installRows().map(function(x) { return x.id }).join(",") !== "active,queued") throw new Error("Queue grouping is incorrect")
                 app.showCompleted = true
                 if (app.installRows()[2].queueHeading !== "COMPLETED · 1") throw new Error("Completed queue section missing")
@@ -218,6 +309,15 @@ UI.Setup {
                 if (app.githubLimitText().indexOf("1m 0s") < 0) throw new Error("GitHub reset countdown missing")
                 app.clockSeconds = 1061
                 if (app.githubLimitText().indexOf("has not been rechecked") < 0) throw new Error("Expired timer falsely claims API availability")
+
+                var newest = app.progress.activity[app.progress.activity.length-1].time
+                app.clockSeconds = newest+11
+                if (app.rateLabel("network").indexOf("Stale") < 0) throw new Error("A blocked progress request hides stale rate evidence")
+                if (app.networkLabel().indexOf("stale reading") < 0) throw new Error("A blocked request leaves link evidence fresh forever")
+                app.progress = Object.assign({},app.progress,{running:false})
+                if (app.rateLabel("network").indexOf("last observed") < 0) throw new Error("Finished run still presents a live rate")
+                app.progress = Object.assign({},app.progress,{running:true})
+                app.clockSeconds = Date.now()/1000
 
                 // OPTIONAL_SCREENSHOT
                 app.close()
@@ -231,7 +331,33 @@ UI.Setup {
 '''.replace('width: 1120; height: 720', f'width: {width}; height: {height}'))
             if os.environ.get('DECKCTL_UI_SCREENSHOTS'):
                 images = Path(os.environ['DECKCTL_UI_SCREENSHOTS']); images.mkdir(parents=True,exist_ok=True)
-                capture = 'app.capturing = true; app.paletteId = "bubblegum"; app.findObject(app.contentItem,"setupCanvas").grabToImage(function(image) { image.saveToFile('+json.dumps(str(images/f'install-{width}.png'))+'); app.navigate(1); Qt.callLater(function() { app.findObject(app.contentItem,"setupCanvas").grabToImage(function(choices) { choices.saveToFile('+json.dumps(str(images/f'choices-{width}.png'))+'); Qt.exit(0) }) }) }); return'
+                capture = '''app.capturing = true;
+                app.paletteId = "bubblegum";
+                app.navigate(5);
+                app.findObject(app.contentItem,"setupScroll").contentItem.contentY = 0;
+                Qt.callLater(function() {
+                    app.findObject(app.contentItem,"setupCanvas").grabToImage(function(image) {
+                        image.saveToFile(INSTALL_PATH);
+                        var scroll = app.findObject(app.contentItem,"setupScroll");
+                        var metrics = app.findObject(app.contentItem,"activityPanel");
+                        scroll.contentItem.contentY = Math.max(0,metrics.mapToItem(scroll.contentItem,0,0).y-12);
+                        Qt.callLater(function() {
+                            app.findObject(app.contentItem,"setupCanvas").grabToImage(function(metricsImage) {
+                                metricsImage.saveToFile(METRICS_PATH);
+                                app.navigate(1);
+                                Qt.callLater(function() {
+                                    app.findObject(app.contentItem,"setupCanvas").grabToImage(function(choices) {
+                                        choices.saveToFile(CHOICES_PATH);
+                                        Qt.exit(0);
+                                    });
+                                });
+                            });
+                        });
+                    });
+                });
+                return;'''
+                for marker, name in [('INSTALL_PATH','install'),('METRICS_PATH','metrics'),('CHOICES_PATH','choices')]:
+                    capture = capture.replace(marker, json.dumps(str(images/f'{name}-{width}.png')))
                 harness.write_text(harness.read_text().replace('// OPTIONAL_SCREENSHOT',capture))
             run = subprocess.run
             def start(args, **kwargs):
@@ -240,13 +366,13 @@ UI.Setup {
             operations=[]
             def fake_start(session, operation, item=None):
                 operations.append(operation)
-                self.assertEqual(operation, 'accounts', 'Retry must not install software')
+                self.fail("Normal readiness must not launch a terminal or installer")
                 return dict(running=False, operation=operation, exitCode=0, modules=[])
             confirmed = []
             log_reads = []
             def fake_log(session, item):
                 log_reads.append(item)
-                return {'item':item,'text':'Extracting runtime: diagnostic test' + (' Latest output' if len(log_reads)>1 else '')}
+                return {'item':item,'logPath':'/example/private/log','text':'Extracting runtime: diagnostic test' + (' Latest output' if len(log_reads)>1 else '')}
             def fake_preview(session, payload):
                 session.preview_result = {'running': False, 'items': [{'visible': True, 'name': 'Slack', 'action': 'UPDATE', 'updateCheck': 'Checked', 'downloadBytes': 1000000}], 'volumes': [], 'sizeNote': 'Test provider estimate'}
                 return session.preview_result
@@ -260,12 +386,12 @@ UI.Setup {
             password_check = patch.object(preflight,'sudo_readiness',return_value={'status':'WARN','state':'PASSWORD_MISSING','message':'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo. Password entry stays in Konsole; typed characters are not displayed. Then recheck here. User-space installs can continue.'})
             password_check.start()
             self.addCleanup(password_check.stop)
-            console_check = patch.object(setup_window.Session,'console',return_value={'text':'Checking selected tools…\nGhostty: verification needs attention.\nInstallation pass complete. Review the results below.'})
+            console_check = patch.object(setup_window.Session,'console',return_value={'runId':'install-example','logDirectory':'~/.local/state/steamdeck-workstation/logs/install-example','text':'[terminal:ghostty] Checking selected tools…\n[terminal:ghostty] Downloading: 50 MiB of 100 MiB\n[app:discord] DONE: Already current; verified.\n[terminal:ghostty] Verifying: runtime version\n[terminal:ghostty] FAILED: Example verification error. Safe to retry after reviewing the log.'})
             console_check.start()
             self.addCleanup(console_check.stop)
             with patch.object(css_stack, 'THEMES_DIR', base/'themes'), patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
                 self.assertEqual(setup_window.launch(), 0)
-                self.assertEqual(operations, ['accounts'])
+                self.assertEqual(operations, [])
                 self.assertEqual(apps.selection(), ['parsec', 'plex', 'slack', 'telegram', 'whatsapp', 'zed'])
                 self.assertEqual(component_options.selection()['remote'], [])
                 self.assertEqual(component_options.selection()['dev'], ['claude-code', 'docker'])

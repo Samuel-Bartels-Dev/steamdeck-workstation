@@ -10,6 +10,35 @@ from deckctl import core, apps, setup_builder, setup_window, gaming_options, pro
 
 
 class SetupWindow(unittest.TestCase):
+    def test_renderer_diagnostics_are_bounded_without_a_file(self):
+        import os
+        with setup_window.renderer_diagnostics() as (stream, tail):
+            for _ in range(100): os.write(stream.fileno(), b'warning '*1024)
+            os.write(stream.fileno(), b'final import failure\n')
+        self.assertLessEqual(len(tail), 16384)
+        self.assertIn(b'final import failure', tail)
+        self.assertFalse(core.STATE.exists())
+
+    def test_continue_shortcut_uses_installed_ui_without_terminal(self):
+        from deckctl import desktop
+        import shlex
+        with patch.object(desktop, 'desktop_dir', return_value=self.home/'Desktop'), patch.object(desktop, 'install_icon', return_value=self.home/'setup.svg'), patch.object(Path, 'home', return_value=self.home):
+            core.create_setup_shortcut()
+        entry = (self.home/'Desktop/Continue Steam Deck Setup.desktop').read_text()
+        command = next(line.removeprefix('Exec=') for line in entry.splitlines() if line.startswith('Exec='))
+        self.assertEqual(shlex.split(command), [str(self.home/'.local/bin/deckctl'), 'setup', 'customize'])
+        self.assertNotIn('konsole', entry)
+
+    def test_renderer_failure_closes_only_owned_handle_and_reports_import_error(self):
+        handle = Mock()
+        session = setup_window.Session(); session.process = handle
+        def crash(args, **kwargs):
+            kwargs['stderr'].write(b'module "QtQuick.Controls" is not installed\n')
+            return 1
+        with patch.object(setup_window, 'Session', return_value=session), patch.object(setup_window.shutil,'which',return_value='/fake/qml'), patch.object(setup_window.subprocess, 'call', side_effect=crash):
+            with self.assertRaisesRegex(ValueError, 'QtQuick.Controls'): setup_window.launch()
+        handle.close.assert_called_once_with()
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

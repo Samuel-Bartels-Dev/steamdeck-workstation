@@ -25,6 +25,7 @@ def rows():
         if key == 'remote:tailscale': ready = bool(evidence.get('connected'))
         status = 'Ready' if ready else 'Needs pairing' if installed and followup == 'pairing' else 'Needs sign-in' if installed and followup == 'signin' else 'Needs setup'
         result.append({**row, 'status': status, 'installed': installed,
+                       'terminalRequired':key in STEPS or key in ('dev:codex', 'dev:claude-code'),
                        'note': evidence['message'] if key == 'remote:tailscale' else 'Confirmed by you. Recheck after changing this installation.' if ready and confirmed and followup else 'Complete the staged installer, then confirm setup.' if installed and followup == 'setup' else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
                        'canLaunch': bool(key == 'launcher:nonsteamlaunchers' or 'flatpak' in row or key in STEPS or key in ('dev:codex', 'dev:claude-code') or row['owner'] in ('workspace', 'media')),
                        'canConfirm': installed and followup in ('signin', 'pairing', 'setup') and key not in ('dev:codex', 'dev:claude-code', 'remote:tailscale')})
@@ -68,4 +69,4 @@ def action(key, operation):
     terminal = shutil.which('konsole')
     if not terminal: raise ValueError('Konsole is required for guided setup.')
     subprocess.Popen([terminal, '--separate', '--nofork', '-e', *command])
-    return {'launched': True}
+    return {'launched': True, 'terminalRequired': True}

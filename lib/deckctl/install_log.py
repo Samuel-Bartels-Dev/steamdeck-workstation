@@ -1,4 +1,4 @@
-"""Private bounded per-item stderr logs; stdout and interactive input stay in Konsole."""
+"""Private bounded per-item stdout/stderr logs, preserving terminal forwarding."""
 from contextlib import contextmanager
 import hashlib
 import os
@@ -39,7 +39,7 @@ def redact(text):
 
 
 @contextmanager
-def capture(key):
+def capture(key, stdout=True):
     directory = core.STATE/'install-logs'
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
     path = path_for(key)
@@ -70,12 +70,13 @@ def capture(key):
                 count += len(encoded)
             except OSError:
                 count = LIMIT  # Logging must not break provider stderr forwarding.
-        save('Item: '+key+'\nLast attempt: installer stderr and Python errors. Review before sharing.\n')
-        sys.stderr.flush()
-        original = os.dup(2)
-        reader, writer = os.pipe()
+        save('Item: '+key+'\nLast attempt: '+('stdout, ' if stdout else '')+'stderr and Python errors. Review before sharing.\n')
+        sys.stdout.flush(); sys.stderr.flush()
+        originals = {number: os.dup(number) for number in ((1, 2) if stdout else (2,))}
+        pipes = {number: os.pipe() for number in originals}
         stop = threading.Event()
-        def relay():
+        def relay(number):
+            reader = pipes[number][0]
             pending = b''
             skipping = False
             drained = 0
@@ -90,24 +91,26 @@ def capture(key):
                         continue
                     chunk = os.read(reader, 4096)
                     if not chunk: break
-                    try: os.write(original, chunk)
+                    try: os.write(originals[number], chunk)
                     except OSError: pass
-                    pending += chunk
+                    pending += chunk.replace(b'\r', b'\n')
                     while b'\n' in pending:
                         line, pending = pending.split(b'\n', 1)
                         if not skipping: save(line.decode('utf-8', errors='replace')+'\n')
                         skipping = False
                     if len(pending) > 65536:
                         pending = b''; skipping = True
+                        save('[oversized output line omitted]\n')
                 if pending and not skipping: save(pending.decode('utf-8', errors='replace'))
             finally:
                 os.close(reader)
-        thread = threading.Thread(target=relay, daemon=True)
+        threads = [threading.Thread(target=relay, args=(number,), daemon=True) for number in originals]
         error = ''
         try:
-            os.dup2(writer, 2)
-            os.close(writer)
-            thread.start()
+            for number, (_, writer) in pipes.items():
+                os.dup2(writer, number)
+                os.close(writer)
+            for thread in threads: thread.start()
             token = _writer.set(save)
             try: yield path
             except BaseException:
@@ -115,9 +118,9 @@ def capture(key):
                 raise
             finally: _writer.reset(token)
         finally:
-            sys.stderr.flush()
-            os.dup2(original, 2)
+            sys.stdout.flush(); sys.stderr.flush()
+            for number, original in originals.items(): os.dup2(original, number)
             stop.set()
-            thread.join()
-            os.close(original)
+            for thread in threads: thread.join()
+            for original in originals.values(): os.close(original)
             if error: save('\n'+error)

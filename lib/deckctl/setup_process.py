@@ -35,6 +35,24 @@ def start(command, fingerprint):
     finished = threading.Event()
     cancelled_at = None
     class Handle:
+        def close(self, grace=5):
+            """Stop only this window's process group if its renderer disappears.
+
+            SIGINT gives the installer time to persist its interrupted journal. A
+            provider/grandchild ignoring it cannot keep the window owner alive.
+            """
+            if finished.is_set(): return
+            control.update(pause=False, cancel=True)
+            try: core.save_json(control_path, control)
+            except OSError: pass
+            try: os.killpg(process.pid, signal.SIGINT)
+            except ProcessLookupError: pass
+            # The direct child can exit before grandchildren close inherited pipes.
+            finished.wait(grace)
+            try: os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
+            finished.wait(2)
+
         def control(self, action):
             nonlocal cancelled_at
             if action == 'force':
@@ -62,7 +80,14 @@ def start(command, fingerprint):
     def collect():
         pending = b''; skipping = False; last = 0; exited = None
         def append(raw):
-            text = data['text'] + install_log.redact(raw.decode('utf-8', errors='replace')) + '\n'
+            clean = install_log.redact(raw.decode('utf-8', errors='replace'))
+            if clean.startswith('Run: ') and not data.get('runId'):
+                from . import run_log
+                run_id = clean.removeprefix('Run: ').strip()
+                if run_log.RUN_NAME.fullmatch(run_id):
+                    data.update(runId=run_id, logDirectory=str(run_log.root()/run_id),
+                                logFile=str(run_log.root()/run_id/install_log.path_for('run:'+run_id).name))
+            text = data['text'] + clean + '\n'
             data['text'] = text.encode('utf-8')[-LIMIT:].decode('utf-8', errors='ignore')
             data['lastOutputAt'] = time.time()
         def save():
@@ -92,6 +117,10 @@ def start(command, fingerprint):
         finally:
             process.stdout.close()
             data['exitCode'] = process.wait()
+            # No foreground installer descendant may outlive its owning run.
+            # Services started through systemd have their own process group.
+            try: os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError: pass
             data['finishedAt'] = time.time()
             try: save()
             finally:
