@@ -188,6 +188,9 @@ def _validate_plugin():
 
 @contextmanager
 def _backend_session():
+    from . import user_session
+    if user_session.nested_desktop():
+        raise CSSError(user_session.NESTED_DESKTOP_NOTICE)
     _validate_plugin()
     backend = Backend()
     sentinel = THEMES_DIR / 'SERVER'

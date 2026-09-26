@@ -5,6 +5,11 @@ Every plugin is optional, including the Core and Recommended lists below. In `de
 
 Decky is an enhancement layer, never a core dependency. Steam, games, remote access and recovery should continue to work if Decky is temporarily broken.
 
+**Nested Desktop:** missing plugins and CSS changes are deferred until you manually
+switch to normal Desktop Mode and retry them. Restarting Decky can restart Steam's
+interface, which hosts Nested Desktop. Existing verified items are reused and other
+application installs can continue; setup never switches sessions to resolve this.
+
 ## Policy
 
 - Install Decky Loader with its supported stable installer.

@@ -99,7 +99,7 @@ class Isolated(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.stack = contextlib.ExitStack(); self.addCleanup(self.stack.close)
-        self.stack.enter_context(patch.dict(os.environ, {'HOME': str(self.home), 'DECKCTL_STATE': str(self.home / 'state'), 'DECKCTL_CONFIG': str(self.home / 'config')}))
+        self.stack.enter_context(patch.dict(os.environ, {'HOME': str(self.home), 'DECKCTL_STATE': str(self.home / 'state'), 'DECKCTL_CONFIG': str(self.home / 'config'), 'XDG_RUNTIME_DIR': str(self.home / 'runtime')}))
         for module, name, value in [
             (core, 'STATE', self.home / 'state'), (core, 'CONFIG_HOME', self.home / 'config'),
             (css, 'THEMES_DIR', self.home / 'homebrew/themes'), (css, 'PLUGIN_DIR', self.home / 'homebrew/plugins/SDH-CssLoader'), (css, 'RECEIPT', self.home / 'config/css-stack-receipt.json'),

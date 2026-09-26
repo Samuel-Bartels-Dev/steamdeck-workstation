@@ -13,6 +13,69 @@ from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder
 
 
 class Experience(unittest.TestCase):
+    def test_nested_desktop_detection_uses_current_session_not_stale_directories(self):
+        from deckctl import user_session
+        for directory, expected in [('/run/user/1000/nested-desktop.ABC123', True),
+                                    ('/run/user/1000', False), ('', False)]:
+            with self.subTest(directory=directory), patch.dict(os.environ, {'XDG_RUNTIME_DIR': directory}):
+                self.assertEqual(user_session.nested_desktop(), expected)
+
+    def test_nested_desktop_blocks_bridge_and_service_restart_before_mutation(self):
+        from deckctl import css_stack, decky_installer
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
+                patch.object(css_stack, '_validate_plugin') as validate, \
+                patch.object(css_stack, 'Backend') as backend, \
+                patch.object(decky_installer.subprocess, 'run') as run:
+            with self.assertRaisesRegex(css_stack.CSSError, 'Deferred in Nested Desktop'):
+                with css_stack._backend_session(): self.fail('Bridge must not open')
+            self.assertFalse(decky_installer._restart_decky())
+            validate.assert_not_called(); backend.assert_not_called(); run.assert_not_called()
+
+    def test_nested_desktop_defers_missing_plugins_before_download_or_replacement(self):
+        from deckctl import decky_installer
+        item = {'folder':'Example', 'name':'Example'}
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
+                patch.object(core, '_decky_loader_present', return_value=True), \
+                patch.object(core, '_decky_installed_plugins', return_value={}), \
+                patch.object(decky_installer, '_selected_items', return_value=[item]), \
+                patch.object(decky_installer, '_store_catalog') as catalog, \
+                patch.object(decky_installer, '_ensure_plugin_root_writable') as writable:
+            self.assertEqual(decky_installer.install_selected(only='Example', assume_yes=True), 2)
+            catalog.assert_not_called(); writable.assert_not_called()
+
+    def test_nested_desktop_runner_reuses_healthy_items_and_defers_changes(self):
+        from deckctl import css_stack, decky_installer
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
+                patch.object(setup_install, 'verify') as verify, \
+                patch.object(css_stack, 'apply') as apply, \
+                patch.object(decky_installer, 'install_selected') as install:
+            for kind in ('plugin', 'css', 'css-profile'):
+                row = {'kind':kind, 'key':kind+':Example', 'component':'Example'}
+                verify.return_value = False
+                with self.assertRaisesRegex(setup_install.NeedsSetup, 'normal Desktop Mode'):
+                    setup_install.execute(row)
+                verify.return_value = True
+                self.assertIn('verified', setup_install.execute(row))
+            apply.assert_not_called(); install.assert_not_called()
+
+    def test_nested_desktop_queue_defers_before_sudo_and_continues_user_apps(self):
+        from deckctl import privilege
+        rows = [dict(key='dependency:css-profile', name='Colors', kind='css-profile', requires=[]),
+                dict(key='app:test', name='User app', kind='flatpak', requires=[])]
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1', 'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
+                patch.object(setup_plan, 'items', return_value=(self.plan, rows)), \
+                patch.object(setup_plan, 'storage_budget', return_value=(self.root, None, '')), \
+                patch.object(setup_install, 'verify', side_effect=lambda row: row['kind'] == 'flatpak'), \
+                patch.object(privilege.Session, 'prepare') as prepare, \
+                patch.object(setup_install, 'execute') as execute:
+            self.assertEqual(setup_install.run(), 2)
+            prepare.assert_not_called()
+            execute.assert_called_once_with(rows[1])
+        records = setup_install.snapshot()['items']
+        self.assertEqual(records['app:test']['status'], 'DONE')
+        self.assertEqual(records['dependency:css-profile']['status'], 'NEEDS_SETUP')
+        self.assertIn('Deferred in Nested Desktop', records['dependency:css-profile']['message'])
+
     def test_explicit_interactive_output_never_enters_raw_archives(self):
         from deckctl import production_cli, run_log
         row = dict(key='remote:tailscale', kind='component', owner='remote', component='tailscale',
@@ -326,6 +389,8 @@ class Experience(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        session = patch.dict(os.environ, {'XDG_RUNTIME_DIR': str(self.root/'runtime')})
+        session.start(); self.addCleanup(session.stop)
         for name in ('CONFIG_HOME', 'STATE'):
             handle = patch.object(core, name, self.root/name)
             handle.start(); self.addCleanup(handle.stop)
