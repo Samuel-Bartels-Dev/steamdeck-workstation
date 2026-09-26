@@ -71,6 +71,14 @@ identified no remaining blocking findings after these fixes. CI and any package
 checks are recorded separately in the PR; local Qt does not prove every target
 Qt version or physical input path. CI must retain the Qt 6.4 deferred TestCase gate;
 a catalog-loaded property alone can start tests reentrantly on that Qt version.
+Older-Qt focus tests also wait on actual visible bounds (at most one second),
+rather than assuming a 30 ms delay proves scrolling completed. The predicate
+only observes geometry; it does not move focus or scroll to make the test pass.
+This specifically covers the Qt 6.4 CI failure with screenshot capture disabled.
+Actions no longer derive their layout's maximum width from their parent's current
+width, removing a geometry feedback dependency implicated by a Qt 6.4 polish-loop
+warning. Explicit console navigation cancels a pending button-focus reveal.
+Cross-version confirmation remains recorded in the PR.
 
 A bounded near-cap stress fixture retains about 1,014,055 ASCII bytes, appends a
 line, locates the last error, and sends real keyboard input. Its observed combined

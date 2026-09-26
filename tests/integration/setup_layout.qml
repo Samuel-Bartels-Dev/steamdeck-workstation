@@ -23,6 +23,17 @@ Item {
             verify(at.x >= -1 && at.y >= -1, item.objectName+" starts inside viewport: "+at)
             verify(at.x+item.width <= container.width+1 && at.y+item.height <= container.height+1, item.objectName+" ends inside viewport: "+at+" size "+item.width+"x"+item.height)
         }
+        function waitUntilInside(item, container) {
+            var diagnostic=""
+            try { tryVerify(function() {
+                if (!item) { diagnostic="Control missing"; return false }
+                var at=item.mapToItem(container,0,0)
+                diagnostic=item.objectName+" at "+at+" size "+item.width+"x"+item.height+" in "+container.width+"x"+container.height
+                return at.x>=-1 && at.y>=-1 && at.x+item.width<=container.width+1 && at.y+item.height<=container.height+1
+            },1000,"Focused control must settle inside its viewport") }
+            catch(error) { console.log("FOCUS_GEOMETRY: "+diagnostic); throw error }
+            visibleInside(item,container)
+        }
         function capture(name) {
             if (!TEST_IMAGES) return
             waitForRendering(app.contentItem)
@@ -67,7 +78,7 @@ Item {
                     first.forceActiveFocus(); tryCompare(first,"activeFocus",true)
                     for(var tab=0;tab<ids.length-1;tab++) keyClick(Qt.Key_Tab)
                     tryCompare(lastChoice,"activeFocus",true)
-                    wait(30); visibleInside(lastChoice,appearanceScroll)
+                    waitUntilInside(lastChoice,appearanceScroll)
                     verify(lastChoice.contentItem.width<=appearanceScroll.width,"Wrapped preference stays within viewport")
                     keyClick(Qt.Key_Tab,Qt.ShiftModifier); verify(!lastChoice.activeFocus)
                     appearanceScroll.contentItem.contentY=Math.max(0,appearanceScroll.contentItem.contentHeight-appearanceScroll.height)
@@ -91,7 +102,7 @@ Item {
             capture("status")
             var last=find(drawer.contentItem,"statusItem_app:9")
             verify(last!==null); last.forceActiveFocus(); tryCompare(last,"activeFocus",true); wait(30)
-            visibleInside(last,find(drawer.contentItem,"statusScroll"))
+            waitUntilInside(last,find(drawer.contentItem,"statusScroll"))
             keyClick(Qt.Key_Tab,Qt.ShiftModifier); wait(30)
             verify(!last.activeFocus,"Shift+Tab traverses long status list")
             keyClick(Qt.Key_Escape); tryCompare(drawer,"visible",false)
@@ -100,7 +111,7 @@ Item {
             verify(!app.queueExpanded)
             compare(app.queueSummary(),"1 attention · 1 scheduled · 1 completed")
             var queue=find(app.contentItem,"queueToggle")
-            queue.forceActiveFocus(); wait(30); visibleInside(queue,find(app.contentItem,"setupScroll"))
+            queue.forceActiveFocus(); waitUntilInside(queue,find(app.contentItem,"setupScroll"))
             capture("queue-collapsed")
             mouseClick(queue); verify(app.queueExpanded)
             app.expandedResult="app:tool"; wait(30)
@@ -109,7 +120,7 @@ Item {
             var record="[app:tool-extra] Checking\nprovider [app:tool] is text\n[app:failed] FAILED: sample\n"
             app.applyConsole({sourceId:"run-one",text:record}); wait(30)
             details.forceActiveFocus(); wait(30)
-            visibleInside(details,find(app.contentItem,"setupScroll"))
+            waitUntilInside(details,find(app.contentItem,"setupScroll"))
             mouseClick(details); wait(30)
             var outer=find(app.contentItem,"setupScroll")
             var panel=find(app.contentItem,"consolePanel")

@@ -203,6 +203,9 @@ ApplicationWindow {
         if (group) statusGroupsExpanded = next; else statusExpanded = next
     }
     function revealConsole() {
+        // Explicit navigation supersedes a pending focus reveal for the button
+        // that launched it (for example Details deep in the queue).
+        focusScroll.stop(); pendingFocusItem = null
         Qt.callLater(function() {
             if (scroll.contentItem) scroll.contentItem.contentY = Math.max(0, scroll.contentItem.contentY + consolePanel.mapToItem(scroll.contentItem, 0, 0).y)
         })
@@ -743,7 +746,7 @@ ApplicationWindow {
         property bool primary: false
         implicitHeight: Math.max(48,label.implicitHeight+20)
         implicitWidth: Math.min(Math.max(110,label.implicitWidth+34),Math.max(110,Math.min(320,window.width-80)))
-        Layout.maximumWidth: parent ? Math.max(100,parent.width) : window.width-40
+        Layout.maximumWidth: Math.max(110,window.width-40)
         hoverEnabled: true
         onActiveFocusChanged: if (activeFocus) window.keepFocusVisible(this)
         contentItem: Text {
