@@ -19,7 +19,7 @@ ApplicationWindow {
     palette.buttonText: ink
     palette.base: window.tone("#150d21")
     palette.highlight: accent
-    font.family: "Noto Sans"
+    font.family: "JetBrainsMono Nerd Font Mono"
     font.pixelSize: window.px(15)
 
     readonly property color ink: window.tone("#f8e7ff")
@@ -1353,7 +1353,7 @@ ApplicationWindow {
                                         selectionColor: window.cyan; selectedTextColor: window.tone("#090612")
                                         Accessible.name: "Installer output. " + (window.consoleItem || "All steps")
                                         textFormat: TextEdit.PlainText; wrapMode: TextEdit.WrapAnywhere
-                                        color: window.ink; font.family: "monospace"; font.pixelSize: window.px(13); background: null
+                                        color: window.ink; font.family: "JetBrainsMono Nerd Font Mono"; font.pixelSize: window.px(13); background: null
 
                                     }
                                 }

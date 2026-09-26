@@ -62,6 +62,7 @@ Item {
             }
         }
         function test_layout_and_output() {
+            compare(app.font.family,"JetBrainsMono Nerd Font Mono","The interface uses the installed Nerd Font family")
             tryCompare(app,"guideVisible",true)
             app.closeGuide(); tryCompare(app,"guideVisible",false)
             app.requestActivate(); tryCompare(app,"active",true)
