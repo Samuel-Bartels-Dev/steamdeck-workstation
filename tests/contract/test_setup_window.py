@@ -10,6 +10,33 @@ from deckctl import core, apps, setup_builder, setup_window, gaming_options, pro
 
 
 class SetupWindow(unittest.TestCase):
+    def test_console_reads_one_bounded_whole_run_across_archive_handoff(self):
+        from deckctl import setup_process, setup_install, install_log, run_log
+        run_id = 'install-20260926T120000-a82fa82fa82f'
+        from unittest.mock import patch
+        key = 'run:'+run_id
+        live = install_log.path_for(key)
+        live.parent.mkdir(parents=True)
+        text = 'Item: '+key+'\n[terminal:ghostty] Checking\n' + 'ordinary output\n'*6000 + '[app:slack] DONE\n'
+        live.write_text(text)
+        snapshot = {'runId':run_id,'text':text[-65536:],'startedAt':1}
+        with patch.object(setup_process,'snapshot',return_value=snapshot), patch.object(setup_install,'snapshot',return_value={}):
+            session = setup_window.Session()
+            first = session.console()
+            self.assertEqual(first['text'],text)
+            self.assertFalse(first['historyTruncated'])
+            archive = run_log.root()/run_id/live.name
+            archive.parent.mkdir(parents=True)
+            archive.write_bytes(live.read_bytes()); live.unlink()
+            self.assertEqual(session.console()['text'],first['text'])
+            archive.write_text('tail only\n[app:slack] DONE\n')
+            self.assertTrue(session.console()['historyTruncated'])
+            archive.write_bytes(b'x'*(install_log.LIMIT+1))
+            self.assertEqual(session.console()['source'],'unavailable')
+            archive.unlink(); archive.symlink_to(self.home/'private')
+            (self.home/'private').write_text('must never read')
+            self.assertNotIn('must never read',str(session.console()))
+
     def test_renderer_diagnostics_are_bounded_without_a_file(self):
         import os
         with setup_window.renderer_diagnostics() as (stream, tail):

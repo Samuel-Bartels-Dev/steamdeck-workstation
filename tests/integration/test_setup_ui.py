@@ -24,7 +24,7 @@ class NativeSetup(unittest.TestCase):
                 self.check_flow(width,height)
 
     @unittest.skipUnless(QT_TEST_RUNNER, 'Qt 6 Quick Test runner unavailable')
-    def test_real_keyboard_focus_activation_and_console_filter(self):
+    def test_real_keyboard_focus_activation_and_console_navigation(self):
         with tempfile.TemporaryDirectory() as folder:
             base = Path(folder)
             def run_keyboard(args, **kwargs):
@@ -82,12 +82,12 @@ Item {
             app.navigate(5); app.displayedConsole = "[sample] Installing\\n[sample] FAILED: example error"
             var errors = find(app.contentItem, "consoleFindErrors")
             errors.forceActiveFocus()
-            tryCompare(errors, "activeFocus", true, 5000, "Console error filter receives focus")
+            tryCompare(errors, "activeFocus", true, 5000, "Console error navigation receives focus")
             keyClick(Qt.Key_Space)
-            verify(app.errorsOnly)
+            verify(!app.followConsole)
             verify(app.displayedOutput().indexOf("FAILED") >= 0)
             keyClick(Qt.Key_Space)
-            verify(!app.errorsOnly)
+            verify(app.displayedOutput().indexOf("Installing") >= 0)
             app.allowClose = true; app.close()
         }
     }
@@ -101,6 +101,24 @@ Item {
             env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_FORCE_STDERR_LOGGING='1')
             with patch.object(core,'STATE',base/'state'), patch.object(core,'CONFIG_HOME',base/'config'), patch.object(css_stack,'THEMES_DIR',base/'themes'), patch.dict(os.environ, env), patch.object(setup_window.Session,'inventory',return_value={'items':{},'running':False}), patch.object(setup_window.subprocess,'call',side_effect=run_keyboard):
                 self.assertEqual(setup_window.launch(), 0)
+
+    @unittest.skipUnless(QT_TEST_RUNNER, 'Qt 6 Quick Test runner unavailable')
+    def test_all_dialogs_scaled_text_and_continuous_output(self):
+        for width,height in ((1280,800),(760,540)):
+            with self.subTest(size=(width,height)), tempfile.TemporaryDirectory() as folder:
+                base=Path(folder)
+                def run_layout(args, **kwargs):
+                    source=(ROOT/'tests/integration/setup_layout.qml').read_text().replace('"../../lib/deckctl/ui"',json.dumps((ROOT/'lib/deckctl/ui').as_uri()))
+                    for marker,value in {'TEST_WIDTH':width,'TEST_HEIGHT':height,'TEST_ENDPOINT':args[-1],'TEST_IMAGES':os.environ.get('DECKCTL_UI_SCREENSHOTS','')}.items():
+                        source=source.replace(marker,json.dumps(value))
+                    harness=base/'tst_layout.qml'; harness.write_text(source)
+                    result=subprocess.run([QT_TEST_RUNNER,'-input',str(harness)],env=kwargs['env'],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True,timeout=60)
+                    self.assertEqual(result.returncode,0,result.stdout)
+                    print(result.stdout)
+                    return 0
+                env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QUICK_BACKEND='software',QT_FORCE_STDERR_LOGGING='1')
+                with patch.object(core,'STATE',base/'state'), patch.object(core,'CONFIG_HOME',base/'config'), patch.object(css_stack,'THEMES_DIR',base/'themes'), patch.dict(os.environ,env), patch.object(setup_window.Session,'inventory',return_value={'items':{},'running':False}), patch.object(setup_window.subprocess,'call',side_effect=run_layout):
+                    self.assertEqual(setup_window.launch(),0)
 
     def check_flow(self, width, height):
         with tempfile.TemporaryDirectory() as folder:
@@ -265,18 +283,21 @@ UI.Setup {
                     app.refreshConsole()
                     return
                 }
-                if (!app.logView.text || app.logView.text.indexOf("Extracting") < 0) throw new Error("Log viewer did not load diagnostics")
+                if (app.consolePending) return
+                if (app.displayedConsole.indexOf("Checking selected tools") < 0) throw new Error("Canonical diagnostics did not load")
                 if (app.experienceStage === 4) {
                     app.experienceStage = 5; app.refreshLog(); return
                 }
                 if (app.logPending) return
-                if (app.logView.text.indexOf("Latest output") < 0) throw new Error("Live details did not refresh")
+                if (app.displayedConsole.indexOf("Latest output") < 0) throw new Error("Live details did not refresh")
                 if (app.experienceStage === 5) {
                     app.progress = {running:false,operation:"install",exitCode:1,summary:{total:1,done:0,attention:1},modules:[{id:"terminal:ghostty",name:"Ghostty",status:"FAILED",message:"Verification needs attention. Review Details before retrying.",hasLog:true}]}
                     app.closeLog(); app.experienceStage = 6; return
                 }
                 if (app.consolePending) return
                 if (app.consoleOutput.text.indexOf("Checking selected tools") < 0) throw new Error("Inline output did not load")
+                if (app.queueExpanded) throw new Error("Queue must start collapsed")
+                app.queueExpanded = true
                 var resultRow = app.findObject(app.contentItem,"installationResultRow")
                 if (!resultRow) throw new Error("Compact result row missing")
                 resultRow.clicked()
@@ -286,19 +307,18 @@ UI.Setup {
                 if (!app.logCanRetry()) throw new Error("Failed item retry unavailable")
                 app.closeLog()
                 app.followConsole = false
-                var frozen = app.displayedConsole
-                app.consoleOutput = {text:"new background output"}
-                app.consoleItem = "terminal:ghostty"
-                app.applyLogRefresh({item:"terminal:ghostty",text:"late in-flight response"})
-                app.consoleItem = ""
-                if (app.displayedConsole !== frozen) throw new Error("Reading history was interrupted")
-                app.errorsOnly = true
-                if (app.displayedOutput().indexOf("FAILED") < 0) throw new Error("Error filter hides failure")
-                app.errorsOnly = false
+                var original = app.displayedConsole
+                app.applyConsole({sourceId:"fixture",text:original+"\\n[app:slack] Queued"})
+                if (app.displayedConsole !== original+"\\n[app:slack] Queued") throw new Error("History view stopped record updates")
+                app.applyConsole({source:"unavailable",outputNotice:"Temporary read failure"})
+                if (app.displayedConsole.indexOf(original) !== 0) throw new Error("Read failure cleared output")
+                var completeRecord = app.displayedConsole
+                app.findNextError()
+                if (app.displayedOutput() !== completeRecord) throw new Error("Error navigation changed the record")
                 app.followConsole = true
                 app.dirty = false
                 app.progress = {running:true,operation:"install",controls:{available:true,pause:false,cancel:false},summary:{total:3,done:1,attention:0},network:{status:"LINK_UP",message:"Link available · Internet access not checked",checkedAt:Date.now()/1000},storage:{path:"/home/deck/.local",freeBytes:68719476736,allowanceBytes:536870912,reserveBytes:1073741824,status:"AVAILABLE"},activity:[{time:Date.now()/1000-3,network:1048576,read:2097152,write:1048576},{time:Date.now()/1000-2,network:2097152,read:3145728,write:2097152},{time:Date.now()/1000-1,network:null,read:2097152,write:524288},{time:Date.now()/1000,network:3145728,read:1048576,write:262144}],modules:[{id:"active",name:"Ghostty",status:"RUNNING",phase:"Downloading",message:"Downloading update",elapsedSeconds:10,total:104857600,downloaded:52428800},{id:"queued",name:"Slack",status:"PENDING"},{id:"done",name:"Discord",status:"DONE"}]}
-                if (app.installRows().map(function(x) { return x.id }).join(",") !== "active,queued") throw new Error("Queue grouping is incorrect")
+                if (app.installRows().map(function(x) { return x.id }).join(",") !== "active,queued,done") throw new Error("Queue grouping is incorrect")
                 app.showCompleted = true
                 if (app.installRows()[2].queueHeading !== "COMPLETED · 1") throw new Error("Completed queue section missing")
                 app.progress = Object.assign({},app.progress,{queueStatus:"PAUSED"})
@@ -369,10 +389,8 @@ UI.Setup {
                 self.fail("Normal readiness must not launch a terminal or installer")
                 return dict(running=False, operation=operation, exitCode=0, modules=[])
             confirmed = []
-            log_reads = []
             def fake_log(session, item):
-                log_reads.append(item)
-                return {'item':item,'logPath':'/example/private/log','text':'Extracting runtime: diagnostic test' + (' Latest output' if len(log_reads)>1 else '')}
+                self.fail('UI must never replace overall output with a per-item log')
             def fake_preview(session, payload):
                 session.preview_result = {'running': False, 'items': [{'visible': True, 'name': 'Slack', 'action': 'UPDATE', 'updateCheck': 'Checked', 'downloadBytes': 1000000}], 'volumes': [], 'sizeNote': 'Test provider estimate'}
                 return session.preview_result
@@ -386,7 +404,7 @@ UI.Setup {
             password_check = patch.object(preflight,'sudo_readiness',return_value={'status':'WARN','state':'PASSWORD_MISSING','message':'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo. Password entry stays in Konsole; typed characters are not displayed. Then recheck here. User-space installs can continue.'})
             password_check.start()
             self.addCleanup(password_check.stop)
-            console_check = patch.object(setup_window.Session,'console',return_value={'runId':'install-example','logDirectory':'~/.local/state/steamdeck-workstation/logs/install-example','text':'[terminal:ghostty] Checking selected tools…\n[terminal:ghostty] Downloading: 50 MiB of 100 MiB\n[app:discord] DONE: Already current; verified.\n[terminal:ghostty] Verifying: runtime version\n[terminal:ghostty] FAILED: Example verification error. Safe to retry after reviewing the log.'})
+            console_check = patch.object(setup_window.Session,'console',return_value={'sourceId':'fixture','runId':'install-example','logDirectory':'~/.local/state/steamdeck-workstation/logs/install-example','text':'[terminal:ghostty] Checking selected tools… Latest output\n[terminal:ghostty] Downloading: 50 MiB of 100 MiB\n[app:discord] DONE: Already current; verified.\n[terminal:ghostty] Verifying: runtime version\n[terminal:ghostty] FAILED: Example verification error. Safe to retry after reviewing the log.'})
             console_check.start()
             self.addCleanup(console_check.stop)
             with patch.object(css_stack, 'THEMES_DIR', base/'themes'), patch.object(core, 'CONFIG_HOME', base/'config'), patch.object(core, 'STATE', base/'state'), patch.dict(os.environ, env), patch.object(setup_window.subprocess, 'call', side_effect=start), patch.object(setup_window.Session, 'inventory', return_value={'items':{'app:discord':{'label':'Update available','status':'UPDATE','installedVersion':'1','availableVersion':'2','checkedAt':1}},'running':False,'completed':1,'total':1}), patch.object(setup_window.Session, 'start', fake_start), patch.object(setup_window.Session, 'preview', fake_preview), patch.object(setup_window.Session, 'log', fake_log), patch.object(setup_window.setup_finish, 'rows', fake_finish), patch.object(setup_window.setup_finish, 'action', fake_action):
