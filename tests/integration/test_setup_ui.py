@@ -45,21 +45,35 @@ Item {
             return null
         }
         function test_keyboard() {
-            app.closeGuide(); app.requestActivate(); wait(100)
+            // Catalog loading schedules the guide with Qt.callLater. Starting
+            // when loaded is not proof that this modal has opened and closed.
+            tryCompare(app, "guideVisible", true, 5000, "First-run guide must open before dismissal")
+            app.closeGuide()
+            tryCompare(app, "guideVisible", false, 5000, "Guide must finish closing before focus checks")
+            app.requestActivate()
+            tryCompare(app, "active", true, 5000, "Keyboard input must target the setup window")
             var primary = find(app.contentItem, "primaryAction")
-            verify(primary !== null)
-            primary.forceActiveFocus(); verify(primary.activeFocus)
+            verify(primary !== null, "Primary action is present")
+            primary.forceActiveFocus()
+            tryCompare(primary, "activeFocus", true, 5000, "Primary action receives keyboard focus")
             keyClick(Qt.Key_Space)
             compare(app.stage, 1)
             primary.forceActiveFocus(); keyClick(Qt.Key_Tab)
             verify(!primary.activeFocus, "Tab must move focus to another control")
             keyClick(Qt.Key_Tab, Qt.ShiftModifier); verify(primary.activeFocus)
-            app.openAppearance(); wait(100); keyClick(Qt.Key_Escape); wait(100)
-            primary.forceActiveFocus(); verify(primary.activeFocus)
+            var appearance = findChild(app, "appearanceDialog")
+            verify(appearance !== null, "Appearance dialog is present")
+            app.openAppearance()
+            tryCompare(appearance, "opened", true, 5000, "Appearance modal must be ready for Escape")
+            keyClick(Qt.Key_Escape)
+            tryCompare(appearance, "visible", false, 5000, "Escape closes the appearance modal")
+            primary.forceActiveFocus()
+            tryCompare(primary, "activeFocus", true, 5000, "Focus remains usable after modal dismissal")
             app.progress = {running:false,operation:"install",exitCode:1,modules:[]}
-            app.navigate(5); app.displayedConsole = "[sample] Installing\\n[sample] FAILED: example error"; wait(100)
+            app.navigate(5); app.displayedConsole = "[sample] Installing\\n[sample] FAILED: example error"
             var errors = find(app.contentItem, "consoleFindErrors")
-            errors.forceActiveFocus(); verify(errors.activeFocus)
+            errors.forceActiveFocus()
+            tryCompare(errors, "activeFocus", true, 5000, "Console error filter receives focus")
             keyClick(Qt.Key_Space)
             verify(app.errorsOnly)
             verify(app.displayedOutput().indexOf("FAILED") >= 0)

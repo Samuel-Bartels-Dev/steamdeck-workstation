@@ -102,7 +102,13 @@ retained history and renders 1280×800, 1120×720, 800×600 and 760×540 fixture
 Qt 6 Test sends real Space/Tab/Shift+Tab/Escape key events rather than only calling
 click handlers. This Deck also has a generic `qmltestrunner` linked to Qt 5;
 the test explicitly selects Qt 6's runner. CI installs the QtTest module as a test
-dependency, not a runtime requirement for the installer.
+dependency, not a runtime requirement for the installer. Ubuntu CI's Qt 6.4.2
+also exposed an initial keyboard-focus precondition failure that did not occur
+on the Deck's Qt 6.9.1. The keyboard harness now waits for the deferred first-run
+modal to open and close and for the actual setup window to become active, rather
+than assuming a 100 ms delay establishes focus. It still sends real keys and
+asserts focus, navigation, modal dismissal and error filtering; CI must validate
+this correction on Qt 6.4.2.
 Tests do not install vendor software, change personal palettes or open auth flows.
 
 Validation: the full repository build passed validation for all 17 modules and
