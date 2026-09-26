@@ -362,6 +362,8 @@ class DesktopBehavior(Isolated):
         for _ in range(2):
             r = subprocess.run(['bash', str(ROOT / 'modules/media/setup-media.sh'), '--all'], env=env, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('does not switch sessions or reboot', r.stdout)
+            self.assertIn('switch to Game Mode manually', r.stdout)
         self.assertEqual(len((self.home / 'submissions').read_text().splitlines()), 4)
         for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video'):
             self.assertIn('--kiosk', (helper / 'bin' / sid).read_text())

@@ -49,7 +49,7 @@ Steam Input profile automation is kept separate from media installation so a Ste
 
 ## Reconciliation behavior
 
-During initial Desktop Mode provisioning, `deckctl media setup` runs inline and returns when the four local kiosk launchers have been created and submitted to Steam. Steam may not rewrite `shortcuts.vdf` immediately while the client is already running; this is a normal `PENDING STEAM REFRESH` state, not an install failure. Per-service submission receipts prevent repeated submissions/duplicate shortcuts. Switching to Game Mode naturally refreshes Steam. Media setup never invokes BIOS, firmware, or system-update workflows.
+During Desktop Mode provisioning, `deckctl media setup` runs inline and returns when the local kiosk launchers have been created and submitted to Steam. Steam may not rewrite `shortcuts.vdf` immediately while the client is already running; this is a normal `PENDING STEAM REFRESH` state, not an install failure. Per-service submission receipts prevent repeated submissions/duplicate shortcuts. Setup never switches sessions or reboots: when you choose to switch to Game Mode later, Steam refreshes and the shortcuts can be viewed there. Media setup never invokes BIOS, firmware, or system-update workflows.
 
 ## Desktop icons
 

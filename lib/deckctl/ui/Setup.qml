@@ -1366,6 +1366,12 @@ ApplicationWindow {
                         }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
                         Action { visible: !!window.progress.operation && !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        TextLabel {
+                            objectName: "manualGameModeNotice"
+                            visible: window.stage === 5 && window.progress.operation === "install" && !window.progress.running && (window.progress.exitCode === 0 || window.progress.exitCode === 2)
+                            text: "Setup stays in Desktop Mode and will not switch sessions or reboot. When you’re ready, switch to Game Mode manually to view your selected Steam shortcuts and Decky/CSS changes."
+                            Layout.fillWidth: true; color: window.cyan; font.pixelSize: window.px(13); wrapMode: Text.Wrap
+                        }
                         TextLabel { visible: !window.progress.operation; text: window.selectionCount() + " optional choices saved. Start when you're ready; live output and results will appear here."; Layout.fillWidth: true; color: window.muted }
                         Repeater {
                             model: window.finishItems
