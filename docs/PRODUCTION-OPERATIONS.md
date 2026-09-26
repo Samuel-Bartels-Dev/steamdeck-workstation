@@ -28,13 +28,18 @@ Developer commands such as generating project tasks require a source checkout.
 ## Commands and state
 
 Normal UI **Install**, **Resume**, and **Retry** run directly with an inline live
-output panel, without opening Konsole. Output is redacted and bounded to 64 KiB
-in the private `setup-console.json` latest-run record, with bounded durable
-combined and per-item archives under the run directory. **Following latest** can
-be turned off to freeze the displayed history while capture continues. **Details**
-uses this same console for an item; **All steps** returns to combined output.
+output panel, without opening Konsole. The viewer reads the redacted, bounded
+whole-run record (up to 1 MiB), including its durable archive after completion.
+The private 64 KiB `setup-console.json` record remains a fallback; missing or
+truncated history is explicitly labeled. **Following latest** controls scrolling,
+while the same ordered record continues updating. **Details** highlights an exact
+item marker without replacing the record. **Next error** highlights the next
+matching line; it never filters away surrounding context.
 
-The install screen groups active, scheduled, attention-needed and completed items.
+The install screen puts measured Deck Activity before the overall console. Active
+work stays visible independently of the queue, which starts collapsed with counts.
+Expand it for attention-needed, scheduled and completed items. Details is available
+even before an item starts and waits for its first output marker.
 **Pause after item** finishes the current item before waiting at the next boundary;
 **Continue queue** releases that pause. **Cancel run** interrupts the owned installer
 process group. After ten seconds, a separately confirmed **Force stop** can end an
@@ -171,10 +176,12 @@ are labelled as commits. **Select updates** adds available updates to your choic
 without removing existing selections or starting an installation. Review the plan
 before saving and installing.
 
-**Details** selects item output in the single copyable console. Following latest
-can be turned off while selecting text; collection continues. Failed/interrupted
-items can be retried after the current operation finishes. Per-item logs retain the most
-recent 1 MiB; the viewer displays the last 64 KiB. Phase events and UI provider stdout/stderr are available here; explicit
+**Details** jumps to an item in the single copyable overall console and keeps its
+highlight while new output arrives. Failed/interrupted items can be retried after
+the current operation finishes. Whole-run and per-item logs retain at most 1 MiB
+each; older markers may be outside that bounded history. The viewer does not stitch
+per-item logs together or imply that unavailable history is complete. Phase events
+and UI provider stdout/stderr are available here; explicit
 interactive vendor stdout/stderr and input stay in the requested terminal and are
 not captured as unattended raw logs. This is a diagnostic viewer, not an embedded terminal.
 

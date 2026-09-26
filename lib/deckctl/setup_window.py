@@ -236,7 +236,30 @@ class Session:
         if (not data.get('runId') and state.get('fingerprint') == setup_plan.fingerprint(setup_plan.items()[0])
                 and state.get('startedAt', 0) >= data.get('startedAt', 0) and run_log.RUN_NAME.fullmatch(run_id)):
             data = {**data, 'runId':run_id, 'logDirectory':str(run_log.root()/run_id)}
-        return data
+        run_id = data.get('runId', '')
+        if run_log.RUN_NAME.fullmatch(run_id):
+            # One ordered whole-run record, never a concatenation of item logs.
+            # The live capture remains until its archived copy is complete.
+            key = 'run:'+run_id
+            archive = run_log.root()/run_id/install_log.path_for(key).name
+            for source in (install_log.path_for(key), archive):
+                try:
+                    run_log.safe(source)
+                    fd = os.open(source, os.O_RDONLY | os.O_NOFOLLOW)
+                    with os.fdopen(fd, 'rb') as stream:
+                        raw = stream.read(install_log.LIMIT+1)
+                    if len(raw) > install_log.LIMIT: raise ValueError('Oversized combined run log')
+                    text = install_log.redact(raw.decode('utf-8', errors='replace'))
+                    return {**data, 'text':text, 'source':'run', 'sourceId':run_id,
+                            'retainedLimit':install_log.LIMIT,
+                            'historyTruncated':not text.startswith('Item: '+key+'\n'),
+                            'logFile':str(archive), 'updatedAt':source.stat().st_mtime}
+                except FileNotFoundError: continue
+                except (OSError, ValueError) as exc:
+                    return {**data, 'source':'unavailable', 'text':'', 'outputNotice':str(exc)}
+        return {**data, 'source':'snapshot', 'sourceId':run_id or str(data.get('startedAt', '')),
+                'retainedLimit':65536, 'historyTruncated':data.get('truncated', False),
+                'outputNotice':'Live snapshot only; older whole-run output is unavailable.'}
 
     def control(self, action):
         if not self.process or not hasattr(self.process,'control'):

@@ -88,6 +88,7 @@ def start(command, fingerprint):
                     data.update(runId=run_id, logDirectory=str(run_log.root()/run_id),
                                 logFile=str(run_log.root()/run_id/install_log.path_for('run:'+run_id).name))
             text = data['text'] + clean + '\n'
+            if len(text.encode('utf-8')) > LIMIT: data['truncated'] = True
             data['text'] = text.encode('utf-8')[-LIMIT:].decode('utf-8', errors='ignore')
             data['lastOutputAt'] = time.time()
         def save():

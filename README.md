@@ -164,8 +164,12 @@ your plan; **Save & install** starts provisioning and shows results grouped by
 setup area. Each running item shows its phase and elapsed time. Terminal downloads
 show received bytes and a percentage only when the server supplies a total;
 extraction and other provider operations use an activity indicator. **Details** selects
-an item's log in the same scrollable console, with error search and copy controls.
-**Following latest** can be turned off to read history while collection continues.
+the item’s exact step in one continuous overall console. **Next error** highlights
+the next error without hiding other output. The queue starts collapsed with
+attention, scheduled and completed counts; expand it to inspect any item.
+**Following latest** controls scrolling; the overall record continues updating
+while you read history. The viewer uses up to 1 MiB of retained whole-run output
+and clearly marks unavailable or truncated history.
 Private item logs live under `~/.local/state/deckctl/install-logs/`; durable run
 archives, including UI preflight output, live under `~/.local/state/deckctl/logs/`.
 Review logs before sharing. Finish checks selected setup, sign-in and pairing in
