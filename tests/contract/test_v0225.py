@@ -24,6 +24,7 @@ class SelectionUpgrade(unittest.TestCase):
     def setUp(self):
         tmp=tempfile.TemporaryDirectory();self.addCleanup(tmp.cleanup)
         self.home=Path(tmp.name)
+        p=patch.dict(os.environ, {'XDG_RUNTIME_DIR': str(self.home/'runtime')});p.start();self.addCleanup(p.stop)
         self.selection=self.home/'config/decky-selection.json'
         self.plugins=self.home/'homebrew/plugins'
         for target,attr,value in [(core,'_decky_selection_path',lambda:self.selection),

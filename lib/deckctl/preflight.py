@@ -22,7 +22,7 @@ def sudo_readiness():
         state = fields[1] if result.returncode == 0 and len(fields) >= 2 and fields[0] == user else None
     except (OSError, KeyError, subprocess.TimeoutExpired): state = None
     if state == 'P':
-        return {'status':'PASS', 'state':'PASSWORD_SET', 'message':'Account password is set. Decky plugin and CSS changes request administrator permission in a KDE password dialog before the UI run starts.'}
+        return {'status':'PASS', 'state':'PASSWORD_SET', 'message':'Account password is set. Decky plugin installation requests administrator permission in a KDE password dialog. Live CSS changes do not require sudo.'}
     if state == 'NP':
         message = 'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo.'
     elif state == 'L':
@@ -55,6 +55,18 @@ def reserve():
     if type(value) is not int or value < setup_plan.GIB:
         raise ValueError('storage_reserve_bytes must be an integer of at least 1 GiB (existing safety floor)')
     return value
+
+
+def temporary_staging_requirement(rows):
+    """Reserve space for one installer at a time, not every install at once."""
+    largest = 0
+    for row in rows:
+        if row['kind'] == 'support':
+            continue
+        _, size, _ = setup_plan.storage_budget(row, False)
+        if size is not None:
+            largest = max(largest, size)
+    return reserve() + largest
 
 
 def network():
@@ -123,7 +135,7 @@ def report(rows=None, online=False):
         else: volume['required_bytes'] += size
     temp_info = destination(Path(tempfile.gettempdir()))
     if temp_info['device'] not in volumes and volumes:
-        volumes[temp_info['device']] = {**temp_info, 'required_bytes': max(v['required_bytes'] for v in volumes.values()), 'items': ['temporary staging allowance']}
+        volumes[temp_info['device']] = {**temp_info, 'required_bytes': temporary_staging_requirement(rows), 'items': ['temporary staging allowance']}
     for path in (core.STATE, core.CONFIG_HOME, Path(tempfile.gettempdir())):
         info = destination(path)
         add('writable:'+str(path), info['status'], info['note'])

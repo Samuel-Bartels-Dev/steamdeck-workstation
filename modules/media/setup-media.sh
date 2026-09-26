@@ -149,7 +149,8 @@ rm -f "$helper/service-lines.tsv"
 
 printf '\nConfigured %d media app(s): %d ready, %d submitted now, %d pending Steam refresh.\n' "$selected" "$ready" "$submitted_now" "$pending"
 printf '%s\n' 'Desktop provisioning is complete. A shortcut may remain PENDING until Steam refreshes; do not rerun this step just because shortcuts.vdf has not updated yet.'
-printf '%s\n' 'Return to Game Mode after this setup pass. Steam will refresh during the session switch.'
+printf '%s\n' 'Setup stays in Desktop Mode and does not switch sessions or reboot.'
+printf '%s\n' 'When you are ready, switch to Game Mode manually to view these shortcuts; Steam refreshes during that session switch.'
 printf '%s\n' 'Launch each tile there and sign in normally. KeeperFill can autofill matching records inside kiosk mode when the extension is installed and the vault is unlocked.'
 printf '%s\n' 'Recommended controls: right trackpad=mouse, trackpad click/R2=left click, left trackpad=scroll, touchscreen enabled.'
 printf '%s\n' 'Use Decky SteamGridDB afterward for polished cover/hero/logo artwork.'

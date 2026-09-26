@@ -55,7 +55,7 @@ class Production(unittest.TestCase):
         target.unlink(); target.symlink_to(ROOT/'lib/deckctl/ui/Setup.qml')
         with self.assertRaisesRegex(ValueError, 'symlink'): runtime_package.validate(installed)
 
-    def test_css_inventory_detects_display_name_without_claiming_palette_ready(self):
+    def test_css_inventory_does_not_call_theme_receipt_drift_needs_setup(self):
         from deckctl import css_stack, setup_plan, setup_inventory, setup_install
         themes = Path(self.temp.name)/'themes'
         theme = themes/'CapyMenu (QAM)'; theme.mkdir(parents=True)
@@ -65,9 +65,11 @@ class Production(unittest.TestCase):
             installed, evidence = setup_plan.present(row)
             self.assertTrue(installed); self.assertFalse(evidence['configured'])
             local = setup_inventory.local(row)
-            self.assertEqual(local['label'], 'Installed · needs setup')
+            self.assertEqual(local['label'], 'Installed')
+            self.assertEqual(local['status'], 'INSTALLED')
+            self.assertIn('Theme files detected', local['note'])
             self.assertEqual(setup_plan.inspect(row,online=False)['action'], 'CONFIGURE')
-            self.assertEqual(setup_inventory.remote(row,local)['status'], 'NEEDS_SETUP')
+            self.assertEqual(setup_inventory.remote(row,local)['status'], 'INSTALLED')
             self.assertFalse(setup_install.verify(row))
             (theme/'theme.json').write_text('invalid')
             self.assertFalse(setup_plan.present(row)[0])
@@ -193,6 +195,47 @@ class Production(unittest.TestCase):
             with self.assertRaises(ValueError): preflight.reserve()
         with patch('os.access', return_value=False):
             self.assertEqual(preflight.destination(Path(self.temp.name))['status'], 'FAIL')
+
+    def test_preflight_temp_staging_uses_largest_sequential_item(self):
+        rows=[{'kind':'component','key':'small'}, {'kind':'component','key':'large'},
+              {'kind':'component','key':'unknown'}, {'kind':'support','key':'support'}]
+        sizes={'small':2*preflight.setup_plan.GIB,'large':6*preflight.setup_plan.GIB,'unknown':None}
+        def budget(row, installed): return Path.home(),sizes.get(row['key']),'test estimate'
+        with patch.object(preflight.setup_plan,'storage_budget',side_effect=budget), \
+             patch.object(preflight,'reserve',return_value=preflight.setup_plan.GIB):
+            self.assertEqual(preflight.temporary_staging_requirement(rows),7*preflight.setup_plan.GIB)
+
+    def test_preflight_keeps_temp_peak_separate_from_cumulative_install_space(self):
+        from deckctl import compatibility
+        rows=[{'kind':'component','key':'small'}, {'kind':'component','key':'large'}]
+        sizes={'small':2*preflight.setup_plan.GIB,'large':6*preflight.setup_plan.GIB}
+        host={'os':'steamos','version':'3.8','build':'test','architecture':'x86_64','model':'oled','kernel':'test'}
+        def budget(row, installed): return Path('/install-target'),sizes[row['key']],'test estimate'
+        free={'tmp':8*preflight.setup_plan.GIB}
+        def disk(path):
+            temp=Path(path)==Path(preflight.tempfile.gettempdir())
+            return {'path':str(path),'existing_parent':str(path),'device':2 if temp else 1,
+                    'free_bytes':free['tmp'] if temp else 20*preflight.setup_plan.GIB,
+                    'writable':True,'status':'PASS','note':'test'}
+        with patch.object(preflight.setup_plan,'items',return_value=({},rows)), \
+             patch.object(preflight.setup_plan,'storage_budget',side_effect=budget), \
+             patch.object(preflight,'destination',side_effect=disk), \
+             patch.object(preflight,'reserve',return_value=preflight.setup_plan.GIB), \
+             patch.object(preflight,'sudo_readiness',return_value={'status':'PASS','message':'ok'}), \
+             patch.object(preflight,'storage_report',return_value=[]), \
+             patch.object(compatibility,'report',return_value={'system':host,'components':[]} ), \
+             patch('deckctl.css_stack.selection_error',return_value=None), \
+             patch.object(preflight.shutil,'which',return_value='/usr/bin/tool'):
+            report=preflight.report(rows=rows)
+            home=next(v for v in report['volumes'] if v['device']==1)
+            temp=next(v for v in report['volumes'] if v['device']==2)
+            self.assertEqual(home['required_bytes'],9*preflight.setup_plan.GIB)
+            self.assertEqual(temp['required_bytes'],7*preflight.setup_plan.GIB)
+            self.assertEqual((home['status'],temp['status']),('PASS','PASS'))
+            free['tmp']=6*preflight.setup_plan.GIB
+            report=preflight.report(rows=rows)
+            temp=next(v for v in report['volumes'] if v['device']==2)
+            self.assertEqual(temp['status'],'FAIL')
 
     def test_download_failure_preserves_previous_and_cleans_stage(self):
         from deckctl import downloads
