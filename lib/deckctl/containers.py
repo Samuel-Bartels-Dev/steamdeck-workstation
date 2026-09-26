@@ -17,7 +17,7 @@ import time
 import urllib.request
 import uuid
 
-from . import core
+from . import core, user_session
 
 UNIT = 'deckctl-docker.service'
 MARKER = '# Managed by deckctl containers\n'
@@ -38,6 +38,7 @@ def config():
 
 
 def execute(args, *, env=None, timeout=30):
+    if env is None and args[:2] == ['systemctl', '--user']: env = user_session.environment()
     return subprocess.run(args, env=env, capture_output=True, text=True, timeout=timeout)
 
 
@@ -114,7 +115,7 @@ def prerequisites():
                     pass
         if not valid:
             problems.append(f'/etc/{name} needs an assigned range of at least 65536 IDs for this user.')
-    runtime = os.environ.get('XDG_RUNTIME_DIR')
+    runtime = user_session.runtime()
     if not runtime or not Path(runtime).is_dir() or Path(runtime).stat().st_uid != os.getuid():
         problems.append('A user-owned XDG_RUNTIME_DIR from a Desktop login is required.')
     if shutil.which('systemctl') and execute(['systemctl', '--user', 'show-environment']).returncode:
@@ -136,7 +137,7 @@ def client(cfg=None):
     env = clean_env()
     if cfg.get('mode') in ('managed', 'remote'):
         base = paths()[0]
-        runtime = os.environ.get('XDG_RUNTIME_DIR')
+        runtime = user_session.runtime()
         if not runtime and cfg['mode'] == 'managed':
             raise ValueError('No XDG_RUNTIME_DIR; log into Desktop Mode first.')
         env['DOCKER_CONFIG'] = str(base / 'client')

@@ -139,6 +139,87 @@ class Experience(unittest.TestCase):
             with self.assertRaisesRegex(setup_install.NeedsSetup,'Continue in terminal'): setup_install.execute(row)
             vendor.assert_not_called()
 
+    def test_sudo_session_uses_native_askpass_and_invalidates_on_exit(self):
+        from deckctl import privilege, preflight
+        calls = []
+        def run(args, **kwargs):
+            calls.append((args, kwargs))
+            return subprocess.CompletedProcess(args, 0)
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1','DISPLAY':':0'}), patch.object(privilege.shutil,'which',return_value='/usr/bin/sudo'), patch.object(privilege.Path,'is_file',return_value=True), patch.object(preflight,'sudo_readiness',return_value={'state':'PASSWORD_SET'}), patch.object(privilege.subprocess,'run',side_effect=run):
+            with privilege.Session() as permission:
+                permission.prepare()
+                self.assertEqual(privilege.command(['systemctl','restart','plugin_loader']), ['sudo','-A','systemctl','restart','plugin_loader'])
+            with self.assertRaises(RuntimeError): privilege.command(['true'])
+        self.assertEqual([call[0] for call in calls], [['sudo','-k'],['sudo','-A','-v'],['sudo','-k']])
+        self.assertEqual(calls[1][1]['env']['SUDO_ASKPASS'], str(privilege.HELPER))
+        self.assertEqual(calls[1][1]['stdout'], subprocess.DEVNULL)
+        self.assertNotIn('input', calls[1][1])
+        self.assertFalse(core.STATE.exists())
+
+    def test_sudo_failure_and_interrupt_invalidate_ticket(self):
+        from deckctl import privilege, preflight
+        for failure in (subprocess.CompletedProcess([],1), KeyboardInterrupt()):
+            with self.subTest(failure=type(failure).__name__), patch.dict(os.environ, {'DECKCTL_UI_RUN':'1','DISPLAY':':0'}), patch.object(privilege.shutil,'which',return_value='/usr/bin/sudo'), patch.object(privilege.Path,'is_file',return_value=True), patch.object(preflight,'sudo_readiness',return_value={'state':'PASSWORD_SET'}), patch.object(privilege.subprocess,'run',side_effect=[subprocess.CompletedProcess([],0),failure,subprocess.CompletedProcess([],0)]) as run:
+                with self.assertRaises((RuntimeError,KeyboardInterrupt)), privilege.Session() as permission:
+                    permission.prepare()
+                self.assertEqual(run.call_args.args[0], ['sudo','-k'])
+                with self.assertRaises(RuntimeError): privilege.command(['true'])
+
+    def test_fresh_deck_reports_missing_password_before_sudo(self):
+        from deckctl import privilege, preflight
+        with patch.dict(os.environ, {'DISPLAY':':0'}), patch.object(privilege.shutil,'which',return_value='/usr/bin/sudo'), patch.object(privilege.Path,'is_file',return_value=True), patch.object(preflight,'sudo_readiness',return_value={'state':'PASSWORD_MISSING','message':'Run passwd first'}), patch.object(privilege.subprocess,'run') as run:
+            with privilege.Session() as permission, self.assertRaisesRegex(RuntimeError, 'passwd'):
+                permission.prepare()
+            run.assert_not_called()
+
+    def test_admin_cancel_precedes_install_and_does_not_block_user_apps(self):
+        from deckctl import privilege
+        rows = [dict(key='app:test',name='User app',kind='flatpak',requires=[]),
+                dict(key='dependency:css-profile',name='Colors',kind='css-profile',requires=[])]
+        order = []
+        def prepare():
+            order.append('authorize')
+            raise RuntimeError('Authorization cancelled; retry to open the password dialog.')
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_plan,'items',return_value=(self.plan,rows)), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',side_effect=lambda row: row['kind']=='flatpak'), patch.object(privilege.Session,'prepare',side_effect=prepare), patch.object(setup_install,'execute',side_effect=lambda row: order.append(row['key'])):
+            self.assertEqual(setup_install.run(),2)
+        self.assertEqual(order,['authorize','app:test'])
+        records = setup_install.snapshot()['items']
+        self.assertEqual(records['app:test']['status'],'DONE')
+        self.assertEqual(records['dependency:css-profile']['status'],'NEEDS_SETUP')
+        self.assertIn('password dialog',records['dependency:css-profile']['message'])
+
+    def test_css_runs_inline_after_authorization_and_healthy_items_do_not_prompt(self):
+        from deckctl import privilege, css_stack
+        row = dict(key='dependency:css-profile', name='Colors', kind='css-profile', requires=[])
+        self.assertFalse(setup_install.interactive_provider(row))
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_install,'verify',return_value=False), patch.object(css_stack,'apply',return_value=0) as apply:
+            with self.assertRaises(RuntimeError): setup_install.execute(row)
+            apply.assert_not_called()
+            token = privilege._authorized.set(True)
+            try: setup_install.execute(row)
+            finally: privilege._authorized.reset(token)
+            apply.assert_called_once()
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_plan,'items',return_value=(self.plan,[row])), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',return_value=True), patch.object(privilege.Session,'prepare') as prepare:
+            self.assertEqual(setup_install.run(),0)
+            prepare.assert_not_called()
+
+    def test_keeper_existing_extension_is_reused_and_login_remains_separate(self):
+        row = dict(key='media:keeper', name='KeeperFill', kind='component', owner='media',
+                   component='keeper', requires=[], visible=True, followup='signin')
+        with patch.object(core, '_keeper_installed', return_value=True), patch.object(setup_install, '_run') as install, patch.object(core, 'media_keeper_setup') as setup:
+            self.assertEqual(setup_install.execute(row), 'Existing installation verified.')
+            self.assertTrue(setup_install.verify(row))
+            install.assert_not_called(); setup.assert_not_called()
+            with patch.object(setup_plan, 'items', return_value=(self.plan,[row])):
+                result = setup_finish.rows()[0]
+                self.assertTrue(result['installed'])
+                self.assertEqual(result['status'], 'Needs sign-in')
+                self.assertTrue(result['canConfirm'])
+        with patch.object(core, '_keeper_installed', return_value=False):
+            with self.assertRaisesRegex(setup_install.NeedsSetup, 'Install KeeperFill in Chrome'):
+                setup_install.execute(row)
+            self.assertFalse(setup_install.verify(row))
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

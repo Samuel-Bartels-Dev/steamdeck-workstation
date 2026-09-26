@@ -47,6 +47,8 @@ UI.Setup {
             if (app.capturing) return
             if (!app.attempted) {
                 if (!app.deckInventory.items || !app.deckInventory.items["app:discord"]) return
+                if (!app.guideVisible) throw new Error("Fresh setup guide did not open automatically")
+                app.closeGuide()
                 app.attempted = true
                 if (app.dirty || app.selectionCount() !== 0) throw new Error("Fresh setup must start empty")
                 app.choosePalette("ocean")
@@ -132,6 +134,10 @@ UI.Setup {
                 if (app.stage !== 3 || ids().indexOf("parsec") < 0) throw new Error("Review edit did not open the right group")
                 app.back()
                 if (app.stage !== 4) throw new Error("Done editing did not return to review")
+                app.progress = {running:true, queueStatus:"AUTHENTICATING", operation:"install", modules:[]}
+                if (app.installTitle() !== "Waiting for administrator permission") throw new Error("Password wait looks like a stuck install")
+                app.progress.controls = {cancel:true}
+                if (app.installTitle() !== "Cancelling installation") throw new Error("Cancellation hidden by password wait")
                 app.progress = {running:false, operation:"install", exitCode:1, modules:[]}
                 if (app.installTitle() !== "Setup needs attention") throw new Error("Failure shown as successful")
                 app.savePlan(false)
@@ -272,6 +278,7 @@ UI.Setup {
                 self.assertEqual(component_options.selection()['terminal'], ['ghostty'])
                 self.assertIn('dev', core.enabled_modules())
                 self.assertFalse((base/'state').exists())
+                self.assertTrue(core.load_json(base/'config/setup-ui.json', {})['guide_seen'])
 
 
 if __name__ == '__main__':

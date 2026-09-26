@@ -1,0 +1,7 @@
+#!/bin/bash
+# stdout is the private askpass pipe owned by sudo, never installer output.
+set +x
+ulimit -c 0
+exec /usr/bin/kdialog --title 'Steam Deck Workstation — Administrator permission' --password 'Allow this installation run to configure Decky plugins and Game Mode colors?
+
+Enter your Steam Deck account password. It is passed directly to sudo and is not saved by the installer. Cancel leaves administrator steps pending.'

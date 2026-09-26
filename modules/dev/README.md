@@ -69,3 +69,8 @@ Internet and a supported Claude account or API billing are required. Verificatio
 checks the executable and `claude auth status`; missing sign-in is reported as
 `CONFIG_REQUIRED`. Personal Claude settings and credentials are never imported
 into the workstation profile.
+
+Managed Docker uses the main logged-in user's runtime and systemd bus even when
+setup is launched from Nested Desktop. It keeps the nested GUI environment intact
+and does not enable engine autostart. `deckctl containers start` and
+`deckctl containers test` verify the selected engine on demand.
