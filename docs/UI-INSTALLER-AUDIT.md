@@ -103,12 +103,17 @@ Qt 6 Test sends real Space/Tab/Shift+Tab/Escape key events rather than only call
 click handlers. This Deck also has a generic `qmltestrunner` linked to Qt 5;
 the test explicitly selects Qt 6's runner. CI installs the QtTest module as a test
 dependency, not a runtime requirement for the installer. Ubuntu CI's Qt 6.4.2
-also exposed an initial keyboard-focus precondition failure that did not occur
-on the Deck's Qt 6.9.1. The keyboard harness now waits for the deferred first-run
-modal to open and close and for the actual setup window to become active, rather
-than assuming a 100 ms delay establishes focus. It still sends real keys and
-asserts focus, navigation, modal dismissal and error filtering; CI must validate
-this correction on Qt 6.4.2.
+exposed test-harness reentrancy: its `TestCase.onWhenChanged` invokes `qtest_run()`
+synchronously. A `when: app.loaded` condition therefore entered the keyboard test
+inside the catalog callback, before that callback scheduled the first-run guide.
+Waiting inside that test could not finish the interrupted callback. The Deck's
+Qt 6.9.1 instead queues tests through `TestSchedule`, explaining the local pass.
+The harness now starts from a one-shot Timer after loading/window display, on a
+new event turn, then asserts modal, active-window and focus readiness. No key
+assertion or automatic-guide check was removed. This is a test-only correction;
+CI must confirm it on Qt 6.4.2.
+[Qt 6.4.2 TestCase source](https://github.com/qt/qtdeclarative/blob/v6.4.2/src/qmltest/TestCase.qml),
+[Qt 6.9.1 TestCase source](https://github.com/qt/qtdeclarative/blob/v6.9.1/src/qmltest/TestCase.qml).
 Tests do not install vendor software, change personal palettes or open auth flows.
 
 Validation: the full repository build passed validation for all 17 modules and

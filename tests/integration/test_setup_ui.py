@@ -33,11 +33,20 @@ class NativeSetup(unittest.TestCase):
 import QtTest
 import "''' + (ROOT/'lib/deckctl/ui').as_uri() + '''" as UI
 Item {
+    id: fixture
+    property bool keyboardReady: false
     UI.Setup { id: app; width: 800; height: 600; endpoint: ''' + json.dumps(args[-1]) + ''' }
+    Timer {
+        // Qt 6.4 runs TestCase.when handlers synchronously. Defer to a new
+        // event turn so the catalog callback can finish scheduling the guide.
+        interval: 1; repeat: false; running: app.loaded && keyboardTests.windowShown
+        onTriggered: fixture.keyboardReady = true
+    }
     TestCase {
+        id: keyboardTests
         parent: app.contentItem
         name: "InstallerKeyboard"
-        when: app.loaded && windowShown
+        when: fixture.keyboardReady
         function find(root, name) {
             if (root.objectName === name) return root
             var children = root.children || []
