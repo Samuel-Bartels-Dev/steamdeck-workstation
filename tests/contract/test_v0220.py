@@ -215,6 +215,7 @@ class Review(unittest.TestCase):
     def test_tailscale_failed_refresh_preserves_existing_tree(self):
         old=self.home/'deck-tailscale';old.mkdir();(old/'personal.txt').write_text('keep')
         fake=self.home/'bin';fake.mkdir();git=fake/'git';git.write_text('#!/bin/sh\nexit 7\n');git.chmod(0o755)
+        ts=fake/'tailscale';ts.write_text('#!/bin/sh\nexit 1\n');ts.chmod(0o755)
         result=subprocess.run(['bash',str(ROOT/'modules/remote/install-tailscale-steamos.sh')],env={**os.environ,'PATH':str(fake)+':'+os.environ['PATH']},capture_output=True,text=True)
         self.assertEqual(result.returncode,7);self.assertEqual((old/'personal.txt').read_text(),'keep')
         self.assertEqual(list(self.home.glob('.deck-tailscale-stage.*')),[])

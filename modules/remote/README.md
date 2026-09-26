@@ -28,3 +28,11 @@ installs in user space. Parsec on Linux is a client for connecting to Windows or
 macOS hosts; sign in with your Parsec account from the app menu. Selecting it
 does not select Moonlight, chiaki-ng or Tailscale in the setup window.
 Verification checks installation; test sign-in and streaming on your own host.
+
+Tailscale readiness checks the installed CLI's backend state. A binary alone is
+not proof of login or a running connection. Connected instances are reused;
+DNS health warnings remain visible. No peer details or login URLs are saved by
+this probe. The upstream helper also skips downloads/login when already connected.
+SteamOS resolver configuration is not automatically rewritten. See the
+[upstream Linux DNS guidance](https://tailscale.com/docs/reference/linux-dns)
+when Tailscale reports a MagicDNS warning.

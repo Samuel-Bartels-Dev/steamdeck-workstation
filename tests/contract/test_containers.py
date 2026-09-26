@@ -36,10 +36,19 @@ class Containers(unittest.TestCase):
         self.stack.enter_context(patch.object(Path, 'home', return_value=self.home))
         self.stack.enter_context(patch.object(c.core, 'CONFIG_HOME', self.home/'choices'))
         self.stack.enter_context(patch.dict(os.environ, {'XDG_RUNTIME_DIR': str(self.home)}))
+        self.stack.enter_context(patch.object(c.user_session, 'runtime', return_value=str(self.home)))
         self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
 
     def save(self, value):
         c.core.save_json(self.cfg, value)
+
+    def test_nested_desktop_uses_host_runtime_for_socket_and_service(self):
+        with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/nested','DBUS_SESSION_BUS_ADDRESS':'unix:path=/nested/bus'}), patch.object(c.user_session,'runtime',return_value=str(self.home)), patch.object(c.user_session,'environment',return_value={'XDG_RUNTIME_DIR':str(self.home),'DBUS_SESSION_BUS_ADDRESS':'unix:path=/host/bus'}), patch.object(c.subprocess,'run') as run:
+            command, _ = c.client({'mode':'managed','runtime':'v1'})
+            self.assertEqual(command[-1], 'unix://'+str(self.home)+'/deckctl-docker.sock')
+            c.execute(['systemctl','--user','start',c.UNIT])
+            self.assertEqual(run.call_args.kwargs['env']['DBUS_SESSION_BUS_ADDRESS'],'unix:path=/host/bus')
+            self.assertEqual(os.environ['XDG_RUNTIME_DIR'],'/nested')
 
     def test_status_is_read_only_and_never_starts(self):
         with patch.object(c, 'execute') as command:

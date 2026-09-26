@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.43
+# Steam Deck Workstation — v0.2.44-rc1 (candidate)
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -880,7 +880,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [the latest release notes](docs/RELEASE-0.2.43.md).
+See [candidate release notes](docs/RELEASE-0.2.44-rc1.md). The default bootstrap continues to install the latest stable release.
 
 ## Online releases and recovery
 
@@ -924,6 +924,8 @@ after installation to sign in; it does not require local models or the Claude we
 Each app, tool and local model has one checkbox in its home section. Editors live in Coding & work; Parsec lives beside Moonlight and chiaki-ng in Remote & storage. Plugin and CSS theme selectors stay nested beneath their parent. Required downloads are shown as included automatically. For example, choose only Ghostty without installing tmux, Neovim, fonts or shell themes. AI workspace includes its required OpenCode client; the local model requires Ollama. Existing software is retained when unchecked.
 
 The setup UI uses **browsing cards** for categories and **checkboxes** for individual installs. Browsing never changes your plan. Fresh setups start with no optional selections; saved plans are restored when reopened. Decky Loader owns plugin choices, and CSS Loader owns its component choices. Search within a category, review the actual selected items, then save or install. Full-preset and clear-all actions ask before replacing your choices.
+
+When Decky plugins or CSS changes need administrator permission, setup opens a KDE password dialog before starting the installation queue. The password goes directly to sudo and is never saved or logged by deckctl. Authorization ends with the run; an expired ticket may require another prompt. Cancel leaves those items retryable while independent apps can continue. Initial vendor setup wizards still have their own interactive steps.
 
 Every curated option includes a short explanation of its purpose, benefit, and relevant requirements. The same description appears in review so you can check why you selected it before installing. Sidebar labels and review links follow the same section order.
 

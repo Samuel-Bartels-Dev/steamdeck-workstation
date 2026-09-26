@@ -1,4 +1,4 @@
-# deckctl command manual — v0.2.43
+# deckctl command manual — v0.2.44-rc1
 
 Generated from the runtime help registry. Use `deckctl help COMMAND` or `deckctl COMMAND --help`.
 

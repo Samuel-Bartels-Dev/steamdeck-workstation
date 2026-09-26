@@ -169,7 +169,11 @@ def present(row):
         path = binary(name)
         version = command([path, '-V' if name == 'tmux' else '--version']) if path else None
         return bool(version), {'version': version}
-    if key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'ai-workspace:ollama'):
+    if key == 'remote:tailscale':
+        from . import tailscale
+        state = tailscale.status()
+        return state['installed'], {**state, 'configured':state['connected']}
+    if key in ('dev:codex', 'dev:claude-code', 'ai-workspace:ollama'):
         name = {'dev:claude-code': 'claude', 'remote:tailscale': 'tailscale', 'ai-workspace:ollama': 'ollama'}.get(key, 'codex')
         path = binary(name)
         version = command([path, '--version']) if path else None
@@ -236,8 +240,10 @@ def _size(details, label):
 def review_notes(row):
     key = row['key']
     notes = []
-    if key in ('module:decky','module:android','remote:tailscale') or row['kind'] in ('plugin','css','css-profile'):
-        notes.append('May request sudo for vendor setup, service restart or permission repair.')
+    if row['kind'] in ('plugin','css','css-profile'):
+        notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
+    elif key in ('module:decky','module:android','remote:tailscale'):
+        notes.append('Vendor setup may need its interactive window or Konsole, including sudo authorization.')
     elif 'flatpak' in row:
         notes.append('Uses the existing system app or installs in your user account.')
     else:

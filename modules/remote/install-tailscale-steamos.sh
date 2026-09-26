@@ -5,6 +5,20 @@ REPO_URL="https://github.com/tailscale-dev/deck-tailscale.git"
 ARCHIVE_URL="https://github.com/tailscale-dev/deck-tailscale/archive/refs/heads/main.tar.gz"
 WORK_DIR="$HOME/deck-tailscale"
 
+# An installed and connected client does not need another vendor download/login.
+TS_EXISTING="$(command -v tailscale 2>/dev/null || true)"
+if [ -z "$TS_EXISTING" ] && [ -x /opt/tailscale/tailscale ]; then TS_EXISTING=/opt/tailscale/tailscale; fi
+if [ -n "$TS_EXISTING" ] && "$TS_EXISTING" status --json | python3 -c '
+import json, sys
+try:
+    state = json.load(sys.stdin)
+except (ValueError, OSError):
+    sys.exit(1)
+if not isinstance(state, dict) or state.get("BackendState") != "Running": sys.exit(1)
+print("Tailscale is connected. Existing installation reused; no download or login needed.")
+if state.get("Health"): print("Tailscale reports health warnings. Run tailscale status to review them; installation success does not prove DNS health.")
+'; then exit 0; fi
+
 printf '\n=== Tailscale for Steam Deck ===\n\n'
 printf 'This uses the SteamOS-specific tailscale-dev/deck-tailscale installer.\n'
 printf 'It does NOT install Tailscale from Discover/Flatpak or pacman.\n\n'
