@@ -13,6 +13,108 @@ from deckctl import core, setup_plan, setup_install, setup_finish, setup_builder
 
 
 class Experience(unittest.TestCase):
+    def test_explicit_interactive_output_never_enters_raw_archives(self):
+        from deckctl import production_cli, run_log
+        row = dict(key='remote:tailscale', kind='component', owner='remote', component='tailscale',
+                   name='Tailscale', requires=[], visible=True)
+        private = 'https://login.tailscale.com/a/SYNTHETIC-PRIVATE peer-private-host'
+        def vendor(_):
+            print(private)
+            os.write(2, (private+'\n').encode())
+        with patch.dict(os.environ, {}, clear=True), patch.object(setup_plan,'items',return_value=(self.plan,[row])), patch.object(setup_install,'execute',side_effect=vendor), patch.object(setup_install,'verify',return_value=True), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')):
+            self.assertEqual(production_cli.operation('install', lambda: setup_install.run()), 0)
+        for log in run_log.root().rglob('*'):
+            if log.is_file(): self.assertNotIn('SYNTHETIC-PRIVATE', log.read_text())
+        self.assertFalse(install_log.path_for(row['key']).exists())
+
+    def test_failed_preflight_is_durable_and_console_identifies_current_run(self):
+        from deckctl import production_cli, run_log, setup_process
+        old_id = 'install-20250101T010101-aaaaaaaaaaaa'
+        fingerprint = setup_plan.fingerprint(self.plan)
+        core.save_json(setup_install.state_path(), {'fingerprint':fingerprint,'run_id':old_id,'startedAt':1})
+        report = {'status':'FAIL','checks':[{'status':'FAIL','name':'storage','message':'Insufficient space'}]}
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), patch.object(production_cli.preflight,'report',return_value=report):
+            self.assertEqual(production_cli.operation('install', Mock(side_effect=AssertionError('Must not install')), check=True), 1)
+        latest = run_log.runs()[0]
+        archive = Path(latest['directory'])/install_log.path_for('run:'+latest['run_id']).name
+        self.assertIn('FAIL storage: Insufficient space', archive.read_text())
+        handle = setup_process.start([sys.executable,'-c','print('+repr('Run: '+latest['run_id'])+'); print("FAIL storage: Insufficient space"); raise SystemExit(1)'], fingerprint)
+        self.assertEqual(handle.wait(5), 1)
+        with patch.object(setup_plan,'items',return_value=(self.plan,[])):
+            console = setup_window.Session().console()
+        self.assertEqual(console['runId'], latest['run_id'])
+        self.assertNotIn(old_id, console['logDirectory'])
+        self.assertEqual(console['logFile'], str(archive))
+
+    def test_stdout_stderr_split_secrets_and_unicode_are_archived_per_run(self):
+        from deckctl import run_log
+        with run_log.execution('install') as journal:
+            with install_log.capture('terminal:sample'):
+                source = ('import os,time; os.write(1,b"[terminal:sample] Downloading\\naccess_tok"); '
+                          'time.sleep(.05); os.write(1,b"en=split-private\\n"); '
+                          'os.write(2,"\\x1b[31mERROR: café 🌸\\x1b[0m\\n".encode())')
+                subprocess.run([sys.executable, '-c', source], check=True)
+            run_log.archive_item('terminal:sample')
+            journal.finish(1)
+        text = (journal.path/install_log.path_for('terminal:sample').name).read_text()
+        self.assertIn('[terminal:sample] Downloading', text)
+        self.assertIn('ERROR: café 🌸', text)
+        self.assertNotIn('split-private', text)
+        self.assertNotIn('\x1b', text)
+        # A later attempt overwrites the recent item view, never its historical run.
+        with install_log.capture('terminal:sample'): print('new attempt')
+        self.assertEqual((journal.path/install_log.path_for('terminal:sample').name).read_text(), text)
+
+    def test_owned_shutdown_stops_ignoring_child_and_grandchild(self):
+        from deckctl import setup_process
+        import time
+        pidfile = self.root/'grandchild.pid'
+        source = ('import os,signal,time,pathlib; signal.signal(signal.SIGINT,signal.SIG_IGN); '
+                  'child=os.fork(); pathlib.Path('+repr(str(pidfile))+').write_text(str(os.getpid())) if child==0 else None; '
+                  'time.sleep(30)')
+        handle = setup_process.start([sys.executable, '-c', source], 'shutdown')
+        try:
+            deadline = time.monotonic()+3
+            while not pidfile.exists() and time.monotonic()<deadline: time.sleep(.01)
+            self.assertTrue(pidfile.exists())
+            started = time.monotonic(); handle.close(grace=.1)
+            self.assertLess(time.monotonic()-started, 3)
+            self.assertEqual(handle.wait(3), -9)
+            child = Path('/proc')/pidfile.read_text()
+            if (child/'stat').exists(): self.assertEqual((child/'stat').read_text().split()[2], 'Z')
+            self.assertEqual(list(core.STATE.glob('setup-control-*')), [])
+        finally: handle.close(grace=.1)
+
+    def test_local_link_is_distinct_from_internet_and_rate(self):
+        from deckctl import setup_activity
+        link = self.root/'net/wlan0'; (link/'device').mkdir(parents=True)
+        (link/'carrier').write_text('0\n')
+        self.assertEqual(setup_activity.network_status(link.parent)['status'], 'OFFLINE')
+        (link/'carrier').write_text('1\n')
+        result = setup_activity.network_status(link.parent)
+        self.assertEqual(result['status'], 'LINK_UP')
+        self.assertIn('Internet access not checked', result['message'])
+        (link/'carrier').unlink()
+        self.assertEqual(setup_activity.network_status(link.parent)['status'], 'UNKNOWN')
+
+    def test_active_space_reports_unknown_and_original_allowance(self):
+        from deckctl import setup_activity
+        self.assertEqual(setup_activity.storage_status({'key':'legacy'})['status'], 'UNKNOWN')
+        with patch.object(setup_plan, 'storage_budget', return_value=(self.root, 200, 'Original allowance')), patch.object(setup_activity.shutil, 'disk_usage', return_value=Mock(free=100)):
+            result = setup_activity.storage_status({'key':'test'})
+        self.assertEqual(result['status'], 'INSUFFICIENT')
+        self.assertEqual(result['allowanceBytes'], 200)
+        self.assertEqual(result['freeBytes'], 100)
+
+    def test_docker_action_is_selected_captured_runner_and_accounts_rejected(self):
+        from deckctl import setup_process
+        session = setup_window.Session(); session.selected = ['base']
+        handle = Mock(); handle.poll.return_value = 0
+        with patch.object(setup_install, 'running', return_value=False), patch.object(setup_plan, 'items', return_value=(self.plan,[{'key':'dev:docker'}])), patch.object(session, 'progress', return_value={}), patch.object(setup_process, 'start', return_value=handle) as start:
+            session.start('docker')
+            self.assertEqual(start.call_args.args[0][1:], ['setup','install','--item','dev:docker','--verbose'])
+            with self.assertRaises(ValueError): session.start('accounts')
+
     def test_queue_pause_waits_at_boundary_and_continue_releases_it(self):
         import threading
         import time

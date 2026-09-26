@@ -56,12 +56,13 @@ jobs:
       - name: Install Qt Quick runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y qml-qt6 qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates qml6-module-qtqml-workerscript
+          sudo apt-get install -y qml-qt6 qml6-module-qtquick qml6-module-qtquick-controls qml6-module-qtquick-layouts qml6-module-qtquick-window qml6-module-qtquick-templates qml6-module-qtqml-workerscript qml6-module-qttest qt6-declarative-dev-tools
           echo "/usr/lib/qt6/bin" >> "$GITHUB_PATH"
-      - name: Exercise installer selections and save at three window sizes
+      - name: Exercise installer selections, keyboard controls and four window sizes
         env:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
         run: |
           command -v qml6 || command -v qml
+          test -x /usr/lib/qt6/bin/qmltestrunner
           python3 tests/integration/test_setup_ui.py

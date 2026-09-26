@@ -340,7 +340,7 @@ def preview(payload=None, online=False):
         anchor = Path(row['storagePath']).resolve()
         while not anchor.exists(): anchor = anchor.parent
         device = anchor.stat().st_dev
-        volume = volumes.setdefault(device, {'path': str(anchor), 'requiredBytes': GIB, 'freeBytes': shutil.disk_usage(anchor).free})
+        volume = volumes.setdefault(device, {'path': str(anchor), 'requiredBytes': GIB, 'reserveBytes': GIB, 'freeBytes': shutil.disk_usage(anchor).free})
         volume['requiredBytes'] += row['spaceBytes']
     for volume in volumes.values(): volume['fits'] = volume['freeBytes'] >= volume['requiredBytes']
     return {'plan': plan, 'fingerprint': fingerprint(plan), 'items': results, 'volumes': list(volumes.values()),

@@ -57,17 +57,36 @@ HELP = {
 
 def operation(name, callback, check=False):
     with run_log.execution(name) as journal:
-        if check:
-            data = preflight.report(online=True)
-            core.save_json(journal.path/'plan.json', {'preflight': data})
-            for row in data['checks']:
-                journal.event('preflight', 'ERROR' if row['status'] == 'FAIL' else 'INFO', row['status'], row['name']+': '+row['message'])
-                print(row['status']+' '+row['name']+': '+row['message'])
-            if data['status'] == 'FAIL':
-                journal.finish(1)
-                print('Installation blocked. Full log: '+str(journal.path))
-                return 1
-        code = callback()
-        journal.finish(code)
-        print('Run log: '+str(journal.path))
-        return code
+        import os
+        # Explicit terminal workflows may show sign-in URLs, QR codes and peer
+        # state. Their raw output must not enter unattended install archives.
+        if os.environ.get('DECKCTL_UI_RUN') != '1': return _operation(journal, callback, check)
+        from . import install_log
+        key = 'run:'+journal.id
+        try:
+            with install_log.capture(key):
+                print('Run: '+journal.id, flush=True)
+                code = _operation(journal, callback, check)
+            return code
+        finally:
+            # Preserve combined output, including preflight and failure messages,
+            # under the same retention/active-run lock as structured events.
+            run_log.archive_item(key)
+            install_log.path_for(key).unlink(missing_ok=True)
+
+
+def _operation(journal, callback, check):
+    if check:
+        data = preflight.report(online=True)
+        core.save_json(journal.path/'plan.json', {'preflight': data})
+        for row in data['checks']:
+            journal.event('preflight', 'ERROR' if row['status'] == 'FAIL' else 'INFO', row['status'], row['name']+': '+row['message'])
+            print(row['status']+' '+row['name']+': '+row['message'])
+        if data['status'] == 'FAIL':
+            journal.finish(1)
+            print('Installation blocked. Full log: '+str(journal.path))
+            return 1
+    code = callback()
+    journal.finish(code)
+    print('Run log: '+str(journal.path))
+    return code

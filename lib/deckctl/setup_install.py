@@ -1,6 +1,6 @@
 """Durable per-item installer. Runs on demand; no startup service."""
 from __future__ import annotations
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 from contextvars import ContextVar
 _verbose = ContextVar('setup_verbose', default=False)
 import fcntl
@@ -249,6 +249,8 @@ def _run_plan(only, resume, journal):
             core.save_json(state_path(), state)
             if status != 'RUNNING':
                 run_log.event(key, status, message, duration_ms=round((time.time()-records[key].get('startedAt', time.time()))*1000))
+                print(f'[{key}] {status}: '+install_log.redact(message), flush=True)
+        print(f'Run: {journal.id}\nDurable logs: {journal.path}', flush=True)
         try:
             admin_error = None
             admin_rows = [row for row in rows if row['key'] in wanted and privilege.needed(row)]
@@ -272,15 +274,21 @@ def _run_plan(only, resume, journal):
                     record(key, 'BLOCKED', 'Finish '+', '.join(by_key[parent]['name'] for parent in blockers)+' first.'); continue
                 records[key].update(startedAt=time.time(), finishedAt=None, phase='Checking', downloaded=None, total=None)
                 record(key, 'RUNNING', 'Checking prerequisites and available space.')
-                print('\n==> '+row['name'], flush=True)
+                print('\n['+key+'] Checking: '+row['name'], flush=True)
+                run_log.event(key, 'RUNNING', 'Checking '+row['name'])
                 def progress(phase, message, downloaded=None, total=None):
                     changed = records[key].get('phase') != phase
                     records[key].update(phase=phase, downloaded=downloaded, total=total)
                     record(key, 'RUNNING', message)
-                    if changed: install_log.note(phase+': '+message)
+                    if changed:
+                        print('['+key+'] '+phase+': '+install_log.redact(message), flush=True)
+                        if os.environ.get('DECKCTL_UI_RUN') != '1': install_log.note(phase+': '+message)
+                        run_log.event(key, 'RUNNING', phase+': '+message)
                 try:
-                    with install_log.capture(key) as log_path, install_progress.listen(progress):
-                        records[key]['logPath'] = str(log_path)
+                    interactive = interactive_provider(row) and os.environ.get('DECKCTL_UI_RUN') != '1'
+                    capture = nullcontext(None) if interactive else install_log.capture(key, stdout=os.environ.get('DECKCTL_UI_RUN') == '1')
+                    with capture as log_path, install_progress.listen(progress):
+                        records[key]['logPath'] = str(log_path) if log_path else None
                         path, budget, _ = setup_plan.storage_budget(row, False)
                         if budget is not None:
                             anchor = path.resolve()
@@ -298,7 +306,7 @@ def _run_plan(only, resume, journal):
                     if records[key].get('logPath'): message += ' Error log: '+records[key]['logPath']
                     record(key, 'FAILED', message)
                 finally:
-                    run_log.archive_item(key)
+                    if records[key].get('logPath'): run_log.archive_item(key)
         except (KeyboardInterrupt, EOFError):
             state['queueStatus'] = 'CANCELLED' if queue_control().get('cancel') else 'INTERRUPTED'
             for key in wanted:

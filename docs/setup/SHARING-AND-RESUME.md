@@ -22,7 +22,7 @@ deckctl profile import ~/deck-setup.zip
 
 ## Check downloads and space
 
-At Review, use **Check downloads & space**. Flatpak commit metadata and managed
+At Review, use **Check changes & space**. Flatpak commit metadata and managed
 terminal release versions distinguish checked updates from installed software
 whose update state is unknown. Model manifests supply download estimates.
 Offline checks remain unavailable rather than claiming software is current.
@@ -43,13 +43,19 @@ deckctl setup preview --online
 **Install & finish** shows each selected item, including failed, blocked and
 interrupted work. **Resume installation** rechecks completed items before skipping
 them. **Retry this item** runs that item and required prerequisites, leaving
-unrelated selections alone. Detailed provider output stays in Konsole. Installer
-stderr and Python failures also save to private, bounded per-item files under
-`~/.local/state/deckctl/install-logs/`; failed-item messages include the path.
-The latest attempt replaces that item's previous log. Common token/password
-patterns are redacted, but review logs before sharing. Standard output and
-interactive input remain in the terminal; logs are not full terminal recordings
-and are not included in portable setup exports.
+unrelated selections alone. Normal UI installs keep stdout and stderr in one
+scrollable console. **Details** selects an item's output in that console; **All
+steps** returns to the combined view. Turn off **Following latest** to read history
+without stopping capture. **Find errors** finds diagnostic keywords with context;
+item verification status remains authoritative.
+
+Private bounded latest-attempt item logs are under
+`~/.local/state/deckctl/install-logs/`. Each UI run also archives combined output
+(including preflight) and item logs under `~/.local/state/deckctl/logs/<run-id>/`.
+The console shows the run path. Common token/password patterns are redacted;
+review logs before sharing. Explicit interactive vendor/authentication actions
+stay in their clearly labeled terminal, with raw sign-in output excluded from
+these archives. Logs are not included in portable setup exports.
 
 ```bash
 deckctl setup install --resume
@@ -69,9 +75,12 @@ by you. App presence alone never proves a working account or connection.
 
 The running item stays at the top with its phase and elapsed time. Managed
 terminal downloads show received bytes and a percentage when a server total is
-available. Other provider operations show activity; Konsole retains their own
-progress and interactive prompts. **View log** opens private, bounded phase/error
-diagnostics and can refresh while installation runs. Review before sharing.
+available. Other provider operations show indeterminate progress; a quiet period
+is not treated as a failure. Pause/cancel controls remain visible while reading
+logs or charts. Network/disk charts include other apps on the Deck, distinguish
+stale or unknown measurements, and never treat zero traffic as proof of offline
+status. The space meter shows free space against known allowance and reserve;
+unknown vendor sizes remain unknown.
 
 ## Compare palettes
 

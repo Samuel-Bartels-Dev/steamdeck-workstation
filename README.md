@@ -68,7 +68,7 @@ curl -fL https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstat
 
 This downloads the latest published stable release, checks its archive against the release checksums, and starts setup. Run it as your normal user, without sudo.
 
-For an offline install, copy the release tarball from USB into `~/Downloads`:
+To install the local control plane from USB, copy the release tarball into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
@@ -77,6 +77,8 @@ cd steamdeck-workstation-0.2.43
 chmod +x install.sh
 ./install.sh
 ```
+
+The archive installs `deckctl` locally without fetching its source repository. Offline use requires the host's Python 3 and, for the graphical setup, the Qt Quick runtime and Controls/Layout/Window imports. App, Flatpak, plugin, AI model and vendor payloads are not bundled: downloading or updating them still needs Internet access. An offline Deck can inspect saved choices and local results; unavailable online checks must not be treated as proof that software is current.
 
 **Do not run `sudo ./install.sh`.** Provisioning runs as the normal `deck` user and asks for sudo only when a narrow operation genuinely requires it.
 
@@ -136,11 +138,11 @@ dverify
 
 ![Native Steam Deck setup app](docs/screenshots/setup-features.png)
 
-The installer opens a native Qt Quick setup app in Desktop Mode. A persistent
-sidebar guides you through Gaming, Apps & media, Coding & work, Remote & storage,
+The installer opens a native Qt Quick setup app in Desktop Mode. A sidebar (or compact section selector in smaller windows)
+guides you through Gaming, Apps & media, Coding & work, Remote & storage,
 Review, and Install & finish. Each section explains what belongs there. Feature cards have large touch targets,
 clear selected states, and keyboard focus indicators. The window adapts to the
-Deck display with scrolling content and a fixed action bar. The sidebar **Theme & appearance**
+Deck display with scrolling content and fixed installation controls. **Appearance**
 offers Bubble Gum Rave, Midnight Ocean and Graphite, with separate switches for
 Ghostty, Fastfetch, Oh My Posh, Starship, Konsole, tmux and supported CSS Loader
 themes. The window previews the palette immediately; managed tool colors apply
@@ -161,14 +163,19 @@ dependencies. Each review group has an **Edit** action. **Save for later** keeps
 your plan; **Save & install** starts provisioning and shows results grouped by
 setup area. Each running item shows its phase and elapsed time. Terminal downloads
 show received bytes and a percentage only when the server supplies a total;
-extraction and other provider operations use an activity indicator. **View log**
-opens bounded, private phase/error diagnostics, with a refresh button. Vendor
-prompts and provider-specific output stay in Konsole. Logs are stored under
-`~/.local/state/deckctl/install-logs/`; review them before sharing. A successful installation pass leads
-to selected setup, sign-in and pairing; failures show that attention is needed.
-Docker remains a separate explicit action. Closing the app shuts down its temporary
-loopback connection; it adds no background service. A text flow remains available
-outside Desktop Mode.
+extraction and other provider operations use an activity indicator. **Details** selects
+an item's log in the same scrollable console, with error search and copy controls.
+**Following latest** can be turned off to read history while collection continues.
+Private item logs live under `~/.local/state/deckctl/install-logs/`; durable run
+archives, including UI preflight output, live under `~/.local/state/deckctl/logs/`.
+Review logs before sharing. Finish checks selected setup, sign-in and pairing in
+the UI. Only clearly labeled interactive vendor/authentication actions open a
+terminal. Closing an active owned run offers cancellation; a renderer crash also
+cleans up its owned installer process group. No background service is added. A
+text flow remains available outside Desktop Mode.
+
+See the [UI and installer architecture audit](docs/UI-INSTALLER-AUDIT.md) for the
+implementation decision, measurements, visual evidence and physical test checklist.
 
 ```bash
 deckctl setup customize          # reopen the visual/text setup builder
