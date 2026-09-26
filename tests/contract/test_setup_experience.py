@@ -20,16 +20,18 @@ class Experience(unittest.TestCase):
             with self.subTest(directory=directory), patch.dict(os.environ, {'XDG_RUNTIME_DIR': directory}):
                 self.assertEqual(user_session.nested_desktop(), expected)
 
-    def test_nested_desktop_blocks_bridge_and_service_restart_before_mutation(self):
+    def test_nested_desktop_css_uses_live_bridge_and_blocks_service_restart(self):
         from deckctl import css_stack, decky_installer
+        backend = Mock()
+        backend.themes.return_value = []
+        backend.call.side_effect = [str(css_stack.THEMES_DIR), 9]
         with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
-                patch.object(css_stack, '_validate_plugin') as validate, \
-                patch.object(css_stack, 'Backend') as backend, \
+                patch.object(css_stack, '_validate_plugin'), \
+                patch.object(css_stack, 'Backend', return_value=backend), \
                 patch.object(decky_installer.subprocess, 'run') as run:
-            with self.assertRaisesRegex(css_stack.CSSError, 'Deferred in Nested Desktop'):
-                with css_stack._backend_session(): self.fail('Bridge must not open')
+            with css_stack._backend_session(): pass
             self.assertFalse(decky_installer._restart_decky())
-            validate.assert_not_called(); backend.assert_not_called(); run.assert_not_called()
+            run.assert_not_called()
 
     def test_nested_desktop_defers_missing_plugins_before_download_or_replacement(self):
         from deckctl import decky_installer
@@ -49,7 +51,7 @@ class Experience(unittest.TestCase):
                 patch.object(setup_install, 'verify') as verify, \
                 patch.object(css_stack, 'apply') as apply, \
                 patch.object(decky_installer, 'install_selected') as install:
-            for kind in ('plugin', 'css', 'css-profile'):
+            for kind in ('plugin',):
                 row = {'kind':kind, 'key':kind+':Example', 'component':'Example'}
                 verify.return_value = False
                 with self.assertRaisesRegex(setup_install.NeedsSetup, 'normal Desktop Mode'):
@@ -60,7 +62,7 @@ class Experience(unittest.TestCase):
 
     def test_nested_desktop_queue_defers_before_sudo_and_continues_user_apps(self):
         from deckctl import privilege
-        rows = [dict(key='dependency:css-profile', name='Colors', kind='css-profile', requires=[]),
+        rows = [dict(key='plugin:Example', name='Example', kind='plugin', requires=[]),
                 dict(key='app:test', name='User app', kind='flatpak', requires=[])]
         with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1', 'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
                 patch.object(setup_plan, 'items', return_value=(self.plan, rows)), \
@@ -73,8 +75,8 @@ class Experience(unittest.TestCase):
             execute.assert_called_once_with(rows[1])
         records = setup_install.snapshot()['items']
         self.assertEqual(records['app:test']['status'], 'DONE')
-        self.assertEqual(records['dependency:css-profile']['status'], 'NEEDS_SETUP')
-        self.assertIn('Deferred in Nested Desktop', records['dependency:css-profile']['message'])
+        self.assertEqual(records['plugin:Example']['status'], 'NEEDS_SETUP')
+        self.assertIn('Deferred in Nested Desktop', records['plugin:Example']['message'])
 
     def test_explicit_interactive_output_never_enters_raw_archives(self):
         from deckctl import production_cli, run_log
@@ -340,7 +342,7 @@ class Experience(unittest.TestCase):
     def test_admin_cancel_precedes_install_and_does_not_block_user_apps(self):
         from deckctl import privilege
         rows = [dict(key='app:test',name='User app',kind='flatpak',requires=[]),
-                dict(key='dependency:css-profile',name='Colors',kind='css-profile',requires=[])]
+                dict(key='plugin:Example',name='Example',kind='plugin',requires=[])]
         order = []
         def prepare():
             order.append('authorize')
@@ -350,22 +352,19 @@ class Experience(unittest.TestCase):
         self.assertEqual(order,['authorize','app:test'])
         records = setup_install.snapshot()['items']
         self.assertEqual(records['app:test']['status'],'DONE')
-        self.assertEqual(records['dependency:css-profile']['status'],'NEEDS_SETUP')
-        self.assertIn('password dialog',records['dependency:css-profile']['message'])
+        self.assertEqual(records['plugin:Example']['status'],'NEEDS_SETUP')
+        self.assertIn('password dialog',records['plugin:Example']['message'])
 
-    def test_css_runs_inline_after_authorization_and_healthy_items_do_not_prompt(self):
+    def test_css_runs_inline_without_administrator_authorization(self):
         from deckctl import privilege, css_stack
         row = dict(key='dependency:css-profile', name='Colors', kind='css-profile', requires=[])
         self.assertFalse(setup_install.interactive_provider(row))
-        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_install,'verify',return_value=False), patch.object(css_stack,'apply',return_value=0) as apply:
-            with self.assertRaises(RuntimeError): setup_install.execute(row)
-            apply.assert_not_called()
-            token = privilege._authorized.set(True)
-            try: setup_install.execute(row)
-            finally: privilege._authorized.reset(token)
+        self.assertFalse(privilege.needed(row))
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1', 'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), patch.object(css_stack, 'apply', return_value=0) as apply:
+            setup_install.execute(row)
             apply.assert_called_once()
-        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_plan,'items',return_value=(self.plan,[row])), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',return_value=True), patch.object(privilege.Session,'prepare') as prepare:
-            self.assertEqual(setup_install.run(),0)
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), patch.object(setup_plan, 'items', return_value=(self.plan,[row])), patch.object(setup_plan, 'storage_budget', return_value=(self.root,None,'')), patch.object(setup_install, 'verify', return_value=True), patch.object(privilege.Session, 'prepare') as prepare:
+            self.assertEqual(setup_install.run(), 0)
             prepare.assert_not_called()
 
     def test_keeper_existing_extension_is_reused_and_login_remains_separate(self):

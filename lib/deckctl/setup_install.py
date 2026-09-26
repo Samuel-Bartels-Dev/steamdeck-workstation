@@ -113,13 +113,15 @@ def _module(mid):
 
 
 def _nested_decky_change(row):
-    return row.get('kind') in ('plugin', 'css', 'css-profile') and user_session.nested_desktop()
+    return row.get('kind') == 'plugin' and user_session.nested_desktop()
 
 
 def execute(row):
     """Only catalog-owned commands may reach this dispatcher."""
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
+    if row['kind'] in ('css', 'css-profile') and verify(row):
+        return 'Existing installation verified.'
     if _nested_decky_change(row):
         if verify(row): return 'Existing installation verified; no Decky restart requested.'
         raise NeedsSetup(user_session.NESTED_DESKTOP_NOTICE)

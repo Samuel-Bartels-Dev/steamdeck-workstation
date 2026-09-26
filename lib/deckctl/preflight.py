@@ -22,7 +22,7 @@ def sudo_readiness():
         state = fields[1] if result.returncode == 0 and len(fields) >= 2 and fields[0] == user else None
     except (OSError, KeyError, subprocess.TimeoutExpired): state = None
     if state == 'P':
-        return {'status':'PASS', 'state':'PASSWORD_SET', 'message':'Account password is set. Decky plugin and CSS changes request administrator permission in a KDE password dialog before the UI run starts.'}
+        return {'status':'PASS', 'state':'PASSWORD_SET', 'message':'Account password is set. Decky plugin installation requests administrator permission in a KDE password dialog. Live CSS changes do not require sudo.'}
     if state == 'NP':
         message = 'No account password is set. In Desktop Mode, open Konsole and run passwd to set one before using installers that require sudo.'
     elif state == 'L':

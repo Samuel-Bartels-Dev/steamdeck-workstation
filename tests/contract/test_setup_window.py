@@ -10,10 +10,10 @@ from deckctl import core, apps, setup_builder, setup_window, gaming_options, pro
 
 
 class SetupWindow(unittest.TestCase):
-    def test_deferred_css_progress_explains_session_and_resume_returns_in_desktop(self):
+    def test_deferred_plugin_progress_explains_session_and_resume_returns_in_desktop(self):
         from deckctl import setup_plan, setup_install, user_session
         plan = {'modules': ['base']}
-        row = dict(key='css:Round', name='Round', kind='css', component='Round', visible=True, requires=[])
+        row = dict(key='plugin:Example', name='Example', kind='plugin', component='Example', visible=True, requires=[])
         state = {'fingerprint': setup_plan.fingerprint(plan), 'items': {
             row['key']: {'status':'NEEDS_SETUP', 'message':user_session.NESTED_DESKTOP_NOTICE}}}
         session = setup_window.Session(); session.selected = ['base']
@@ -40,6 +40,20 @@ class SetupWindow(unittest.TestCase):
             self.assertFalse(progress['resumeBlocked'])
             self.assertTrue(progress['resumable'])
             self.assertFalse(progress['items'][0]['requiresDesktop'])
+
+    def test_old_css_deferral_becomes_retryable_in_nested_desktop(self):
+        from deckctl import setup_plan, setup_install, user_session
+        plan = {'modules':['base']}
+        row = dict(key='css:Round', name='Round', kind='css', component='Round', visible=True, requires=[])
+        state = {'fingerprint':setup_plan.fingerprint(plan), 'items': {
+            row['key']:{'status':'NEEDS_SETUP', 'message':user_session.NESTED_DESKTOP_NOTICE}}}
+        with patch.object(setup_plan, 'items', return_value=(plan,[row])), patch.object(setup_install, 'snapshot', return_value=state), patch.dict(setup_window.os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}):
+            progress = setup_window.Session().progress()
+        self.assertFalse(progress['resumeBlocked'])
+        self.assertTrue(progress['resumable'])
+        self.assertFalse(progress['items'][0]['requiresDesktop'])
+        self.assertEqual(progress['items'][0]['resultLabel'], 'Ready to retry')
+        self.assertEqual(state['items'][row['key']]['message'], user_session.NESTED_DESKTOP_NOTICE)
 
     def test_console_reads_one_bounded_whole_run_across_archive_handoff(self):
         from deckctl import setup_process, setup_install, install_log, run_log

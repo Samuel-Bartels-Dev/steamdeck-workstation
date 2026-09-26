@@ -1370,7 +1370,7 @@ ApplicationWindow {
                         TextLabel {
                             objectName: "desktopDeferredNotice"
                             visible: window.stage === 5 && !window.progress.running && window.progress.desktopDeferredCount > 0
-                            text: "This installation pass has finished. " + window.progress.desktopDeferredCount + " CSS/plugin items require normal Desktop Mode. Your choices and completed installs are saved. Exit Nested Desktop yourself, choose Steam’s Power → Switch to Desktop, then open deckctl setup customize and resume. Retrying here cannot complete these items."
+                            text: "This installation pass has finished. " + window.progress.desktopDeferredCount + " plugin items require normal Desktop Mode. Your choices and completed installs are saved. Exit Nested Desktop yourself, choose Steam’s Power → Switch to Desktop, then open deckctl setup customize and resume. Retrying here cannot complete these items."
                             Layout.fillWidth: true; color: window.cyan; font.pixelSize: window.px(14); wrapMode: Text.Wrap
                         }
                         TextLabel {
