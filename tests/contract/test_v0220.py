@@ -219,6 +219,31 @@ class Review(unittest.TestCase):
         result=subprocess.run(['bash',str(ROOT/'modules/remote/install-tailscale-steamos.sh')],env={**os.environ,'PATH':str(fake)+':'+os.environ['PATH']},capture_output=True,text=True)
         self.assertEqual(result.returncode,7);self.assertEqual((old/'personal.txt').read_text(),'keep')
         self.assertEqual(list(self.home.glob('.deck-tailscale-stage.*')),[])
+    def test_tailscale_connected_install_enables_cli_in_new_bash_terminals_idempotently(self):
+        fake=self.home/'bin';fake.mkdir()
+        ts=fake/'tailscale'
+        ts.write_text('#!/bin/sh\nprintf \'{"BackendState":"Running"}\\n\'\n')
+        ts.chmod(0o755)
+        target=self.home/'.config/shell/bashrc';target.parent.mkdir(parents=True);target.write_text('# personal shell setup\n')
+        (self.home/'.bashrc').symlink_to(target)
+        env={**os.environ,'HOME':str(self.home),'PATH':str(fake)+':'+os.environ['PATH']}
+        installer=ROOT/'modules/remote/install-tailscale-steamos.sh'
+        for _ in range(2):
+            result=subprocess.run(['bash',str(installer)],env=env,capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr)
+        self.assertTrue((self.home/'.bashrc').is_symlink())
+        rc=target.read_text()
+        self.assertIn('# personal shell setup',rc)
+        self.assertEqual(rc.count('# >>> deckctl tailscale path >>>'),1)
+        self.assertIn('${DECKCTL_TAILSCALE_PROFILE:-/etc/profile.d/tailscale.sh}',rc)
+        self.assertIn('. "$_deckctl_tailscale_profile"',rc)
+        profile=self.home/'tailscale-profile.sh'
+        profile.write_text('export PATH="$PATH:/opt/tailscale"\n')
+        shell=subprocess.run(['bash','--noprofile','--rcfile',str(self.home/'.bashrc'),'-ic',
+            '. "$HOME/.bashrc"; printf "%s" "$PATH"'],
+            env={**env,'PATH':'/usr/bin:/bin','DECKCTL_TAILSCALE_PROFILE':str(profile)},capture_output=True,text=True)
+        self.assertEqual(shell.returncode,0,shell.stderr)
+        self.assertEqual(shell.stdout.split(':').count('/opt/tailscale'),1)
     def test_profile_zip_duplicate_paths_and_budget(self):
         import warnings
         path=self.home/'duplicate.zip'

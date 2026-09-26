@@ -196,6 +196,47 @@ class Production(unittest.TestCase):
         with patch('os.access', return_value=False):
             self.assertEqual(preflight.destination(Path(self.temp.name))['status'], 'FAIL')
 
+    def test_preflight_temp_staging_uses_largest_sequential_item(self):
+        rows=[{'kind':'component','key':'small'}, {'kind':'component','key':'large'},
+              {'kind':'component','key':'unknown'}, {'kind':'support','key':'support'}]
+        sizes={'small':2*preflight.setup_plan.GIB,'large':6*preflight.setup_plan.GIB,'unknown':None}
+        def budget(row, installed): return Path.home(),sizes.get(row['key']),'test estimate'
+        with patch.object(preflight.setup_plan,'storage_budget',side_effect=budget), \
+             patch.object(preflight,'reserve',return_value=preflight.setup_plan.GIB):
+            self.assertEqual(preflight.temporary_staging_requirement(rows),7*preflight.setup_plan.GIB)
+
+    def test_preflight_keeps_temp_peak_separate_from_cumulative_install_space(self):
+        from deckctl import compatibility
+        rows=[{'kind':'component','key':'small'}, {'kind':'component','key':'large'}]
+        sizes={'small':2*preflight.setup_plan.GIB,'large':6*preflight.setup_plan.GIB}
+        host={'os':'steamos','version':'3.8','build':'test','architecture':'x86_64','model':'oled','kernel':'test'}
+        def budget(row, installed): return Path('/install-target'),sizes[row['key']],'test estimate'
+        free={'tmp':8*preflight.setup_plan.GIB}
+        def disk(path):
+            temp=Path(path)==Path(preflight.tempfile.gettempdir())
+            return {'path':str(path),'existing_parent':str(path),'device':2 if temp else 1,
+                    'free_bytes':free['tmp'] if temp else 20*preflight.setup_plan.GIB,
+                    'writable':True,'status':'PASS','note':'test'}
+        with patch.object(preflight.setup_plan,'items',return_value=({},rows)), \
+             patch.object(preflight.setup_plan,'storage_budget',side_effect=budget), \
+             patch.object(preflight,'destination',side_effect=disk), \
+             patch.object(preflight,'reserve',return_value=preflight.setup_plan.GIB), \
+             patch.object(preflight,'sudo_readiness',return_value={'status':'PASS','message':'ok'}), \
+             patch.object(preflight,'storage_report',return_value=[]), \
+             patch.object(compatibility,'report',return_value={'system':host,'components':[]} ), \
+             patch('deckctl.css_stack.selection_error',return_value=None), \
+             patch.object(preflight.shutil,'which',return_value='/usr/bin/tool'):
+            report=preflight.report(rows=rows)
+            home=next(v for v in report['volumes'] if v['device']==1)
+            temp=next(v for v in report['volumes'] if v['device']==2)
+            self.assertEqual(home['required_bytes'],9*preflight.setup_plan.GIB)
+            self.assertEqual(temp['required_bytes'],7*preflight.setup_plan.GIB)
+            self.assertEqual((home['status'],temp['status']),('PASS','PASS'))
+            free['tmp']=6*preflight.setup_plan.GIB
+            report=preflight.report(rows=rows)
+            temp=next(v for v in report['volumes'] if v['device']==2)
+            self.assertEqual(temp['status'],'FAIL')
+
     def test_download_failure_preserves_previous_and_cleans_stage(self):
         from deckctl import downloads
         destination = Path(self.temp.name)/'installer'

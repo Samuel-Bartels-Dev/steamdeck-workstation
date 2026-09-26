@@ -57,6 +57,18 @@ def reserve():
     return value
 
 
+def temporary_staging_requirement(rows):
+    """Reserve space for one installer at a time, not every install at once."""
+    largest = 0
+    for row in rows:
+        if row['kind'] == 'support':
+            continue
+        _, size, _ = setup_plan.storage_budget(row, False)
+        if size is not None:
+            largest = max(largest, size)
+    return reserve() + largest
+
+
 def network():
     # curl bounds DNS, TLS, connect and transfer time as one process; no unbounded getaddrinfo.
     rows = []
@@ -123,7 +135,7 @@ def report(rows=None, online=False):
         else: volume['required_bytes'] += size
     temp_info = destination(Path(tempfile.gettempdir()))
     if temp_info['device'] not in volumes and volumes:
-        volumes[temp_info['device']] = {**temp_info, 'required_bytes': max(v['required_bytes'] for v in volumes.values()), 'items': ['temporary staging allowance']}
+        volumes[temp_info['device']] = {**temp_info, 'required_bytes': temporary_staging_requirement(rows), 'items': ['temporary staging allowance']}
     for path in (core.STATE, core.CONFIG_HOME, Path(tempfile.gettempdir())):
         info = destination(path)
         add('writable:'+str(path), info['status'], info['note'])
