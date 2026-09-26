@@ -24,21 +24,42 @@ Item {
             verify(at.x+item.width <= container.width+1 && at.y+item.height <= container.height+1, item.objectName+" ends inside viewport: "+at+" size "+item.width+"x"+item.height)
         }
         function waitUntilInside(item, container) {
-            var diagnostic=""
+            var diagnostic="", previousGeometry=""
             try { tryVerify(function() {
                 if (!item) { diagnostic="Control missing"; return false }
                 var at=item.mapToItem(container,0,0)
                 diagnostic=item.objectName+" at "+at+" size "+item.width+"x"+item.height+" in "+container.width+"x"+container.height
-                return at.x>=-1 && at.y>=-1 && at.x+item.width<=container.width+1 && at.y+item.height<=container.height+1
+                var settled=diagnostic===previousGeometry
+                previousGeometry=diagnostic
+                return settled && at.x>=-1 && at.y>=-1 && at.x+item.width<=container.width+1 && at.y+item.height<=container.height+1
             },1000,"Focused control must settle inside its viewport") }
             catch(error) { console.log("FOCUS_GEOMETRY: "+diagnostic); throw error }
             visibleInside(item,container)
         }
         function capture(name) {
             if (!TEST_IMAGES) return
-            waitForRendering(app.contentItem)
-            var image=grabImage(app.contentItem)
-            image.save(TEST_IMAGES+"/"+name+"-"+app.width+".png")
+            var path=TEST_IMAGES+"/"+name+"-"+app.width+".png"
+            if (name.indexOf("queue")===0 || name.indexOf("console")===0) {
+                var canvas=find(app.contentItem,"setupCanvas"), warmed=false
+                verify(canvas.grabToImage(function(image) { warmed=true }))
+                tryVerify(function() { return warmed },5000,"Warmup scene rendered")
+                var queue=name.indexOf("queue")===0 ? find(app.contentItem,"queueToggle") : null
+                var viewport=find(app.contentItem,"setupScroll")
+                if(queue) waitUntilInside(queue,viewport)
+                function geometry() {
+                    return queue ? [queue.mapToItem(viewport,0,0).y,queue.width,queue.height,viewport.height,viewport.contentItem.contentY].join(",") : ""
+                }
+                var before=geometry(), captured=false
+                verify(canvas.grabToImage(function(image) {
+                    verify(image.saveToFile(path)); captured=true
+                }))
+                tryVerify(function() { return captured },5000,"Final setup scene captured")
+                if(queue) { compare(geometry(),before,"Queue geometry remains stable through final capture"); visibleInside(queue,viewport) }
+            } else {
+                // Popups and drawers live in the window overlay, outside canvas.
+                var image=grabImage(app.contentItem)
+                image.save(path)
+            }
         }
         function test_layout_and_output() {
             tryCompare(app,"guideVisible",true)
@@ -112,7 +133,10 @@ Item {
             compare(app.queueSummary(),"1 attention · 1 scheduled · 1 completed")
             var queue=find(app.contentItem,"queueToggle")
             queue.forceActiveFocus(); waitUntilInside(queue,find(app.contentItem,"setupScroll"))
+            console.log("QUEUE_BEFORE_CAPTURE y="+queue.mapToItem(find(app.contentItem,"setupScroll"),0,0).y+" h="+queue.height+" viewport="+find(app.contentItem,"setupScroll").height)
             capture("queue-collapsed")
+            console.log("QUEUE_AFTER_CAPTURE y="+queue.mapToItem(find(app.contentItem,"setupScroll"),0,0).y+" h="+queue.height+" viewport="+find(app.contentItem,"setupScroll").height)
+            waitUntilInside(queue,find(app.contentItem,"setupScroll"))
             mouseClick(queue); verify(app.queueExpanded)
             app.expandedResult="app:tool"; wait(30)
             var details=find(app.contentItem,"viewInstallLog"); verify(details!==null,"Scheduled item has Details before output exists")

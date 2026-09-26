@@ -61,24 +61,27 @@ existing four-size rendered flow and real-keyboard test remain in the same
 [test runner](../../../tests/integration/test_setup_ui.py). The focused fixture is
 [setup_layout.qml](../../../tests/integration/setup_layout.qml).
 
-The final combined Qt run passed **3 tests in 72.955 seconds**, including the
-four-size flow and genuine keyboard test. The final focused confirmation passed
-both sizes in **62.936 seconds**, including the corrected outer-console reveal,
-visible highlight geometry, late error jump after record replacement, and
-collapsed/expanded queue captures. Lint passed **82 Python files, 70 shell files,
-and 5 workflows**, including documentation checks. Independent read-only review
-identified no remaining blocking findings after these fixes. CI and any package
-checks are recorded separately in the PR; local Qt does not prove every target
-Qt version or physical input path. CI must retain the Qt 6.4 deferred TestCase gate;
-a catalog-loaded property alone can start tests reentrantly on that Qt version.
-Older-Qt focus tests also wait on actual visible bounds (at most one second),
-rather than assuming a 30 ms delay proves scrolling completed. The predicate
-only observes geometry; it does not move focus or scroll to make the test pass.
-This specifically covers the Qt 6.4 CI failure with screenshot capture disabled.
-Actions no longer derive their layout's maximum width from their parent's current
-width, removing a geometry feedback dependency implicated by a Qt 6.4 polish-loop
-warning. Explicit console navigation cancels a pending button-focus reveal.
-Cross-version confirmation remains recorded in the PR.
+The final no-screenshot Qt suite passed **3 tests in 19.558 seconds**, including
+the four-size flow and genuine keyboard test. Final rendered confirmation passed both enlarged-text
+sizes in **8.472 seconds**, including outer-console visibility, highlighted-output
+geometry, late error jumps after record replacement, and queue captures. Lint
+passed **82 Python files, 70 shell files, and 5 workflows**, including documentation
+checks. Independent read-only review found no remaining blocking findings.
+Final CI and package results are recorded separately in the PR.
+
+Qt 6.4 requires the deferred TestCase start gate: catalog loading alone can start
+tests reentrantly. Focus tests observe stable visible bounds within one second;
+they do not move focus or scroll to make an assertion pass. Actions avoid a
+parent-dependent maximum-width constraint that produced a Qt 6.4 layout polish
+warning; the corrected Qt 6.4 CI run passed all three tests without that warning.
+Focus reveal stops after at most eight timer ticks, and explicit console
+navigation cancels it.
+
+Nonmodal screenshots use a warmup render, passive stable-geometry checks, and a
+final render whose queue geometry must remain unchanged. This synchronizes the
+image with the measured scene; an earlier unsettled image alone was not proof of
+runtime clipping. Modal screenshots include the window overlay. Fresh screenshot
+output directories are created automatically. Physical input remains unverified.
 
 A bounded near-cap stress fixture retains about 1,014,055 ASCII bytes, appends a
 line, locates the last error, and sends real keyboard input. Its observed combined

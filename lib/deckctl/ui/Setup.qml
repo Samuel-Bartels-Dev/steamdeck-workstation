@@ -211,12 +211,18 @@ ApplicationWindow {
         })
     }
     property var pendingFocusItem: null
-    function keepFocusVisible(item) { pendingFocusItem = item; focusScroll.restart() }
+    property int focusScrollAttempts: 0
+    function keepFocusVisible(item) {
+        pendingFocusItem = item; focusScrollAttempts = 0; focusScroll.restart()
+    }
     Timer {
-        id: focusScroll; interval: 16; repeat: false
+        id: focusScroll; interval: 16; repeat: true
         onTriggered: {
             var item = window.pendingFocusItem
-            if (!item || !item.activeFocus) return
+            if (!item || !item.activeFocus) { stop(); return }
+            // Wrapped controls can move during subsequent layout polish passes.
+            // Re-check a bounded eight frames; explicit navigation cancels this
+            // short settling period rather than being pulled back to its button.
             var ancestor = item.parent
             while (ancestor) {
                 if (typeof ancestor.contentY === "number" && ancestor.contentItem) {
@@ -226,6 +232,7 @@ ApplicationWindow {
                 }
                 ancestor = ancestor.parent
             }
+            if (++window.focusScrollAttempts >= 8) stop()
         }
     }
     function networkLabel() {

@@ -108,6 +108,8 @@ Item {
             with self.subTest(size=(width,height)), tempfile.TemporaryDirectory() as folder:
                 base=Path(folder)
                 def run_layout(args, **kwargs):
+                    if os.environ.get('DECKCTL_UI_SCREENSHOTS'):
+                        Path(os.environ['DECKCTL_UI_SCREENSHOTS']).mkdir(parents=True,exist_ok=True)
                     source=(ROOT/'tests/integration/setup_layout.qml').read_text().replace('"../../lib/deckctl/ui"',json.dumps((ROOT/'lib/deckctl/ui').as_uri()))
                     for marker,value in {'TEST_WIDTH':width,'TEST_HEIGHT':height,'TEST_ENDPOINT':args[-1],'TEST_IMAGES':os.environ.get('DECKCTL_UI_SCREENSHOTS','')}.items():
                         source=source.replace(marker,json.dumps(value))
