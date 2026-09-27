@@ -99,6 +99,7 @@ ApplicationWindow {
             progressPending = false
             var wasRunning = progress.running
             progress = result
+            previousRun = result
             if (wasRunning && !result.running) refreshInventory()
         })
     }
@@ -262,9 +263,9 @@ ApplicationWindow {
     readonly property bool guideVisible: guideDialog.visible
     function openGuide() { guideStep = 0; guideDialog.open() }
     function closeGuide() { guideDialog.close(); request("guide-seen", {}, function() {}) }
-    function restoreProgress(result) { previousRun = result; progress = result; if (result.running) stage = 5 }
+    function restoreProgress(result) { previousRun = result; progress = result; if (result.running || result.hasHistory && (result.unfinished > 0 || result.historyPlanChanged)) stage = 5 }
     function previousRunText() {
-        if (previousRun.historyPlanChanged) return "Your saved choices or installer version differ from the last run. Review this plan; previous results will not be reused as proof."
+        if (dirty || previousRun.historyPlanChanged) return "Choices changed. Review and save to continue unfinished selected work plus new selections. Completed items are rechecked; changed configuration is applied again."
         var stamp = previousRun.lastRunAt ? " · " + new Date(previousRun.lastRunAt * 1000).toLocaleString() : ""
         return (previousRun.unfinished ? "Unfinished installation: " + previousRun.unfinished + " items remaining" : "Your last installation results are available") + stamp + ". Resume rechecks completed items before skipping them."
     }
@@ -376,6 +377,7 @@ ApplicationWindow {
         function version(value) { return /^[a-f0-9]{64}$/.test(value) ? value.slice(0, 12) + " (commit)" : value }
         if (result.installedVersion && result.availableVersion) parts.push(version(result.installedVersion) + " → " + version(result.availableVersion))
         if (result.note && result.note !== "Checked") parts.push(result.note)
+        if (result.nextAction) parts.push(result.nextAction)
         if (result.checkedAt) parts.push("Checked " + new Date(result.checkedAt * 1000).toLocaleTimeString())
         return parts.join(" · ")
     }
@@ -644,7 +646,7 @@ ApplicationWindow {
         Object.keys(selectedComponents).forEach(function(key) { components[key] = pageValues(key).slice() })
         request("save", {modules: chosen, apps: selectedApps, launchers: pageValues("launchers"), plugins: pageValues("plugins"), css: pageValues("css"), components: components, palette: paletteId, appearance: appearanceChoices}, function(result) {
             saved = true; dirty = false; busy = false; notice = "Plan saved. You can close this window or install when ready."
-            if (install) startOperation("install")
+            if (install) startOperation(previousRun.hasHistory ? "resume" : "install")
             else if (data.planOnly) window.close()
         })
     }
@@ -1096,14 +1098,14 @@ ApplicationWindow {
                 ColumnLayout {
                     width: scroll.availableWidth; spacing: 14
                     ColumnLayout {
-                        visible: !window.previousRunDismissed && !window.dirty && window.stage < 5 && (!!window.previousRun.hasHistory || !!window.previousRun.historyPlanChanged)
+                        objectName: "previousRunControls"
+                        visible: window.stage === 5 && (!!window.previousRun.hasHistory || !!window.previousRun.historyPlanChanged)
                         Layout.fillWidth: true
                         TextLabel { text: window.previousRunText(); Layout.fillWidth: true; color: window.cyan; font.pixelSize: window.px(13) }
                         Flow {
                             Layout.fillWidth: true; spacing: 8
-                            Action { text: "Resume installation"; visible: !!window.previousRun.resumable && window.previousRun.unfinished > 0 && !window.data.planOnly; enabled: !window.busy && !window.progress.running; onClicked: window.startOperation("resume") }
-                            Action { text: "Review choices"; enabled: !window.progress.running; onClicked: { window.previousRunDismissed = true; window.navigate(4) } }
-                            Action { text: "View last results"; visible: !!window.previousRun.hasHistory; onClicked: window.navigate(5) }
+                            Action { objectName: "reviewPreviousChoices"; text: "Edit choices"; enabled: !window.progress.running; onClicked: window.navigate(4) }
+                            Action { text: window.progress.running ? "View live output" : "View last output"; visible: !!window.previousRun.hasHistory; onClicked: { window.closeLog(); window.showConsole = true; window.revealConsole() } }
                         }
                     }
                     TextLabel { visible: window.stage === 4; text: "Appearance: " + window.appearanceSummary(); Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.cyan }
@@ -1431,10 +1433,11 @@ ApplicationWindow {
                 Action {
                     objectName: "primaryAction"
                     primary: true
-                    text: window.stage === 5 && window.progress.resumeBlocked && !window.progress.running ? "Done for now" : window.stage === 5 && window.progress.running ? "Installing…" : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : window.previewPending ? "Checking changes…" : !window.installPreview.items || window.installPreview.error ? "Review changes" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? (window.finishItems.length ? "Finish" : "Review readiness") : window.progress.operation ? "Resume installation" : "Install selections")))
+                    text: window.stage === 5 && !window.progress.running && (window.dirty || window.previousRun.historyPlanChanged) ? "Review changes →" : window.stage === 5 && window.progress.resumeBlocked && !window.progress.running ? "Done for now" : window.stage === 5 && window.progress.running ? "Installing…" : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : window.previewPending ? "Checking changes…" : !window.installPreview.items || window.installPreview.error ? "Review changes" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? (window.finishItems.length ? "Finish" : "Review readiness") : window.progress.operation ? "Resume installation" : "Install selections")))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
-                        if (window.stage === 5 && window.progress.resumeBlocked) window.close()
+                        if (window.stage === 5 && (window.dirty || window.previousRun.historyPlanChanged)) window.navigate(4)
+                        else if (window.stage === 5 && window.progress.resumeBlocked) window.close()
                         else if (window.detailPage || window.navigationStack.length) window.back()
                         else if (window.stage < 4) window.navigate(window.stage + 1)
                         else if (window.stage === 4) {
@@ -1570,7 +1573,7 @@ ApplicationWindow {
                                     TextLabel {
                                         visible: !!window.statusExpanded[modelData.key]
                                         Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted; wrapMode: Text.Wrap
-                                        text: (modelData.note || "No additional details.") + (modelData.installedVersion ? "\nInstalled: " + modelData.installedVersion : "") + (modelData.availableVersion ? "\nAvailable: " + modelData.availableVersion : "") + (modelData.checkedAt ? "\nChecked: " + new Date(modelData.checkedAt*1000).toLocaleString() : "")
+                                        text: (modelData.note || "No additional details.") + (modelData.nextAction ? "\nNext: " + modelData.nextAction : "") + (modelData.installedVersion ? "\nInstalled: " + modelData.installedVersion : "") + (modelData.availableVersion ? "\nAvailable: " + modelData.availableVersion : "") + (modelData.checkedAt ? "\nChecked: " + new Date(modelData.checkedAt*1000).toLocaleString() : "")
                                     }
                                 }
                             }

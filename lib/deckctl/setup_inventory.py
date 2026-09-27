@@ -50,10 +50,23 @@ def remote(row, current):
     if action == 'UPDATE': label, status = 'Update available', 'UPDATE'
     elif action == 'UP_TO_DATE': label, status = 'Up to date', 'CURRENT'
     elif action == 'PRESERVE_SYSTEM': label, status = 'Installed · system managed', 'INSTALLED'
+    elif check == 'Existing unmanaged tool; preserved':
+        label, status = 'Installed · managed elsewhere', 'INSTALLED'
+    elif check == 'Version comparison unavailable':
+        label, status = 'Installed · versions not comparable', 'INSTALLED'
     elif 'Unavailable' in check or 'unavailable' in check:
         label, status = 'Installed · couldn’t check updates', 'UNKNOWN'
-    else: label, status = 'Installed · update status unknown', 'INSTALLED'
-    return {**current, 'label':label, 'status':status, 'note':check,
+    else: label, status = 'Installed · update checking unavailable', 'INSTALLED'
+    notes = {
+        'Not checked': ('This component has no automatic update checker. Installed state was checked; update availability was not.', 'Use the component’s own update controls. Refresh status rechecks installed state.'),
+        'Existing unmanaged tool; preserved': ('This tool was installed outside the workstation’s managed installer; its version is preserved.', 'Update through the tool’s original installer or package manager.'),
+        'Version comparison unavailable': ('Release metadata was retrieved, but its version could not be compared reliably with the installed version.', 'Compare the installed and available versions before updating.'),
+        'System installation is reused; update through its owner': ('This installation is managed by the system rather than this installer.', 'Use Discover or the installation’s original package manager to check updates.'),
+        'Unavailable; installer will check': ('The provider did not return usable update metadata. This does not mean an update is needed.', 'Check connectivity and use Refresh status to retry. Other components can still be installed.'),
+    }
+    note, next_action = notes.get(check, (check, ''))
+    return {**current, 'label':label, 'status':status, 'note':details.get('updateReason') or note,
+            'nextAction':details.get('updateNextAction') or next_action,
             'installedVersion':details.get('installedVersion'), 'availableVersion':details.get('availableVersion'),
             'checkedAt':time.time()}
 
@@ -78,11 +91,12 @@ class Scan:
                 result = local(row)
                 with self.guard: self.results[row['key']] = result
                 if result['installed'] and not self.stopped.is_set(): result = remote(row, result)
-            except Exception:
+            except Exception as exc:
                 # One unavailable provider must not prevent the rest of the catalog scan.
                 result = {**(result or {}), 'key':row['key'], 'name':row.get('name',row['key']),
                           'label':'Installed · couldn’t check updates' if result and result.get('installed') else 'Couldn’t check', 'status':'UNKNOWN',
-                          'note':'Provider unavailable or timed out. Check connectivity and refresh to retry.', 'checkedAt':time.time()}
+                          'note':('The installed-state check failed.' if result is None else 'The update check failed; the installed component is still detected.') + (' The provider timed out.' if isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)) else ' The provider or local checker was unavailable.'),
+                          'nextAction':'Check connectivity and use Refresh status to retry. Other components can still be installed.', 'checkedAt':time.time()}
             with self.guard:
                 self.results[row['key']] = result
                 self.completed += 1

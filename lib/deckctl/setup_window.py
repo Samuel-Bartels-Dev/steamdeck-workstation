@@ -306,7 +306,7 @@ class Session:
         state = setup_install.snapshot()
         plan, rows = setup_plan.items()
         matches = state.get('fingerprint') == setup_plan.fingerprint(plan)
-        records = state.get('items', {}) if matches else {}
+        records = setup_install.resume_records(state, plan, rows)
         nested = user_session.nested_desktop()
         def desktop_deferred(record, row):
             return (nested and setup_install._nested_decky_change(row) and record.get('status') == 'NEEDS_SETUP' and
@@ -381,7 +381,7 @@ class Session:
                 'activity':self.activity.sample() if live else self.activity.history,
                 'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live and not resume_blocked,
                 'resumeBlocked': resume_blocked, 'desktopDeferredCount': desktop_deferred_count,
-                'hasHistory': bool(records), 'historyPlanChanged': bool(state.get('items')) and not matches,
+                'hasHistory': bool(state.get('items')), 'historyPlanChanged': bool(state.get('items')) and not matches,
                 'unfinished': sum(records.get(row['key'],{}).get('status') != 'DONE' for row in rows) if records else 0,
                 'lastRunAt': state.get('finishedAt') or state.get('startedAt')}
 

@@ -85,6 +85,19 @@ Item {
             tryCompare(modeNotice, "visible", true, 5000, "Game Mode guidance appears after install without leaving Desktop Mode")
             verify(modeNotice.text.indexOf("switch to Game Mode manually") >= 0)
             verify(app.visible, "Reviewing results must not close or switch the setup session")
+            app.restoreProgress({hasHistory:true,resumable:true,unfinished:2,running:false})
+            compare(app.stage,5,"Unfinished installations reopen on Downloads")
+            var recovery = find(app.contentItem, "previousRunControls")
+            for (var section=0; section<6; section++) {
+                app.navigate(section)
+                compare(recovery.visible,section===5,"Recovery controls only appear on Downloads")
+            }
+            app.dirty = true
+            primary.forceActiveFocus(); keyClick(Qt.Key_Space)
+            compare(app.stage,4,"Unsaved additions must be reviewed before continuing")
+            app.dirty = false
+            app.previousRun = {}
+            app.navigate(5)
             app.progress = {running:false,operation:"install",exitCode:2,resumeBlocked:true,desktopDeferredCount:1,modules:[{id:"plugin:Example",status:"NEEDS_SETUP",requiresDesktop:true}]}
             var deferredNotice = find(app.contentItem, "desktopDeferredNotice")
             tryCompare(deferredNotice, "visible", true, 5000, "Deferred items explain the required session")
@@ -185,8 +198,9 @@ UI.Setup {
                 app.progress = {running:false,modules:[{id:"test",status:"PENDING"}]}
                 if (app.installRows().length) throw new Error("Ready-to-install screen shows waiting rows")
                 app.restoreProgress({hasHistory:true,resumable:true,unfinished:2,lastRunAt:123,running:false,modules:[]})
-                if (app.previousRunText().indexOf("2 items") < 0 || app.stage !== 0) throw new Error("Resume guidance missing or changed navigation")
+                if (app.previousRunText().indexOf("2 items") < 0 || app.stage !== 5) throw new Error("Unfinished work must reopen Downloads with resume guidance")
                 app.previousRun = ({})
+                app.navigate(0)
                 if (app.data.sudoReadiness.state !== "PASSWORD_MISSING") throw new Error("Fresh-install password guidance missing")
                 if (app.inventoryFor({kind:"app",id:"discord"}).label !== "Update available") return
                 app.selectUpdates()
