@@ -272,3 +272,12 @@ wizards (such as initial Decky Loader installation) still use their explicit
 interactive workflow; they are separate from the Decky/CSS password dialog.
 
 Live activation follows [Decky’s existing frontend router](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/frontend/src/wsrouter.ts) and [Steam shared-context discovery](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/backend/decky_loader/injector.py). It does not connect to Decky’s single-client `/ws` endpoint or disturb its existing frontend.
+
+
+The saved choice `Game Cover Shine Animation` resolves explicitly to the official
+Store entry **Game Cover Shine Animation Color**, ID
+`a55d59e2-17ff-41f2-a672-45864169d394`. Existing selections retain their identifier;
+the picker displays the actual Store name. Resolution checks both exact name and
+reviewed ID. It does not select similarly named replacements or skip failures.
+
+Explicit Store identity mappings live in [css-store-identities.json](css-store-identities.json); the original component catalog and saved selection IDs remain unchanged.
