@@ -363,6 +363,13 @@ ApplicationWindow {
     property var importPreview: ({})
     property var deckInventory: ({items: {}, running: false})
     property bool inventoryPending: false
+    property var systemUpdates: ({})
+    property bool systemUpdatesPending: false
+    property bool systemUpdateDetails: false
+    function checkSystemUpdates() {
+        systemUpdatesPending = true
+        request("system-updates", {}, function(result) { systemUpdates = result; systemUpdatesPending = !!result.running })
+    }
     function refreshInventory() {
         inventoryPending = true
         request("inventory", {}, function(result) { deckInventory = result; inventoryPending = !!result.running })
@@ -733,6 +740,10 @@ ApplicationWindow {
     Timer {
         interval: 1000; running: window.inventoryPending; repeat: true
         onTriggered: window.request("inventory", null, function(result) { window.deckInventory = result; window.inventoryPending = !!result.running })
+    }
+    Timer {
+        interval: 1000; running: window.systemUpdatesPending; repeat: true
+        onTriggered: window.request("system-updates", null, function(result) { window.systemUpdates = result; window.systemUpdatesPending = !!result.running })
     }
     Timer {
         interval: 1000; running: window.previewPending; repeat: true
@@ -1519,6 +1530,7 @@ ApplicationWindow {
     }
     Drawer {
         id: statusDrawer; objectName: "statusDrawer"
+        onOpened: if (!window.systemUpdates.checkedAt && !window.systemUpdatesPending) window.checkSystemUpdates()
         edge: Qt.RightEdge; width: Math.min(470,window.width-32); height: window.height
         background: Rectangle { color: window.tone("#150d21") }
         contentItem: Item {
@@ -1538,6 +1550,29 @@ ApplicationWindow {
             ScrollBar.vertical.active: true
                 ColumnLayout {
                     width: statusScroll.availableWidth; spacing: 10
+                    ColumnLayout {
+                        objectName: "systemUpdateStatus"; Layout.fillWidth: true; spacing: 6
+                        TextLabel { text: "SteamOS & Decky Loader"; font.bold: true; Layout.fillWidth: true }
+                        TextLabel {
+                            text: window.systemUpdates.system ? "Installed: SteamOS " + window.systemUpdates.system.version + " · " + window.systemUpdates.system.channel + "\nDecky Loader " + window.systemUpdates.system.deckyVersion : "Reading system versions…"
+                            Layout.fillWidth: true; color: window.muted; font.pixelSize: window.px(13)
+                        }
+                        TextLabel { objectName: "steamOSUpdateLabel"; text: (window.systemUpdates.steamOS || {}).label || "Not checked"; Layout.fillWidth: true; color: window.systemUpdates.steamOS && window.systemUpdates.steamOS.status === "UPDATE" ? window.cyan : window.ink }
+                        TextLabel { visible: !!(window.systemUpdates.steamOS || {}).note; text: (window.systemUpdates.steamOS || {}).note || ""; Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        TextLabel { text: (window.systemUpdates.decky || {}).label || "Decky releases not checked"; Layout.fillWidth: true; font.pixelSize: window.px(13) }
+                        TextLabel { visible: !!(window.systemUpdates.decky || {}).note; text: (window.systemUpdates.decky || {}).note || ""; Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        TextLabel { visible: !!(window.systemUpdates.decky || {}).nextAction; text: (window.systemUpdates.decky || {}).nextAction || ""; Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        Action { objectName: "systemUpdateDetails"; text: (window.systemUpdateDetails ? "▾ " : "▸ ") + "System update details"; onClicked: window.systemUpdateDetails = !window.systemUpdateDetails }
+                        TextLabel { visible: window.systemUpdateDetails && !!window.systemUpdates.system; text: window.systemUpdates.system ? "Installed build: " + window.systemUpdates.system.build + "\nSteam client channel: " + window.systemUpdates.system.clientChannel : ""; Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        TextLabel { visible: window.systemUpdateDetails && !!(window.systemUpdates.steamOS || {}).build; text: "Offered build: " + ((window.systemUpdates.steamOS || {}).build || "") + ((window.systemUpdates.steamOS || {}).steps > 1 ? " · staged update; later steps need separate checks" : ""); Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        TextLabel { visible: window.systemUpdateDetails && !!window.systemUpdates.checkedAt; text: "Checked: " + new Date((window.systemUpdates.checkedAt || 0)*1000).toLocaleString(); Layout.fillWidth: true; font.pixelSize: window.px(13); color: window.muted }
+                        Flow {
+                            Layout.fillWidth: true; spacing: 8
+                            Action { text: window.systemUpdatesPending ? "Checking updates…" : "Check OS & Decky"; enabled: !window.systemUpdatesPending; onClicked: window.checkSystemUpdates() }
+                            Action { text: "Decky release notes ↗"; onClicked: Qt.openUrlExternally("https://github.com/SteamDeckHomebrew/decky-loader/releases") }
+                        }
+                        TextLabel { text: "Apply OS updates in Steam → Settings → System. This check only reads update metadata."; Layout.fillWidth: true; font.pixelSize: window.px(12); color: window.muted }
+                    }
                     TextLabel { visible: !window.data.sudoReadiness || window.data.sudoReadiness.status !== "PASS"; text: "Administrator access"; font.bold: true; Layout.fillWidth: true }
                     TextLabel { visible: !window.data.sudoReadiness || window.data.sudoReadiness.status !== "PASS"; text: window.data.sudoReadiness ? window.data.sudoReadiness.message : "Not checked"; Layout.fillWidth: true; color: window.data.sudoReadiness && window.data.sudoReadiness.status !== "PASS" ? window.accent : window.muted; font.pixelSize: window.px(13); wrapMode: Text.Wrap }
                     Action { visible: !window.data.sudoReadiness || window.data.sudoReadiness.status !== "PASS"; text: "Recheck password"; enabled: !window.progress.running; onClicked: window.request("sudo-readiness", null, function(result) { var next = Object.assign({},window.data); next.sudoReadiness = result; window.data = next }) }

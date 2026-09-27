@@ -65,6 +65,8 @@ class Session:
         self.preview_thread = None
         self.import_archive = None
         self.inventory_scan = None
+        self.system_update_check = None
+        self.system_update_lock = threading.Lock()
         from .setup_activity import Sampler
         self.activity = Sampler()
 
@@ -125,6 +127,13 @@ class Session:
         if refresh and (self.inventory_scan is None or not self.inventory_scan.snapshot()['running']):
             self.inventory_scan = setup_inventory.Scan(setup_inventory.catalog_rows(self.snapshot()))
         return self.inventory_scan.snapshot() if self.inventory_scan else {'items':{}, 'running':False, 'completed':0, 'total':0}
+
+    def system_updates(self, refresh=False):
+        from . import system_updates
+        with self.system_update_lock:
+            if refresh and (self.system_update_check is None or not self.system_update_check.snapshot()['running']):
+                self.system_update_check = system_updates.Check()
+            return self.system_update_check.snapshot() if self.system_update_check else {'running':False}
 
     def save(self, payload):
         if setup_install.running() or (self.process and self.process.poll() is None):
@@ -429,6 +438,8 @@ def launch(plan_only=False):
                         result = {'saved':True}
                     elif route == 'inventory':
                         result = session.inventory(refresh=True)
+                    elif route == 'system-updates':
+                        result = session.system_updates(refresh=True)
                     elif route == 'save':
                         result = session.save(payload)
                     elif route == 'start':
@@ -447,6 +458,8 @@ def launch(plan_only=False):
                         raise ValueError('Unknown operation')
                 elif route == 'inventory':
                     result = session.inventory()
+                elif route == 'system-updates':
+                    result = session.system_updates()
                 elif route == 'sudo-readiness':
                     from . import preflight
                     result = preflight.sudo_readiness()

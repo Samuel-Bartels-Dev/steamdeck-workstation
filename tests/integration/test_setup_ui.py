@@ -18,6 +18,14 @@ from deckctl import apps, core, setup_window, gaming_options, css_stack, compone
 
 @unittest.skipUnless(shutil.which('qml6') or shutil.which('qml'), 'Qt Quick runtime unavailable')
 class NativeSetup(unittest.TestCase):
+    def setUp(self):
+        fixture = {'running':False,'checkedAt':1,
+                   'system':{'version':'3.8.16','build':'20260716.1','channel':'stable','deckyVersion':'v3.2.9','clientChannel':'steamdeck_stable'},
+                   'steamOS':{'status':'UPDATE','label':'Update available: 3.9.1','build':'20260927.1'},
+                   'decky':{'label':'Latest stable: v3.2.9'}}
+        check=patch.object(setup_window.Session,'system_updates',return_value=fixture)
+        check.start(); self.addCleanup(check.stop)
+
     def test_real_window_saves_app_dependencies_without_installing(self):
         for width, height in ((1280,800),(1120,720),(800,600),(760,540)):
             with self.subTest(size=(width,height)):

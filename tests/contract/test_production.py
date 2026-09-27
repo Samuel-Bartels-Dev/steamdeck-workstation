@@ -512,4 +512,98 @@ class Production(unittest.TestCase):
         self.assertFalse(core.STATE.exists())
 
 
+class SystemUpdates(unittest.TestCase):
+    def setUp(self):
+        from deckctl import system_updates
+        self.updates = system_updates
+        self.host = dict(os='steamos',version='3.8.16',build='20260716.1',channel='stable',deckyVersion='v3.2.9',clientChannel='steamdeck_stable')
+        self.offered = dict(status='UPDATE',version='3.9.1',build='20260927.1')
+
+
+
+    def test_os_and_decky_network_checks_fail_independently(self):
+        import urllib.error
+        latest = dict(tag_name='v3.3.0',draft=False,prerelease=False)
+        with patch.object(self.updates,'local',return_value=self.host):
+            with patch.object(self.updates,'os_update',side_effect=TimeoutError('secret')), patch.object(self.updates,'metadata',return_value=latest):
+                report = self.updates.report()
+                self.assertEqual(report['steamOS']['status'],'UNKNOWN')
+                self.assertEqual(report['decky']['latestVersion'],'v3.3.0')
+                self.assertNotIn('secret',json.dumps(report))
+            failure = urllib.error.HTTPError('https://example.invalid/?secret',429,'secret',{'X-RateLimit-Reset':'1790000000'},None)
+            with patch.object(self.updates,'os_update',return_value=self.offered), patch.object(self.updates,'metadata',side_effect=failure):
+                report = self.updates.report()
+                self.assertEqual(report['steamOS']['status'],'UPDATE')
+                self.assertIn('UTC',report['decky']['nextAction'])
+                self.assertNotIn('secret',json.dumps(report))
+
+    def test_metadata_rejects_redirects_untrusted_hosts_and_large_payloads(self):
+        from unittest.mock import Mock
+        import urllib.request
+        for url in ('http://api.github.com/test','https://example.invalid/test','https://user:secret@api.github.com/test','https://api.github.com:8443/test'):
+            with self.assertRaises(ValueError): self.updates.metadata(url)
+        with self.assertRaises(ValueError): self.updates.NoRedirect().redirect_request(None,None,302,'',{},'https://example.invalid')
+        response = Mock(); response.read.return_value = b'x'*(1024*1024+1)
+        context = Mock(); context.__enter__ = Mock(return_value=response); context.__exit__ = Mock(return_value=False)
+        with patch.object(urllib.request,'build_opener') as opener:
+            opener.return_value.open.return_value = context
+            with self.assertRaises(ValueError): self.updates.metadata('https://api.github.com/test')
+
+    def test_os_query_uses_native_path_and_never_executes_updater(self):
+        from unittest.mock import Mock
+        import types
+        import subprocess
+        image = Mock(arch='amd64'); image.get_update_path.return_value='native/path.json'
+        native = types.ModuleType('steamosatomupd.image'); native.Image=Mock(); native.Image.from_dict.return_value=image
+        package = types.ModuleType('steamosatomupd'); package.image=native
+        preferences = '[Choices]\nBranch=stable\nVariant=steamdeck\n'
+        config = '[Server]\nMetaUrl=https://steamdeck-atomupd.steamos.cloud/meta\n'
+        def read(parser,filename):
+            parser.read_string(preferences if filename.endswith('preferences.conf') else config)
+        candidate = dict(image=dict(product='steamos',arch='amd64',variant='steamdeck',version='3.9.1',buildid='20260927.1'))
+        with patch.dict(sys.modules,{'steamosatomupd':package,'steamosatomupd.image':native}), patch.object(self.updates.configparser.ConfigParser,'read',read), patch.object(Path,'read_text',return_value='{}'), patch.object(subprocess,'run') as command, patch.object(self.updates,'metadata',return_value=dict(candidates=[candidate])) as request:
+            self.assertEqual(self.updates.os_update(self.host)['status'],'UPDATE')
+            request.assert_called_once_with('https://steamdeck-atomupd.steamos.cloud/meta/native/path.json')
+            command.assert_not_called()
+            request.return_value={'minor':{'release':'holo','candidates':[candidate]}}
+            self.assertEqual(self.updates.os_update(self.host)['status'],'UPDATE')
+            request.return_value={}
+            self.assertEqual(self.updates.os_update(self.host)['status'],'CURRENT')
+            request.return_value=dict(candidates=[{**candidate,'image':{**candidate['image'],'variant':'wrong'}}])
+            with self.assertRaises(ValueError): self.updates.os_update(self.host)
+            request.return_value=dict(candidates=[{**candidate,'image':{**candidate['image'],'version':'3.7.0'}}])
+            self.assertEqual(self.updates.os_update(self.host)['status'],'DIFFERENT')
+
+    def test_system_check_is_nonblocking_and_deduplicated(self):
+        import threading
+        from deckctl import setup_window
+        entered=threading.Event(); release=threading.Event()
+        def slow():
+            entered.set(); release.wait(2); return {'running':False,'checkedAt':1}
+        with patch.object(self.updates,'report',side_effect=slow):
+            session=setup_window.Session()
+            self.assertTrue(session.system_updates(refresh=True)['running'])
+            self.assertTrue(entered.wait(1))
+            original=session.system_update_check
+            session.system_updates(refresh=True)
+            self.assertIs(session.system_update_check,original)
+            release.set()
+
+    def test_draft_release_is_not_presented_as_available_update(self):
+        with patch.object(self.updates,'local',return_value=self.host), patch.object(self.updates,'os_update',return_value=self.offered), patch.object(self.updates,'metadata',return_value=dict(tag_name='v3.3.0',draft=True,prerelease=False)):
+            result = self.updates.report()
+        self.assertNotIn('latestVersion',result['decky'])
+
+
+
+
+    def test_update_check_has_no_compatibility_results_or_installed_tag_requests(self):
+        release=dict(tag_name='v3.3.0',draft=False,prerelease=False,body='Supports SteamOS 3.9.1.')
+        with patch.object(self.updates,'local',return_value=self.host), patch.object(self.updates,'os_update',return_value=self.offered), patch.object(self.updates,'metadata',return_value=release) as request:
+            result=self.updates.report()
+        request.assert_called_once_with('https://api.github.com/repos/SteamDeckHomebrew/decky-loader/releases/latest')
+        self.assertEqual(result['decky']['latestVersion'],'v3.3.0')
+        self.assertFalse({'compatibility','currentCompatibility','upstreamGuidance','scope'} & result.keys())
+
+
 if __name__ == '__main__': unittest.main(verbosity=2)
