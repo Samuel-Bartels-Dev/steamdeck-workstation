@@ -8,6 +8,8 @@ import math
 from pathlib import Path
 import shutil
 import subprocess
+import urllib.error
+from datetime import datetime, timezone
 from . import core, apps, component_options, gaming_options, css_stack, setup_builder, appearance
 
 GROUPS = {'terminal', 'dev', 'remote', 'media', 'workspace', 'gaming', 'utilities'}
@@ -262,6 +264,27 @@ def review_notes(row):
     return notes
 
 
+def update_failure(result, exc):
+    """Explain failed metadata checks without exposing URLs or response bodies."""
+    result['updateCheck'] = 'Unavailable; installer will check'
+    result['updateReason'] = 'The provider could not return usable update metadata.'
+    result['updateNextAction'] = 'Check connectivity and use Refresh status to retry. Other components can still be installed.'
+    if isinstance(exc, urllib.error.HTTPError):
+        headers = exc.headers or {}
+        limited = exc.code == 429 or (exc.code == 403 and headers.get('X-RateLimit-Remaining') == '0')
+        result['updateReason'] = 'The provider’s API request limit was reached.' if limited else f'The provider rejected the metadata request (HTTP {exc.code}).'
+        reset = headers.get('X-RateLimit-Reset', '')
+        if limited and reset.isdigit() and 0 < int(reset) < 253402300800:
+            when = datetime.fromtimestamp(int(reset), timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+            result['updateNextAction'] = f'The provider reports a limit reset at {when}. Refresh status after that time; other components remain available.'
+    elif isinstance(exc, (TimeoutError, subprocess.TimeoutExpired)):
+        result['updateReason'] = 'The update provider timed out.'
+    elif isinstance(exc, urllib.error.URLError):
+        result['updateReason'] = 'The update provider could not be reached (network, DNS or TLS failure).'
+    elif isinstance(exc, ValueError):
+        result['updateReason'] = 'The provider returned metadata that could not be read safely.'
+
+
 def inspect(row, online=False):
     installed, evidence = present(row)
     result = {**row, 'installed': installed, 'action': 'INSTALLED' if installed else 'NEW',
@@ -299,7 +322,7 @@ def inspect(row, online=False):
             needed = remote != local
             result['updateCheck'] = 'Checked'
             if installed: result['action'] = 'UPDATE' if needed else 'UP_TO_DATE'
-        except (OSError, ValueError, RuntimeError): result['updateCheck'] = 'Unavailable; installer will check'
+        except (OSError, ValueError, RuntimeError) as exc: update_failure(result, exc)
     elif online and row['key'].startswith('terminal:'):
         from . import terminal
         name = row.get('component')
@@ -315,7 +338,7 @@ def inspect(row, online=False):
                     newer = terminal.newer_version(release.get('tag_name'), receipt.get('version'))
                     result['updateCheck'] = 'Checked' if newer is not None or not installed else 'Version comparison unavailable'
                     if installed and newer is not None: result['action'] = 'UPDATE' if newer else 'UP_TO_DATE'
-                except (OSError, ValueError, RuntimeError): result['updateCheck'] = 'Unavailable; installer will check'
+                except (OSError, ValueError, RuntimeError) as exc: update_failure(result, exc)
     path, budget, label = storage_budget(row, installed)
     if result.get('providerInstalledBytes') is not None and result['downloadBytes'] is not None:
         budget = result['providerInstalledBytes'] + result['downloadBytes']

@@ -461,6 +461,37 @@ class Production(unittest.TestCase):
         self.assertEqual(json.dumps(snapshot,sort_keys=True),before)
         self.assertFalse(core.CONFIG_HOME.exists())
 
+    def test_inventory_explains_unavailable_unmanaged_and_uncomparable_checks(self):
+        from deckctl import setup_inventory, setup_plan
+        current = dict(installed=True, status='INSTALLED')
+        for check, label in [('Not checked', 'Installed · update checking unavailable'),
+                             ('Existing unmanaged tool; preserved', 'Installed · managed elsewhere'),
+                             ('Version comparison unavailable', 'Installed · versions not comparable'),
+                             ('System installation is reused; update through its owner', 'Installed · system managed')]:
+            action = 'PRESERVE_SYSTEM' if check.startswith('System') else 'INSTALLED'
+            with patch.object(setup_plan, 'inspect', return_value=dict(installed=True, action=action, updateCheck=check)):
+                result = setup_inventory.remote({'key':'example'}, current)
+            self.assertEqual(result['label'], label)
+            self.assertTrue(result['note'])
+            self.assertTrue(result['nextAction'])
+
+    def test_update_failure_reports_rate_reset_without_secret_response(self):
+        import urllib.error
+        from deckctl import setup_plan, setup_inventory
+        failure = urllib.error.HTTPError('https://example.invalid/?token=secret', 403, 'secret',
+                                         {'X-RateLimit-Remaining':'0', 'X-RateLimit-Reset':'1790000000'}, None)
+        details = dict(installed=True, action='INSTALLED')
+        setup_plan.update_failure(details, failure)
+        with patch.object(setup_plan, 'inspect', return_value=details):
+            result = setup_inventory.remote({'key':'example'}, dict(installed=True))
+        self.assertIn('limit', result['note'])
+        self.assertIn('UTC', result['nextAction'])
+        self.assertNotIn('secret', json.dumps(result))
+        for failure, reason in [(TimeoutError(), 'timed out'), (urllib.error.URLError('secret'), 'network'), (ValueError('secret'), 'metadata')]:
+            setup_plan.update_failure(details, failure)
+            self.assertIn(reason, details['updateReason'])
+            self.assertNotIn('secret', json.dumps(details))
+
     def test_inventory_provider_failure_is_not_missing_and_scan_continues(self):
         from deckctl import setup_inventory
         import time

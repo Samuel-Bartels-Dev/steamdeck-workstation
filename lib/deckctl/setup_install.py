@@ -63,6 +63,20 @@ def snapshot():
     return state
 
 
+def item_fingerprint(plan, row):
+    # Selection-only additions must not invalidate unrelated completed work.
+    # Configuration changes and installer upgrades must still be re-applied.
+    configuration = {key:value for key,value in plan.items() if key not in ('modules', 'apps')}
+    return setup_plan.fingerprint({'item':row, 'configuration':configuration})
+
+
+def resume_records(state, plan, rows):
+    same = state.get('fingerprint') == setup_plan.fingerprint(plan)
+    previous = state.get('items', {})
+    return {row['key']:dict(previous[row['key']]) for row in rows if row['key'] in previous and
+            (same or previous[row['key']].get('itemFingerprint') == item_fingerprint(plan, row))}
+
+
 @contextmanager
 def lock():
     core.STATE.mkdir(parents=True, exist_ok=True)
@@ -246,12 +260,12 @@ def _run_plan(only, resume, journal):
         core.save_json(journal.path/'plan.json', {**core.load_json(journal.path/'plan.json', {}), 'plan': plan, 'items': rows, 'requested_item': only, 'resume': resume})
         fingerprint = setup_plan.fingerprint(plan)
         previous = core.load_json(state_path(), {})
-        same = previous.get('fingerprint') == fingerprint
         state = {'run_id': journal.id, 'fingerprint': fingerprint, 'version': (core.ROOT/'VERSION').read_text().strip(),
-                 'startedAt': time.time(), 'items': previous.get('items', {}) if same else {}}
+                 'startedAt': time.time(), 'items': resume_records(previous, plan, rows)}
         records = state['items']
         for row in rows:
             records.setdefault(row['key'], {'name': row['name'], 'status': 'PENDING', 'message': ''})
+            records[row['key']]['itemFingerprint'] = item_fingerprint(plan, row)
         def record(key, status, message):
             records[key].update(status=status, message=message, updatedAt=time.time())
             if status != 'RUNNING': records[key]['finishedAt'] = time.time()

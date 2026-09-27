@@ -464,7 +464,37 @@ class Experience(unittest.TestCase):
         with patch.object(setup_plan,'items',return_value=({**self.plan,'palette':'bubblegum'},rows)):
             changed = setup_window.Session().progress()
         self.assertTrue(changed['historyPlanChanged']); self.assertFalse(changed['resumable'])
-        self.assertFalse(changed['hasHistory'])
+        self.assertTrue(changed['hasHistory'])
+        self.assertTrue(all(row['status'] == 'PENDING' for row in changed['items']))
+
+    def test_resume_changed_selections_preserves_verified_work_and_adds_new_items(self):
+        rows = [dict(key=k, name=k, kind='component', requires=[], visible=True) for k in ('healthy','broken','removed')]
+        with patch.object(setup_plan, 'items', return_value=(self.plan, rows)), patch.object(setup_plan, 'storage_budget', return_value=(self.root,None,'')), patch.object(setup_install,'verify',return_value=True):
+            def interrupt(row):
+                if row['key'] == 'broken': raise KeyboardInterrupt()
+            with patch.object(setup_install,'execute',side_effect=interrupt):
+                self.assertEqual(setup_install.run(),2)
+        updated = {**self.plan, 'apps':['new-app']}
+        new_rows = [rows[0],rows[1],dict(key='new',name='new',kind='component',requires=['healthy'],visible=True)]
+        with patch.object(setup_plan,'items',return_value=(updated,new_rows)), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',return_value=True):
+            progress = setup_window.Session().progress()
+            self.assertTrue(progress['resumable'])
+            self.assertEqual(progress['unfinished'],2)
+            self.assertEqual(next(row for row in progress['items'] if row['key']=='new')['status'],'PENDING')
+            with patch.object(setup_install,'execute') as execute:
+                self.assertEqual(setup_install.run(resume=True),0)
+            self.assertEqual([call.args[0]['key'] for call in execute.call_args_list],['broken','new'])
+        self.assertNotIn('removed',setup_install.snapshot()['items'])
+
+    def test_changed_configuration_and_unhealthy_completed_items_are_not_skipped(self):
+        row = dict(key='sample',name='sample',kind='component',requires=[])
+        state = {'fingerprint':setup_plan.fingerprint(self.plan), 'items':{'sample':{'status':'DONE','itemFingerprint':setup_install.item_fingerprint(self.plan,row)}}}
+        self.assertEqual(setup_install.resume_records(state,{**self.plan,'palette':'different'},[row]),{})
+        core.save_json(setup_install.state_path(),state)
+        calls = []
+        with patch.object(setup_plan,'items',return_value=(self.plan,[row])), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',side_effect=[False,True]), patch.object(setup_install,'execute',side_effect=lambda item:calls.append(item['key'])):
+            self.assertEqual(setup_install.run(resume=True),0)
+        self.assertEqual(calls,['sample'])
 
     def test_results_only_claim_update_when_reported_and_include_next_steps(self):
         rows = [dict(key=k,name=k,visible=True,followup='signin') for k in ('updated','generic','failed')]
