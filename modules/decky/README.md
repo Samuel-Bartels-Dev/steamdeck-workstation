@@ -5,6 +5,20 @@ Every plugin is optional, including the Core and Recommended lists below. In `de
 
 Decky is an enhancement layer, never a core dependency. Steam, games, remote access and recovery should continue to work if Decky is temporarily broken.
 
+## SteamOS and Decky updates
+
+Open **Deck status → SteamOS & Decky Loader** in the setup UI to check installed
+versions and update availability. Valve metadata provides the offered OS
+version/build on your selected channel; Decky's GitHub API provides its latest
+stable Loader release. The checks run independently and on demand. Details show
+builds, channel and check time; release notes remain available through a link.
+
+This feature does not assess SteamOS/Decky compatibility or fetch installed-tag
+compatibility guidance. It never invokes the updater CLI, requests sudo, installs
+updates, restarts services or switches sessions. Apply OS updates yourself in
+Steam's **Settings → System**. Offline and provider failures remain visible and
+leave other installer work available.
+
 **Nested Desktop:** CSS changes use the live CSS Loader connection without a
 Decky restart or sudo. Missing plugin installations are deferred until you manually
 switch to normal Desktop Mode and retry them. Restarting Decky can restart Steam's
@@ -272,12 +286,3 @@ wizards (such as initial Decky Loader installation) still use their explicit
 interactive workflow; they are separate from the Decky/CSS password dialog.
 
 Live activation follows [Decky’s existing frontend router](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/frontend/src/wsrouter.ts) and [Steam shared-context discovery](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/backend/decky_loader/injector.py). It does not connect to Decky’s single-client `/ws` endpoint or disturb its existing frontend.
-
-
-The saved choice `Game Cover Shine Animation` resolves explicitly to the official
-Store entry **Game Cover Shine Animation Color**, ID
-`a55d59e2-17ff-41f2-a672-45864169d394`. Existing selections retain their identifier;
-the picker displays the actual Store name. Resolution checks both exact name and
-reviewed ID. It does not select similarly named replacements or skip failures.
-
-Explicit Store identity mappings live in [css-store-identities.json](css-store-identities.json); the original component catalog and saved selection IDs remain unchanged.

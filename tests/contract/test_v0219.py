@@ -269,31 +269,6 @@ class CSSBehavior(Isolated):
         with patch.object(css, '_fetch_json', return_value={'success': True, 'res': [{'name': 'x'}]}):
             with self.assertRaises(css.CSSError): css.Backend().themes()
 
-    def test_shine_catalog_mapping_keeps_saved_selection_and_exact_store_identity(self):
-        logical = 'Game Cover Shine Animation'
-        actual = 'Game Cover Shine Animation Color'
-        ident = 'a55d59e2-17ff-41f2-a672-45864169d394'
-        item = {'id':ident, 'name':actual, 'displayName':actual, 'type':'Css',
-                'manifestVersion':5, 'download':{'id':'blob'}, 'approved':True}
-        self.assertIn(logical, css.validate_selection([logical]))
-        option = next(row for row in css.selection_items() if row['id'] == logical)
-        self.assertEqual(option['name'], actual)
-        with patch.object(css, '_fetch_json', side_effect=[{'items':[item], 'total':1}, item]) as fetch:
-            self.assertEqual(css._resolve_store_theme(logical)['id'], ident)
-            query = css.urllib.parse.parse_qs(css.urllib.parse.urlsplit(fetch.call_args_list[0].args[0]).query)
-            self.assertEqual(query['search'], [actual])
-        for wrong in [dict(item, id='unreviewed'), dict(item, name='Similar Shine', displayName='Similar Shine')]:
-            with patch.object(css, '_fetch_json', return_value={'items':[wrong], 'total':1}), self.assertRaises(css.CSSError):
-                css._resolve_store_theme(logical)
-        theme = {'name':'ShineAnimationColor', 'display_name':actual, 'patches':[]}
-        self.assertEqual(css._live_theme([theme], logical), theme)
-        write_json(css.THEMES_DIR/'shine/theme.json', {'name':theme['name'], 'display_name':actual})
-        self.assertEqual(css._find(css._installed_themes(), logical)['path'], css.THEMES_DIR/'shine')
-        with self.assertRaises(css.CSSError):
-            css._live_theme([theme, {'name':logical, 'patches':[]}], logical)
-        with self.assertRaises(css.CSSError):
-            css._find({logical.casefold(): {'name':logical}, actual.casefold(): {'name':actual}}, logical)
-
     def test_installed_api_validation_and_restart_free_live_bridge(self):
         write_json(css.PLUGIN_DIR / 'plugin.json', {'name': 'CSS Loader'})
         methods = ('get_themes', 'fetch_theme_path', 'get_backend_version', 'download_theme_from_url', 'set_theme_state', 'set_patch_of_theme', 'set_component_of_theme_patch', 'reset', 'generate_preset_theme_from_theme_names', 'enable_server', 'get_server_state')
