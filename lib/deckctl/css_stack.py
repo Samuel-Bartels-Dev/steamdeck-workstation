@@ -97,7 +97,7 @@ def validate_selection(values):
 
 def selection_items():
     data = _stack(unfiltered=True)
-    return [{'id': item['name'], 'name': item['name'], 'summary': item.get('reason', '')}
+    return [{'id': item['name'], 'name': _store_identity(item['name'])[0], 'summary': item.get('reason', '')}
             for category in ('required', 'recommended', 'optional') for item in data.get(category, [])]
 
 
@@ -107,6 +107,18 @@ def _read(path):
 
 def _key(name):
     return ''.join(c for c in str(name).casefold() if c.isalnum())
+
+
+def _store_identity(name):
+    """Explicit catalog mappings preserve saved selection IDs; never guess names."""
+    data = core.load_json(core.ROOT/'modules/decky/css-store-identities.json', {})
+    item = data.get('themes', {}).get(name, {})
+    return item.get('name', name), item.get('id')
+
+
+def _theme_keys(name):
+    store_name, _ = _store_identity(name)
+    return {_key(name), _key(store_name)}
 
 
 def _installed_themes():
@@ -127,7 +139,8 @@ def _installed_themes():
 
 
 def _find(installed, wanted):
-    matches = [v for k, v in installed.items() if _key(k) == _key(wanted)]
+    keys = _theme_keys(wanted)
+    matches = [v for k, v in installed.items() if _key(k) in keys]
     if len(matches) > 1:
         raise CSSError(f'Ambiguous installed component: {wanted}')
     return matches[0] if matches else None
@@ -217,14 +230,17 @@ def _backend_session():
 
 def _resolve_store_theme(name):
     """Same search/detail endpoints used by CSS Loader's Theme Store UI."""
+    store_name, expected_id = _store_identity(name)
+    if store_name != name:
+        print(f'Theme Store identity: {name} → {store_name}', flush=True)
     matches = {}
     for page in range(1, 21):
-        query = urllib.parse.urlencode({'search': name, 'page': page, 'perPage': 50, 'filters': 'BPM-CSS.-Preset'})
+        query = urllib.parse.urlencode({'search': store_name, 'page': page, 'perPage': 50, 'filters': 'BPM-CSS.-Preset'})
         data = _fetch_json(f'{STORE_API}/themes?{query}')
         if not isinstance(data, dict) or not isinstance(data.get('items'), list) or not isinstance(data.get('total'), int):
             raise CSSError('Theme Store search schema changed')
         for item in data['items']:
-            if _key(name) in {_key(item.get('name', '')), _key(item.get('displayName', ''))} and item.get('type', 'Css') == 'Css':
+            if _key(store_name) in {_key(item.get('name', '')), _key(item.get('displayName', ''))} and item.get('type', 'Css') == 'Css':
                 matches[item['id']] = item
         if page * 50 >= data['total']:
             break
@@ -234,10 +250,12 @@ def _resolve_store_theme(name):
         raise CSSError(f'Theme Store must return one exact match for {name}; found {len(matches)}')
     item = next(iter(matches.values()))
     ident = str(item['id'])
+    if expected_id is not None and ident != expected_id:
+        raise CSSError(f'Theme Store ID differs from the reviewed catalog: {store_name}')
     detail = _fetch_json(f'{STORE_API}/themes/{urllib.parse.quote(ident, safe="")}')
     if detail.get('disabled') or detail.get('approved') is False or detail.get('type', 'Css') != 'Css':
         raise CSSError(f'Theme Store component unavailable: {name}')
-    if _key(name) not in {_key(detail.get('name', '')), _key(detail.get('displayName', ''))} or str(detail.get('id')) != ident:
+    if _key(store_name) not in {_key(detail.get('name', '')), _key(detail.get('displayName', ''))} or str(detail.get('id')) != ident:
         raise CSSError(f'Theme Store identity mismatch: {name}')
     if not isinstance(detail.get('manifestVersion'), int) or not detail.get('download', {}).get('id'):
         raise CSSError(f'Theme Store download metadata incomplete: {name}')
@@ -245,7 +263,8 @@ def _resolve_store_theme(name):
 
 
 def _live_theme(themes, name):
-    matches = [t for t in themes if _key(name) in {_key(t['name']), _key(t.get('display_name', ''))}]
+    keys = _theme_keys(name)
+    matches = [t for t in themes if keys & {_key(t['name']), _key(t.get('display_name', ''))}]
     if len(matches) > 1:
         raise CSSError(f'Ambiguous loaded CSS component: {name}')
     return matches[0] if matches else None
@@ -560,7 +579,7 @@ def apply(only=None):
         return 0
     except (OSError, ValueError, KeyError, TypeError, CSSError) as exc:
         print(f'CSS CONFIG_REQUIRED: {exc}')
-        print('Retry in Desktop Mode: deckctl decky css apply. Completed components are retained.')
+        print('Retry: deckctl decky css apply (normal or Nested Desktop). Completed components are retained.')
         return 2
 
 
