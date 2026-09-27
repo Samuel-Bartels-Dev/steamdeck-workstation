@@ -13,7 +13,8 @@ import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import AsyncMock, Mock, MagicMock, patch
+from types import SimpleNamespace
 import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -99,7 +100,7 @@ class Isolated(unittest.TestCase):
         self.addCleanup(self.temp.cleanup)
         self.home = Path(self.temp.name)
         self.stack = contextlib.ExitStack(); self.addCleanup(self.stack.close)
-        self.stack.enter_context(patch.dict(os.environ, {'HOME': str(self.home), 'DECKCTL_STATE': str(self.home / 'state'), 'DECKCTL_CONFIG': str(self.home / 'config')}))
+        self.stack.enter_context(patch.dict(os.environ, {'HOME': str(self.home), 'DECKCTL_STATE': str(self.home / 'state'), 'DECKCTL_CONFIG': str(self.home / 'config'), 'XDG_RUNTIME_DIR': str(self.home / 'runtime')}))
         for module, name, value in [
             (core, 'STATE', self.home / 'state'), (core, 'CONFIG_HOME', self.home / 'config'),
             (css, 'THEMES_DIR', self.home / 'homebrew/themes'), (css, 'PLUGIN_DIR', self.home / 'homebrew/plugins/SDH-CssLoader'), (css, 'RECEIPT', self.home / 'config/css-stack-receipt.json'),
@@ -268,19 +269,113 @@ class CSSBehavior(Isolated):
         with patch.object(css, '_fetch_json', return_value={'success': True, 'res': [{'name': 'x'}]}):
             with self.assertRaises(css.CSSError): css.Backend().themes()
 
-    def test_installed_api_validation_and_temporary_bridge_cleanup(self):
+    def test_installed_api_validation_and_restart_free_live_bridge(self):
         write_json(css.PLUGIN_DIR / 'plugin.json', {'name': 'CSS Loader'})
-        methods = ('get_themes', 'fetch_theme_path', 'get_backend_version', 'download_theme_from_url', 'set_theme_state', 'set_patch_of_theme', 'set_component_of_theme_patch', 'reset', 'generate_preset_theme_from_theme_names')
+        methods = ('get_themes', 'fetch_theme_path', 'get_backend_version', 'download_theme_from_url', 'set_theme_state', 'set_patch_of_theme', 'set_component_of_theme_patch', 'reset', 'generate_preset_theme_from_theme_names', 'enable_server', 'get_server_state')
         (css.PLUGIN_DIR / 'main.py').write_text('\n'.join(f'async def {name}(): pass' for name in methods))
         (css.PLUGIN_DIR / 'css_server.py').write_text("HOST='127.0.0.1'\nPORT=35821\nROUTE='/req'\n")
         (css.PLUGIN_DIR / 'css_utils.py').write_text('def store_or_file_config(key): return key.upper()\n')
         css._validate_plugin()
         backend = NativeBackend()
-        with patch.object(css, 'Backend', return_value=backend), patch.object(backend, 'themes', side_effect=[OSError('not started'), []]), patch.object(decky_installer, '_restart_decky', return_value=True) as restart:
-            with css._backend_session(): self.assertTrue((css.THEMES_DIR / 'SERVER').exists())
-            self.assertFalse((css.THEMES_DIR / 'SERVER').exists()); self.assertEqual(restart.call_count, 2)
+        with patch.object(css, 'Backend', return_value=backend), patch.object(backend, 'themes', side_effect=[OSError('not started'), []]), patch.object(css.css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky', side_effect=AssertionError('No restart')) as restart:
+            with css._backend_session(): self.assertFalse((css.THEMES_DIR / 'SERVER').exists())
+            self.assertFalse((css.THEMES_DIR / 'SERVER').exists()); restart.assert_not_called(); enable.assert_called_once()
         (css.PLUGIN_DIR / 'main.py').write_text('')
         with self.assertRaises(css.CSSError): css._validate_plugin()
+
+    def test_live_transport_uses_only_local_shared_context_and_existing_decky_router(self):
+        live = css.css_live
+        tabs = [{'title':'SharedJSContext', 'url':'https://steamloopback.host/routes/',
+                 'webSocketDebuggerUrl':'ws://127.0.0.1:8080/devtools/page/shared'}]
+        response = MagicMock(); response.status = 200
+        response.__aenter__ = AsyncMock(return_value=response)
+        response.content.read = AsyncMock(side_effect=[json.dumps(tabs).encode()[:30], json.dumps(tabs).encode()[30:], b''])
+        connection = MagicMock(); connection.__aenter__ = AsyncMock(return_value=connection)
+        connection.send_json = AsyncMock()
+        connection.receive_json = AsyncMock(side_effect=[{'id':99}, {'id':1, 'result':{'result':{'value':{'available':True}}}}])
+        client = MagicMock(); client.__aenter__ = AsyncMock(return_value=client)
+        client.get.return_value = response; client.ws_connect.return_value = connection
+        session = Mock(return_value=client)
+        fake = SimpleNamespace(ClientSession=session, ClientTimeout=lambda **kwargs: kwargs,
+                               TraceConfig=lambda: SimpleNamespace(on_request_redirect=[]), ClientError=ConnectionError)
+        with patch.dict(sys.modules, {'aiohttp':fake}): live.enable()
+        self.assertFalse(session.call_args.kwargs['trust_env'])
+        client.get.assert_called_once_with(live.DEBUGGER, allow_redirects=False)
+        client.ws_connect.assert_called_once_with(tabs[0]['webSocketDebuggerUrl'], max_msg_size=live.MAX_RESPONSE)
+        command = connection.send_json.call_args.args[0]
+        self.assertEqual(command['method'], 'Runtime.evaluate')
+        expression = command['params']['expression']
+        self.assertIn('DeckyBackend.call', expression)
+        self.assertIn('"enable_server"', expression)
+        self.assertNotIn('new WebSocket', expression)
+        self.assertNotIn('auth/token', expression)
+        self.assertNotIn('store_write', expression)
+        connection.__aexit__.assert_awaited_once()
+        client.__aexit__.assert_awaited_once()
+
+    def test_live_target_rejects_remote_debuggers_unrelated_pages_and_ambiguity(self):
+        live = css.css_live
+        good = {'title':'SharedJSContext', 'url':'https://steamloopback.host/routes/',
+                'webSocketDebuggerUrl':'ws://127.0.0.1:8080/devtools/page/shared'}
+        self.assertEqual(live._target([good]), good['webSocketDebuggerUrl'])
+        for tabs in [[dict(good, webSocketDebuggerUrl='ws://example.com:8080/devtools/page/shared')],
+                     [dict(good, webSocketDebuggerUrl='ws://127.0.0.1:1337/ws')],
+                     [dict(good, url='https://example.com/routes/')], [good, good], {}, []]:
+            with self.subTest(tabs=tabs), self.assertRaises(live.LiveError): live._target(tabs)
+
+    def test_live_websocket_redirect_is_rejected_before_requesting_destination(self):
+        try:
+            import aiohttp  # noqa: F401 — optional real transport integration
+        except ImportError:
+            self.skipTest('Optional aiohttp is absent; mocked transport tests still run')
+        from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+        from threading import Thread
+        live = css.css_live
+        received = []
+        class Destination(BaseHTTPRequestHandler):
+            def log_message(self, *_args): pass
+            def do_GET(self):
+                received.append(self.path)
+                self.send_response(500); self.end_headers()
+        destination = ThreadingHTTPServer(('127.0.0.1', 0), Destination)
+        class Redirector(BaseHTTPRequestHandler):
+            def log_message(self, *_args): pass
+            def do_GET(self):
+                if self.path == '/json':
+                    self.send_response(200); self.end_headers(); self.wfile.write(b'[]')
+                else:
+                    self.send_response(302)
+                    self.send_header('Location', f'http://127.0.0.1:{destination.server_port}/redirected')
+                    self.end_headers()
+        source = ThreadingHTTPServer(('127.0.0.1', 0), Redirector)
+        for server in (source, destination):
+            Thread(target=server.serve_forever, daemon=True).start()
+            self.addCleanup(server.server_close); self.addCleanup(server.shutdown)
+        with patch.object(live, 'DEBUGGER', f'http://127.0.0.1:{source.server_port}/json'), patch.object(live, '_target', return_value=f'ws://127.0.0.1:{source.server_port}/devtools/page/test'):
+            with self.assertRaisesRegex(live.LiveError, 'redirects are not permitted'): live.enable()
+        self.assertEqual(received, [])
+
+    def test_live_timeout_and_unavailable_activation_never_fall_back_to_restart(self):
+        live = css.css_live
+        with patch.object(live, '_evaluate', new=AsyncMock(side_effect=TimeoutError)), self.assertRaisesRegex(live.LiveError, 'timed out'):
+            live.enable()
+        with patch.object(css, '_validate_plugin'), patch.object(css, 'Backend') as factory, patch.object(live, 'enable', side_effect=live.LiveError('Unavailable')) as enable, patch.object(decky_installer, '_restart_decky') as restart:
+            factory.return_value.themes.side_effect = OSError('Unavailable')
+            with self.assertRaisesRegex(css.CSSError, 'Standalone Backend'):
+                with css._backend_session(): self.fail('Unavailable connection must fail')
+            restart.assert_not_called(); enable.assert_called_once()
+            self.assertFalse((css.THEMES_DIR/'SERVER').exists())
+
+    def test_existing_css_api_and_malformed_reply_never_enable_or_restart(self):
+        with patch.object(css, '_validate_plugin'), patch.object(css, 'Backend') as factory, patch.object(css.css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky') as restart:
+            factory.return_value.themes.return_value = []
+            factory.return_value.call.side_effect = [str(css.THEMES_DIR), 9]
+            with css._backend_session(): pass
+            enable.assert_not_called(); restart.assert_not_called()
+            factory.return_value.themes.side_effect = css.CSSError('Malformed reply')
+            with self.assertRaisesRegex(css.CSSError, 'Malformed reply'):
+                with css._backend_session(): self.fail('Malformed reply must fail')
+            enable.assert_not_called(); restart.assert_not_called()
 
 
 class DesktopBehavior(Isolated):
@@ -362,6 +457,8 @@ class DesktopBehavior(Isolated):
         for _ in range(2):
             r = subprocess.run(['bash', str(ROOT / 'modules/media/setup-media.sh'), '--all'], env=env, capture_output=True, text=True)
             self.assertEqual(r.returncode, 0, r.stderr)
+            self.assertIn('does not switch sessions or reboot', r.stdout)
+            self.assertIn('switch to Game Mode manually', r.stdout)
         self.assertEqual(len((self.home / 'submissions').read_text().splitlines()), 4)
         for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video'):
             self.assertIn('--kiosk', (helper / 'bin' / sid).read_text())

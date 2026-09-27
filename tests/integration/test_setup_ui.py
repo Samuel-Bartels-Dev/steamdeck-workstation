@@ -78,8 +78,21 @@ Item {
             tryCompare(appearance, "visible", false, 5000, "Escape closes the appearance modal")
             primary.forceActiveFocus()
             tryCompare(primary, "activeFocus", true, 5000, "Focus remains usable after modal dismissal")
-            app.progress = {running:false,operation:"install",exitCode:1,modules:[]}
+            app.progress = {running:false,operation:"install",exitCode:2,modules:[]}
             app.navigate(5); app.displayedConsole = "[sample] Installing\\n[sample] FAILED: example error"
+            var modeNotice = find(app.contentItem, "manualGameModeNotice")
+            verify(modeNotice !== null, "Completed setup explains the manual Game Mode transition")
+            tryCompare(modeNotice, "visible", true, 5000, "Game Mode guidance appears after install without leaving Desktop Mode")
+            verify(modeNotice.text.indexOf("switch to Game Mode manually") >= 0)
+            verify(app.visible, "Reviewing results must not close or switch the setup session")
+            app.progress = {running:false,operation:"install",exitCode:2,resumeBlocked:true,desktopDeferredCount:1,modules:[{id:"plugin:Example",status:"NEEDS_SETUP",requiresDesktop:true}]}
+            var deferredNotice = find(app.contentItem, "desktopDeferredNotice")
+            tryCompare(deferredNotice, "visible", true, 5000, "Deferred items explain the required session")
+            tryCompare(primary, "text", "Done for now", 5000, "Finished deferred runs do not offer a looping resume")
+            compare(app.installTitle(), "Waiting for normal Desktop Mode")
+            app.logView = {item:"plugin:Example"}
+            verify(!app.logCanRetry(), "Deferred item cannot retry in its current session")
+            app.progress = {running:false,operation:"install",exitCode:2,modules:[]}
             var errors = find(app.contentItem, "consoleFindErrors")
             errors.forceActiveFocus()
             tryCompare(errors, "activeFocus", true, 5000, "Console error navigation receives focus")

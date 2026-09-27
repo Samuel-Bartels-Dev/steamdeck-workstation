@@ -10,7 +10,7 @@ HELPER = Path(__file__).parent/'ui/sudo-askpass'
 
 
 def needed(row):
-    return row.get('kind') in ('plugin', 'css', 'css-profile')
+    return row.get('kind') == 'plugin'
 
 
 def command(args):

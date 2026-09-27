@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import core, decky_installer
+from . import core, css_live
 
 STACK_PATH = core.ROOT / 'modules/decky/css-stack.json'
 THEMES_DIR = Path.home() / 'homebrew/themes'
@@ -173,7 +173,7 @@ def _validate_plugin():
         raise CSSError('Installed plugin identity is not CSS Loader')
     tree = ast.parse((PLUGIN_DIR / 'main.py').read_text())
     methods = {n.name for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
-    required = {'get_themes', 'fetch_theme_path', 'get_backend_version', 'download_theme_from_url', 'set_theme_state', 'set_patch_of_theme', 'set_component_of_theme_patch', 'reset', 'generate_preset_theme_from_theme_names'}
+    required = {'get_themes', 'fetch_theme_path', 'get_backend_version', 'download_theme_from_url', 'set_theme_state', 'set_patch_of_theme', 'set_component_of_theme_patch', 'reset', 'generate_preset_theme_from_theme_names', 'enable_server', 'get_server_state'}
     if not required <= methods:
         raise CSSError('Installed CSS Loader lacks required native methods: ' + ', '.join(sorted(required - methods)))
     # Only the upstream loopback bridge and upstream sentinel convention are supported.
@@ -190,39 +190,29 @@ def _validate_plugin():
 def _backend_session():
     _validate_plugin()
     backend = Backend()
-    sentinel = THEMES_DIR / 'SERVER'
-    created = False
     try:
+        backend.themes()
+    except OSError:
+        print('Opening CSS Loader live connection through Steam; no Decky restart.')
         try:
-            backend.themes()
-        except (OSError, ValueError, CSSError):
-            THEMES_DIR.mkdir(parents=True, exist_ok=True)
-            if not sentinel.exists():
-                sentinel.touch(exist_ok=False)
-                created = True
-            print('Starting CSS Loader native configuration bridge (Decky restart).')
-            if not decky_installer._restart_decky():
-                raise CSSError('Could not restart Decky for CSS Loader configuration')
-            deadline = time.monotonic() + 30
-            while True:
-                try:
-                    backend.themes()
-                    break
-                except (OSError, ValueError, CSSError):
-                    if time.monotonic() >= deadline:
-                        raise CSSError('CSS Loader backend did not become ready within 30 seconds')
-                    time.sleep(1)
-        if Path(backend.call('fetch_theme_path')).resolve() != THEMES_DIR.resolve():
-            raise CSSError('CSS Loader uses a different theme directory; refusing to modify the wrong tree')
-        version = backend.call('get_backend_version')
-        if not isinstance(version, int) or version < 9:
-            raise CSSError('CSS Loader manifest support 9 or newer is required for configurable colors')
-        yield backend
-    finally:
-        if created:
-            sentinel.unlink(missing_ok=True)
-            if not decky_installer._restart_decky():
-                raise CSSError('Settings saved, but Decky restart failed while closing the temporary CSS bridge; retry setup')
+            css_live.enable()
+        except css_live.LiveError as exc:
+            raise CSSError(str(exc) + ' In Decky → CSS Loader → Settings, enable Standalone Backend, then retry. No service or session restart was requested.') from exc
+        deadline = time.monotonic() + 5
+        while True:
+            try:
+                backend.themes()
+                break
+            except OSError:
+                if time.monotonic() >= deadline:
+                    raise CSSError('CSS Loader live API did not become ready; enable Standalone Backend in CSS Loader settings and retry. No restart was requested.')
+                time.sleep(.2)
+    if Path(backend.call('fetch_theme_path')).resolve() != THEMES_DIR.resolve():
+        raise CSSError('CSS Loader uses a different theme directory; refusing to modify the wrong tree')
+    version = backend.call('get_backend_version')
+    if not isinstance(version, int) or version < 9:
+        raise CSSError('CSS Loader manifest support 9 or newer is required for configurable colors')
+    yield backend
 
 
 def _resolve_store_theme(name):

@@ -226,6 +226,10 @@ def _save_receipts(data):
 
 
 def _restart_decky():
+    from . import user_session
+    if user_session.nested_desktop():
+        print(user_session.NESTED_DESKTOP_NOTICE)
+        return False
     # The stable Decky installer normally creates a system service. Try that first.
     from . import privilege
     attempts = [
@@ -278,6 +282,10 @@ def install_selected(*, reinstall: bool = False, dry_run: bool = False, assume_y
     print("If a package cannot be safely resolved, it is left MISSING for guided Store install.")
     if dry_run:
         return 0
+    from . import user_session
+    if user_session.nested_desktop():
+        print(user_session.NESTED_DESKTOP_NOTICE)
+        return 2
     if not assume_yes:
         answer = input("\nInstall these plugins now? [Y/n] ").strip().lower()
         if answer.startswith("n"):

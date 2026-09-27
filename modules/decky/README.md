@@ -5,6 +5,12 @@ Every plugin is optional, including the Core and Recommended lists below. In `de
 
 Decky is an enhancement layer, never a core dependency. Steam, games, remote access and recovery should continue to work if Decky is temporarily broken.
 
+**Nested Desktop:** CSS changes use the live CSS Loader connection without a
+Decky restart or sudo. Missing plugin installations are deferred until you manually
+switch to normal Desktop Mode and retry them. Restarting Decky can restart Steam's
+interface, which hosts Nested Desktop. Existing verified items are reused and other
+application installs can continue; setup never switches sessions to resolve this.
+
 ## Policy
 
 - Install Decky Loader with its supported stable installer.
@@ -127,8 +133,10 @@ Completed downloads/configuration are reused on retry.
 `deckctl decky css apply` (also `deckctl decky theme install`) performs:
 
 1. Validate the installed CSS Loader identity and native method/loopback contract.
-2. Temporarily enable the plugin's documented-in-source `SERVER` sentinel only if
-   its local API is unavailable, restarting Decky with normal sudo prompting.
+2. Reuse the plugin’s loopback API when available. Otherwise call its public
+   `enable_server` method through Steam’s existing Decky frontend connection,
+   using the already available local debugger. No new Decky frontend connection,
+   authentication token retrieval, `SERVER` sentinel or service restart is used.
 3. Resolve an exact Theme Store name, reject ambiguous/unavailable results, then
    call `download_theme_from_url` with the Store ID and `https://api.deckthemes.com`.
    CSS Loader owns blob downloads and dependency installation. No raw repo cloning.
@@ -139,7 +147,11 @@ Completed downloads/configuration are reused on retry.
    and actual `config_USER.json` or `config_ROOT.json` saved by the plugin.
 6. Generate a native profile containing only the managed components, verify its
    dependencies/settings, reload/recheck, and capture it with existing recovery tools.
-7. Remove only the temporary sentinel this operation created and restart Decky.
+7. Close the temporary debugger connection. CSS Loader’s loopback API remains
+   available for the rest of its current plugin session; the installer does not
+   persist the server setting or restart Decky to turn it off. Upstream CSS Loader
+   may create Steam’s CEF debugging flag when enabling its API; this is separate
+   from the CSS server setting and is not removed by setup.
 
 Successful repeated application is a no-op. A receipt is not proof: status checks
 actual component manifests, active flags, saved palette values and the native
@@ -148,6 +160,12 @@ UI safe mode blocks reconciliation until explicitly restored. An unchanged legac
 v0.2.18 standalone theme is quarantined under the deckctl state directory; edited
 legacy content is preserved and reported. Existing native profiles are backed up
 before regeneration. CSS capture/restore and post-update recovery remain available.
+
+Live activation uses the optional Python `aiohttp` package (present on the tested
+SteamOS installation); it never downloads Python packages. If this package, Steam’s
+local debugger or the existing Decky connection is unavailable, enable **Standalone
+Backend** in Decky → CSS Loader → Settings, then retry. An already enabled loopback
+API works without `aiohttp`. Failure never triggers a restart fallback.
 
 The bridge contract is checked from the installed source. A plugin update that
 removes methods or changes the bridge is a real `CONFIG_REQUIRED` condition,
@@ -236,10 +254,10 @@ target off. A disabled, empty selection is a no-op and reports UNCHANGED.
 
 ## Administrator permission in the setup window
 
-Before a UI run that needs plugin installation or CSS changes, KDE opens a masked
+Before a UI run that needs plugin installation, KDE opens a masked
 password dialog. The password goes directly to sudo through its native askpass
 pipe; it never passes through the setup HTTP API, configuration, console, or logs.
-Only the narrow directory repair and Decky restart commands run as administrator.
+Only the narrow directory repair and Decky restart commands for plugin installation run as administrator. CSS changes use the live backend without sudo.
 The installer itself remains your normal user.
 
 The run starts with a fresh sudo ticket and invalidates its session ticket on
@@ -252,3 +270,5 @@ Canceling authentication keeps administrator items pending and lets independent
 user-space installs continue. Retry an item to authenticate again. Vendor setup
 wizards (such as initial Decky Loader installation) still use their explicit
 interactive workflow; they are separate from the Decky/CSS password dialog.
+
+Live activation follows [Decky’s existing frontend router](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/frontend/src/wsrouter.ts) and [Steam shared-context discovery](https://github.com/SteamDeckHomebrew/decky-loader/blob/main/backend/decky_loader/injector.py). It does not connect to Decky’s single-client `/ws` endpoint or disturb its existing frontend.

@@ -26,11 +26,13 @@ def local(row):
     else:
         installed, evidence = setup_plan.present(row)
     state = evidence.get('status')
-    if installed and evidence.get('configured') is False:
-        label = 'Installed · needs setup'; status = 'NEEDS_SETUP'
+    followup = row.get('followup', '')
+    if installed and followup and evidence.get('configured') is False:
+        label = {'signin':'Needs sign-in', 'pairing':'Needs pairing', 'setup':'Needs setup'}.get(followup, 'Needs setup')
+        status = 'NEEDS_SETUP'
     elif installed:
         label = 'Installed'; status = 'INSTALLED'
-    elif state in ('CONFIG_REQUIRED','DEGRADED','API_READY','TEST_REQUIRED','STOPPED_OR_UNREACHABLE','TEST_FAILED','NOT_CONFIGURED') or evidence.get('configuration'):
+    elif followup and state in ('CONFIG_REQUIRED','DEGRADED','API_READY','TEST_REQUIRED','STOPPED_OR_UNREACHABLE','TEST_FAILED','NOT_CONFIGURED'):
         label = 'Needs setup'; status = 'NEEDS_SETUP'
     elif state == 'FAILED':
         label = 'Needs attention'; status = 'FAILED'

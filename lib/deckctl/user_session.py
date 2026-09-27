@@ -4,6 +4,23 @@ from pathlib import Path
 import stat
 
 
+NESTED_DESKTOP_NOTICE = (
+    'Deferred in Nested Desktop: restarting Decky can restart the Steam interface '
+    'that hosts this desktop. Switch to normal Desktop Mode yourself, then retry '
+    'this item. No session switch or restart was requested.'
+)
+
+
+def nested_desktop():
+    """Valve gives the nested session its own nested-desktop.* runtime directory.
+
+    Inspect this process's environment, not stale directories or the systemd
+    runtime returned by runtime(), which intentionally points outside nesting.
+    """
+    return any(part.startswith('nested-desktop.')
+               for part in Path(os.environ.get('XDG_RUNTIME_DIR', '')).parts)
+
+
 def runtime():
     candidate = Path('/run/user') / str(os.getuid())
     try:

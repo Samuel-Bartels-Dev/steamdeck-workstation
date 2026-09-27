@@ -9,7 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan, install_log, install_progress, run_log, privilege
+from . import core, setup_plan, install_log, install_progress, run_log, privilege, user_session
 
 
 class NeedsSetup(RuntimeError):
@@ -112,10 +112,19 @@ def _module(mid):
         raise NeedsSetup(checked.get('message') or 'Complete the provider setup, then resume.')
 
 
+def _nested_decky_change(row):
+    return row.get('kind') == 'plugin' and user_session.nested_desktop()
+
+
 def execute(row):
     """Only catalog-owned commands may reach this dispatcher."""
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
+    if row['kind'] in ('css', 'css-profile') and verify(row):
+        return 'Existing installation verified.'
+    if _nested_decky_change(row):
+        if verify(row): return 'Existing installation verified; no Decky restart requested.'
+        raise NeedsSetup(user_session.NESTED_DESKTOP_NOTICE)
     if os.environ.get('DECKCTL_UI_RUN') == '1' and privilege.needed(row):
         if verify(row): return 'Existing installation verified.'
         privilege.command([])  # Refuse mutation without this runner's authorization.
@@ -253,7 +262,8 @@ def _run_plan(only, resume, journal):
         print(f'Run: {journal.id}\nDurable logs: {journal.path}', flush=True)
         try:
             admin_error = None
-            admin_rows = [row for row in rows if row['key'] in wanted and privilege.needed(row)]
+            admin_rows = [row for row in rows if row['key'] in wanted and
+                          privilege.needed(row) and not _nested_decky_change(row)]
             if os.environ.get('DECKCTL_UI_RUN') == '1' and any(not verify(row) for row in admin_rows):
                 state['queueStatus'] = 'AUTHENTICATING'
                 core.save_json(state_path(), state)
@@ -267,6 +277,8 @@ def _run_plan(only, resume, journal):
                 if key not in wanted: continue
                 queue_checkpoint(state)
                 if (resume or only is not None) and records[key]['status'] == 'DONE' and verify(row): continue
+                if _nested_decky_change(row) and not verify(row):
+                    record(key, 'NEEDS_SETUP', user_session.NESTED_DESKTOP_NOTICE); continue
                 if admin_error and privilege.needed(row) and not verify(row):
                     record(key, 'NEEDS_SETUP', admin_error); continue
                 blockers = [parent for parent in row['requires'] if records.get(parent, {}).get('status') != 'DONE']

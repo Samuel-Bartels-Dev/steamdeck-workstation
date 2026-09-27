@@ -5,6 +5,40 @@ REPO_URL="https://github.com/tailscale-dev/deck-tailscale.git"
 ARCHIVE_URL="https://github.com/tailscale-dev/deck-tailscale/archive/refs/heads/main.tar.gz"
 WORK_DIR="$HOME/deck-tailscale"
 
+configure_user_shell_path() {
+  local rc="$HOME/.bashrc" target marker='# >>> deckctl tailscale path >>>'
+  target="$rc"
+  if [ -L "$rc" ]; then
+    target="$(readlink -f -- "$rc" 2>/dev/null || true)"
+    if [ -z "$target" ] || [ ! -f "$target" ]; then
+      printf 'ERROR: Cannot safely update symlinked %s; resolve its target and retry.\n' "$rc" >&2
+      return 1
+    fi
+  fi
+  if ! grep -Fq "$marker" "$target" 2>/dev/null; then
+    local tmp
+    tmp="$(mktemp "$(dirname "$target")/.bashrc.deckctl.XXXXXX")"
+    if [ -f "$target" ]; then
+      cat "$target" > "$tmp"
+      chmod --reference="$target" "$tmp" 2>/dev/null || chmod 600 "$tmp"
+    fi
+    cat >> "$tmp" <<'EOF'
+
+# >>> deckctl tailscale path >>>
+_deckctl_tailscale_profile="${DECKCTL_TAILSCALE_PROFILE:-/etc/profile.d/tailscale.sh}"
+if [ -r "$_deckctl_tailscale_profile" ]; then
+  case ":$PATH:" in
+    *:/opt/tailscale:*) ;;
+    *) . "$_deckctl_tailscale_profile" ;;
+  esac
+fi
+unset _deckctl_tailscale_profile
+# <<< deckctl tailscale path <<<
+EOF
+    mv -f "$tmp" "$target"
+  fi
+}
+
 # An installed and connected client does not need another vendor download/login.
 TS_EXISTING="$(command -v tailscale 2>/dev/null || true)"
 if [ -z "$TS_EXISTING" ] && [ -x /opt/tailscale/tailscale ]; then TS_EXISTING=/opt/tailscale/tailscale; fi
@@ -17,7 +51,10 @@ except (ValueError, OSError):
 if not isinstance(state, dict) or state.get("BackendState") != "Running": sys.exit(1)
 print("Tailscale is connected. Existing installation reused; no download or login needed.")
 if state.get("Health"): print("Tailscale reports health warnings. Run tailscale status to review them; installation success does not prove DNS health.")
-'; then exit 0; fi
+'; then
+  configure_user_shell_path
+  exit 0
+fi
 
 printf '\n=== Tailscale for Steam Deck ===\n\n'
 printf 'This uses the SteamOS-specific tailscale-dev/deck-tailscale installer.\n'
@@ -71,6 +108,11 @@ if [ -z "$TS_BIN" ]; then
   printf 'Re-run this helper or inspect: %s\n' "$WORK_DIR" >&2
   exit 1
 fi
+
+# Tailscale's upstream installer places its CLI under /opt/tailscale and adds
+# that directory through this profile fragment. Bash terminals are often
+# interactive non-login shells, so make them load it too.
+configure_user_shell_path
 
 printf '\nTailscale installed. Next you will get a QR/login URL.\n'
 printf 'Authenticate it to your PERSONAL tailnet.\n\n'

@@ -17,6 +17,7 @@ replaced. No additional runtime dependencies or background services were added.
 | P1 | Long dialog content and larger fonts could clip actions or overflow the scroll viewport. | Shared fitted/message dialogs, wrapped actions, dynamic checkbox/banner height, fixed dialog actions, explicit drawer insets, and actual scroll-viewport widths in [Setup.qml](../../../lib/deckctl/ui/Setup.qml). Focused controls scroll into view. |
 | P2 | Scheduled/completed rows and logs competed with immediate activity evidence. | Deck Activity precedes Output Console. The queue starts collapsed with attention, scheduled, and completed counts. Active work and pause/cancel controls remain independent. Expansion and item details survive refresh/collapse. |
 | P2 | Flat inventory order buried failures and repeated lengthy details. | `statusGroups` groups attention, updates, unknown/checking, installed, and optional missing tools; names sort alphabetically within groups. Details expand per item and retain state. Missing optional tools are neutral. Missing-password guidance takes priority; healthy system facts are below the groups. |
+| P2 | CSS receipt drift could label an installed theme “Needs setup,” even when its follow-up is not a sign-in, pairing, or vendor setup. | [setup_inventory.py](../../../lib/deckctl/setup_inventory.py) now reserves that status for declared follow-ups. Art Hero remains Installed when only its saved CSS receipt needs review; the receipt note stays available in expanded diagnostics. |
 | P2 | Late console callbacks could overwrite newer selections; rotation could select unrelated text or leave the viewport blank. | Record/navigation checks preserve newer interaction. A new source or rotated record clears old offsets and resets the viewport. A recovered read clears its warning. Next error highlights within the full record rather than filtering it. |
 
 The console remains a read-only diagnostic viewer. Explicit interactive vendor
@@ -29,6 +30,8 @@ removed, the UI explicitly describes the limit instead of claiming completeness.
 ## Rendered evidence
 
 These are real offscreen Qt renders of synthetic fixtures, not live installs.
+The setup UI and output console use the installed `JetBrainsMono Nerd Font Mono`
+family; system fallback applies on machines without that font.
 The long-text fixtures use **1.35× actual font metrics in the same logical window**,
 not merely display DPI scaling. Normal UI text remains at its current scale;
 `textScale` is a bounded presentation/testing property (1.0–1.35).

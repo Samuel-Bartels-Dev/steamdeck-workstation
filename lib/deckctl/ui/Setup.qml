@@ -19,7 +19,7 @@ ApplicationWindow {
     palette.buttonText: ink
     palette.base: window.tone("#150d21")
     palette.highlight: accent
-    font.family: "Noto Sans"
+    font.family: "JetBrainsMono Nerd Font Mono"
     font.pixelSize: window.px(15)
 
     readonly property color ink: window.tone("#f8e7ff")
@@ -310,7 +310,7 @@ ApplicationWindow {
     function refreshLog() { refreshConsole() }
     function logCanRetry() {
         return !progress.running && !busy && (progress.items || progress.modules || []).some(function(item) {
-            return item.id === logView.item && ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(item.status) >= 0
+            return item.id === logView.item && !item.requiresDesktop && ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(item.status) >= 0
         })
     }
     property double clockSeconds: Date.now()/1000
@@ -598,6 +598,7 @@ ApplicationWindow {
         if (progress.running && progress.queueStatus === "PAUSED") return "Queue paused"
         if (progress.running) return "Installing your selections"
         if (!progress.operation) return "Ready to install"
+        if (progress.resumeBlocked) return "Waiting for normal Desktop Mode"
         if (progress.exitCode !== 0) return "Setup needs attention"
         return "Installation pass finished"
     }
@@ -1353,7 +1354,7 @@ ApplicationWindow {
                                         selectionColor: window.cyan; selectedTextColor: window.tone("#090612")
                                         Accessible.name: "Installer output. " + (window.consoleItem || "All steps")
                                         textFormat: TextEdit.PlainText; wrapMode: TextEdit.WrapAnywhere
-                                        color: window.ink; font.family: "monospace"; font.pixelSize: window.px(13); background: null
+                                        color: window.ink; font.family: "JetBrainsMono Nerd Font Mono"; font.pixelSize: window.px(13); background: null
 
                                     }
                                 }
@@ -1366,6 +1367,18 @@ ApplicationWindow {
                         }
                         Action { text: "Show installation results"; visible: window.finishItems.length > 0; onClicked: window.finishItems = [] }
                         Action { visible: !!window.progress.operation && !window.progress.running; text: "Recheck readiness"; enabled: !window.busy && !window.progress.running; onClicked: window.checkFinish() }
+                        TextLabel {
+                            objectName: "desktopDeferredNotice"
+                            visible: window.stage === 5 && !window.progress.running && window.progress.desktopDeferredCount > 0
+                            text: "This installation pass has finished. " + window.progress.desktopDeferredCount + " plugin items require normal Desktop Mode. Your choices and completed installs are saved. Exit Nested Desktop yourself, choose Steam’s Power → Switch to Desktop, then open deckctl setup customize and resume. Retrying here cannot complete these items."
+                            Layout.fillWidth: true; color: window.cyan; font.pixelSize: window.px(14); wrapMode: Text.Wrap
+                        }
+                        TextLabel {
+                            objectName: "manualGameModeNotice"
+                            visible: window.stage === 5 && window.progress.operation === "install" && !window.progress.running && !window.progress.desktopDeferredCount && (window.progress.exitCode === 0 || window.progress.exitCode === 2)
+                            text: "Setup stays in Desktop Mode and will not switch sessions or reboot. When you’re ready, switch to Game Mode manually to view your selected Steam shortcuts and Decky/CSS changes."
+                            Layout.fillWidth: true; color: window.cyan; font.pixelSize: window.px(13); wrapMode: Text.Wrap
+                        }
                         TextLabel { visible: !window.progress.operation; text: window.selectionCount() + " optional choices saved. Start when you're ready; live output and results will appear here."; Layout.fillWidth: true; color: window.muted }
                         Repeater {
                             model: window.finishItems
@@ -1418,10 +1431,11 @@ ApplicationWindow {
                 Action {
                     objectName: "primaryAction"
                     primary: true
-                    text: window.stage === 5 && window.progress.running ? "Installing…" : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : window.previewPending ? "Checking changes…" : !window.installPreview.items || window.installPreview.error ? "Review changes" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? (window.finishItems.length ? "Finish" : "Review readiness") : window.progress.operation ? "Resume installation" : "Install selections")))
+                    text: window.stage === 5 && window.progress.resumeBlocked && !window.progress.running ? "Done for now" : window.stage === 5 && window.progress.running ? "Installing…" : window.navigationStack.length && window.navigationStack[window.navigationStack.length-1].stage === 4 ? "Return to review →" : window.detailPage ? "Done choosing →" : window.stage < 3 ? "Continue →" : (window.stage === 3 ? "Review setup →" : (window.stage === 4 ? (window.data.planOnly ? "Save & continue" : window.previewPending ? "Checking changes…" : !window.installPreview.items || window.installPreview.error ? "Review changes" : "Save & install") : (window.progress.operation === "install" && window.progress.exitCode === 0 ? (window.finishItems.length ? "Finish" : "Review readiness") : window.progress.operation ? "Resume installation" : "Install selections")))
                     enabled: window.loaded && !window.busy && !window.progress.running && (window.stage !== 5 || !window.data.planOnly)
                     onClicked: {
-                        if (window.detailPage || window.navigationStack.length) window.back()
+                        if (window.stage === 5 && window.progress.resumeBlocked) window.close()
+                        else if (window.detailPage || window.navigationStack.length) window.back()
                         else if (window.stage < 4) window.navigate(window.stage + 1)
                         else if (window.stage === 4) {
                             if (window.data.planOnly) window.savePlan(false)
@@ -1467,7 +1481,7 @@ ApplicationWindow {
             Flow {
                 visible: resultRow.expanded; Layout.fillWidth: true; spacing: 8
                 Action { objectName: "viewInstallLog"; text: "Details"; onClicked: window.showLog(modelData.id) }
-                Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
+                Action { text: "Retry item"; visible: ["FAILED", "INTERRUPTED", "NEEDS_SETUP", "BLOCKED"].indexOf(modelData.status) >= 0; enabled: !modelData.requiresDesktop && !window.progress.running && !window.busy; onClicked: window.startOperation("retry", modelData.id) }
                 Action { text: "Continue in terminal"; visible: modelData.terminalRequired === true && ["FAILED", "NEEDS_SETUP"].indexOf(modelData.status) >= 0; enabled: !window.progress.running && !window.busy; onClicked: window.startOperation("interactive", modelData.id) }
             }
             Rectangle { Layout.fillWidth: true; height: 1; color: window.tone("#402c4e") }

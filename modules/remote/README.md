@@ -4,6 +4,8 @@ Use `deckctl setup customize` to choose individual tools in this category. Selec
 
 Moonlight is the PC streaming client; Sunshine runs on home gaming PCs. Tailscale provides private reachability and **must use the SteamOS-specific `tailscale-dev/deck-tailscale` installation path**, not Discover/Flatpak, generic Arch `pacman`, or the normal Linux install script. The guided setup stages `Install-Tailscale.desktop`, which downloads the maintained upstream installer, installs the persistent system service, and then prompts for QR authentication.
 
+After installation, the helper adds a managed, idempotent Bash startup block that loads `/etc/profile.d/tailscale.sh` for interactive terminals. New Konsole/Ghostty Bash sessions can run `tailscale` without manually sourcing the profile file. Existing `.bashrc` content and symlinks are preserved.
+
 chiaki-ng provides PS4/PS5 Remote Play. Use PSN remote mode normally and test it away from home before travel.
 
 `deckctl remote test` inspects the Tailscale path and probes Sunshine. `deckctl remote wake` supports local WoL or an SSH relay on an always-on home node.

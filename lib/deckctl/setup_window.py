@@ -11,7 +11,7 @@ import subprocess
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability, appearance, install_log
+from . import apps, core, setup_builder, gaming_options, css_stack, component_options, setup_plan, setup_install, setup_finish, reliability, appearance, install_log, user_session
 
 
 APP_DESCRIPTIONS = {
@@ -202,6 +202,11 @@ class Session:
             self.selected = core.topo(core.enabled_modules())
         if setup_install.running() or (self.process and self.process.poll() is None):
             raise ValueError('An operation is already running.')
+        if operation in ('resume', 'retry') and user_session.nested_desktop():
+            progress = self.progress()
+            if (operation == 'resume' and progress.get('resumeBlocked')) or any(
+                    row['id'] == item and row.get('requiresDesktop') for row in progress.get('items', [])):
+                raise ValueError(user_session.NESTED_DESKTOP_NOTICE)
         commands = {'install': ['setup', 'install'], 'resume': ['setup', 'install', '--resume']}
         if operation == 'docker':
             if 'dev:docker' not in {row['key'] for row in setup_plan.items()[1]}:
@@ -302,6 +307,14 @@ class Session:
         plan, rows = setup_plan.items()
         matches = state.get('fingerprint') == setup_plan.fingerprint(plan)
         records = state.get('items', {}) if matches else {}
+        nested = user_session.nested_desktop()
+        def desktop_deferred(record, row):
+            return (nested and setup_install._nested_decky_change(row) and record.get('status') == 'NEEDS_SETUP' and
+                    record.get('message') == user_session.NESTED_DESKTOP_NOTICE)
+        unfinished = [(records.get(row['key'], {}), row) for row in rows
+                      if records.get(row['key'], {}).get('status') != 'DONE'] if records else []
+        desktop_deferred_count = sum(desktop_deferred(record, row) for record, row in unfinished)
+        resume_blocked = bool(unfinished) and desktop_deferred_count == len(unfinished)
         live = state.get('running', False) or bool(self.process and self.process.poll() is None)
         visible = [{**row, **records.get(row['key'], {'status': 'PENDING', 'message': ''}), 'id': row['key']}
                    for row in rows if row['visible']]
@@ -311,6 +324,7 @@ class Session:
         for row in visible:
             status = row.get('status')
             row['terminalRequired'] = setup_install.interactive_provider(row)
+            row['requiresDesktop'] = desktop_deferred(row, row)
             row['resultLabel'] = ({'Installed and verified.':'Installed', 'Updated and verified.':'Updated',
                                    'Already up to date; verified.':'Already current',
                                    'Existing system installation reused and verified.':'Existing installation reused'}
@@ -325,6 +339,13 @@ class Session:
                                      'INTERRUPTED':'Resume to verify completed work and retry unfinished items.',
                                      'NEEDS_SETUP':'Complete the provider setup, then retry verification.',
                                      'BLOCKED':'Complete the required dependency first.'}.get(status,'')
+            if row['requiresDesktop']:
+                row['resultLabel'] = 'Desktop Mode required'
+                row['nextAction'] = 'Selections are saved. Open setup in normal Desktop Mode, then resume.'
+            elif status == 'NEEDS_SETUP' and row.get('kind') in ('css', 'css-profile') and row.get('message') == user_session.NESTED_DESKTOP_NOTICE:
+                row['resultLabel'] = 'Ready to retry'
+                row['message'] = 'Previous attempt deferred in Nested Desktop. CSS setup now uses a live connection without restarting Decky.'
+                row['nextAction'] = 'Retry this item or resume installation here.'
             start = row.get('startedAt')
             end = now if row.get('status') == 'RUNNING' else row.get('finishedAt') or row.get('updatedAt', now)
             row['elapsedSeconds'] = max(0, int(end-start)) if isinstance(start, (float, int)) else 0
@@ -358,7 +379,8 @@ class Session:
                 'githubLimit':self.github_limit(), 'cssPalette':css_stack.palette_status(),
                 'controls':controls, 'queueStatus':state.get('queueStatus'),
                 'activity':self.activity.sample() if live else self.activity.history,
-                'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live,
+                'exitCode': code, 'modules': visible, 'items': visible, 'resumable': bool(records) and not live and not resume_blocked,
+                'resumeBlocked': resume_blocked, 'desktopDeferredCount': desktop_deferred_count,
                 'hasHistory': bool(records), 'historyPlanChanged': bool(state.get('items')) and not matches,
                 'unfinished': sum(records.get(row['key'],{}).get('status') != 'DONE' for row in rows) if records else 0,
                 'lastRunAt': state.get('finishedAt') or state.get('startedAt')}
