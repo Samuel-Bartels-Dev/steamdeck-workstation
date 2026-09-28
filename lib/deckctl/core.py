@@ -263,20 +263,8 @@ def get_host(name):
     return h
 
 def remote_test(name):
-    h=get_host(name); target=h["target"]
-    print(f"Target: {target}")
-    if shutil.which("tailscale"):
-        r=subprocess.run(["tailscale","ping","--c","3",target],text=True,capture_output=True)
-        out=(r.stdout+r.stderr).strip(); print(out)
-        times=[float(x) for x in re.findall(r'time[= ]([0-9.]+)\s*ms',out,re.I)]
-        if times:
-            avg=sum(times)/len(times); jitter=max(times)-min(times)
-            print(f"Tailscale samples: {len(times)}/3  avg={avg:.1f} ms  spread={jitter:.1f} ms")
-        if "DERP" in out.upper(): print("WARNING: relay/DERP path detected; remote-game latency may be higher.")
-    else: print("Tailscale CLI not found; skipping tailnet path test.")
-    try:
-        with socket.create_connection((target,int(h.get("sunshine_port",47984))),timeout=2): print("Sunshine TCP probe: PASS")
-    except Exception as e: print(f"Sunshine TCP probe: WARN ({e})")
+    from . import network
+    return network.remote_test(get_host(name))
 
 def wol_packet(mac):
     raw=re.sub(r'[^0-9A-Fa-f]','',mac)
