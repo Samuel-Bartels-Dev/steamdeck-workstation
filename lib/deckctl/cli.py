@@ -126,7 +126,7 @@ def main(argv=None):
     if args.cmd=='game' and args.sub=='ready': return core.game_ready(args.name,False)
     if args.cmd=='game' and args.sub=='doctor': return core.game_ready(args.name,True)
     if args.cmd=='remote' and args.sub=='register': core.remote_register(args.name,args.target,args.mac,args.relay,args.sunshine_port); return 0
-    if args.cmd=='remote' and args.sub=='test': core.remote_test(args.name); return 0
+    if args.cmd=='remote' and args.sub=='test': return core.remote_test(args.name)
     if args.cmd=='remote' and args.sub=='wake': core.remote_wake(args.name); return 0
     if args.cmd=='remote' and args.sub=='wait': return core.remote_wait(args.name,args.timeout)
     if args.cmd=='remote' and args.sub=='host-kit': hostkit.build(args.name,args.out); return 0
