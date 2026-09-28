@@ -66,7 +66,16 @@ Open **Konsole** and paste this one-line installer command:
 curl -fL https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstation/main/bootstrap.sh -o /tmp/steamdeck-workstation-install.sh && bash /tmp/steamdeck-workstation-install.sh
 ```
 
-This downloads the latest published stable release, checks its archive against the release checksums, and starts setup. Run it as your normal user, without sudo.
+This installs the newest commit on `main` and starts setup. It requires `git` and
+Python 3; run it as your normal user, without sudo. Each commit gets a separate
+local control-plane copy, so rerunning this command picks up new pushes to `main`
+even before a release is published. The installer validates the checkout before
+applying it. `main` changes have CI checks but may not have completed physical Deck
+testing; use a published release when you need a tested, fixed version.
+
+For a published, checksum-verified release instead, download the same script and
+run `bash /tmp/steamdeck-workstation-install.sh --version 0.2.43`. Use the desired
+published version in place of `0.2.43`.
 
 To install the local control plane from USB, copy the release tarball into `~/Downloads`:
 

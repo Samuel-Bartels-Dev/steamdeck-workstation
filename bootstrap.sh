@@ -3,15 +3,14 @@ set -euo pipefail
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   cat <<'HELP'
 NAME
-  bootstrap.sh — Download and verify the public Steam Deck Workstation release.
+  bootstrap.sh — Install current main or a verified public release.
 SYNOPSIS
   bash bootstrap.sh [--version X.Y.Z] [--download-only DIRECTORY]
 DESCRIPTION
-  Downloads the latest stable release (or a specified version) from
-  Samuel-Bartels-Dev/steamdeck-workstation on GitHub. Verifies the release tar
-  against SHA256SUMS, safely extracts it with executable modes, then launches
-  install.sh as your normal user with terminal input. Never run with sudo.
-  --download-only saves the verified archive and checksum without installation.
+  By default installs the newest commit on main. Requires git for this mode.
+  --version downloads a published release, verifies its SHA256SUMS and safely
+  extracts it. Both modes launch install.sh as your normal user. Never use sudo.
+  --download-only requires --version and saves the verified release assets.
   Requires Python 3 and internet. No account is needed for public downloads.
 EXIT STATUS
   0 on success; nonzero for missing releases, download/checksum errors or failure.
@@ -100,6 +99,18 @@ def extract(archive,work,version):
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--version');parser.add_argument('--download-only')
     args=parser.parse_args()
+    if args.download_only and not args.version: parser.error('--download-only requires --version')
+    if not args.version:
+        if not shutil.which('git'): raise ValueError('git is required to install the newest main commit; use --version for a published release')
+        with tempfile.TemporaryDirectory(prefix='deckctl-main-') as temporary:
+            root=Path(temporary)/'source'
+            subprocess.run(['git','clone','--depth','1','--branch','main',f'https://github.com/{REPO}.git',str(root)],check=True,timeout=180)
+            revision=subprocess.check_output(['git','-C',str(root),'rev-parse','HEAD'],text=True,timeout=15).strip()
+            if not re.fullmatch('[0-9a-f]{40}',revision): raise ValueError('Invalid main commit ID')
+            print(f'Steam Deck Workstation main at {revision[:12]}. Validating source before installation.',flush=True)
+            env={**os.environ,'DECKCTL_SOURCE_REVISION':revision}
+            with open('/dev/tty','r') as terminal:
+                return subprocess.run(['bash',str(root/'install.sh')],cwd=root,stdin=terminal,env=env).returncode
     version,assets=resolve(args.version)
     with tempfile.TemporaryDirectory(prefix='deckctl-bootstrap-') as temporary:
         work=Path(temporary);archive=download(work,version,assets)

@@ -311,6 +311,54 @@ class Production(unittest.TestCase):
         self.assertEqual(namespace['resolve'](version)[0], version)
         with self.assertRaises(ValueError): namespace['resolve']()
 
+    def test_main_snapshots_reuse_same_commit_and_preserve_previous_commit(self):
+        import shutil
+        import subprocess
+        source = Path(self.temp.name)/'main-snapshot'
+        shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns('.git','__pycache__','release'))
+        home = Path(self.temp.name)/'snapshot-home'; home.mkdir()
+        installer = source/'tools/install-control-plane'
+        first = 'a'*40
+        second = 'b'*40
+        for revision in (first, first, second):
+            env = {**os.environ, 'HOME':str(home), 'DECKCTL_SOURCE_REVISION':revision}
+            result = subprocess.run([str(installer), str(source)], env=env, text=True,
+                                    capture_output=True, timeout=30)
+            self.assertEqual(result.returncode, 0, result.stderr)
+        base = home/'.local/share/steamdeck-workstation'
+        version = (source/'VERSION').read_text().strip()
+        self.assertTrue((base/'releases'/f'{version}-main-{first[:12]}'/'bin/deckctl').exists())
+        self.assertEqual((base/'current').resolve(), base/'releases'/f'{version}-main-{second[:12]}')
+        (source/'README.md').write_text((source/'README.md').read_text()+'\nchanged\n')
+        result = subprocess.run([str(installer), str(source)], env=env, text=True,
+                                capture_output=True, timeout=30)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Different content already exists', result.stderr)
+
+    def test_default_bootstrap_uses_main_commit_identity(self):
+        import io
+        from unittest.mock import Mock
+        code = (ROOT/'bootstrap.sh').read_text().split("<<'PY'\n",1)[1].rsplit('\nPY',1)[0]
+        namespace = {'__name__':'bootstrap_test'}
+        exec(compile(code,'bootstrap.sh','exec'),namespace)
+        real_open = open
+        def terminal(path,*args,**kwargs):
+            return io.StringIO() if path == '/dev/tty' else real_open(path,*args,**kwargs)
+        def run(command,**kwargs):
+            if command[1] == 'clone':
+                (Path(command[-1])/'install.sh').parent.mkdir(parents=True)
+                (Path(command[-1])/'install.sh').write_text('# fixture')
+            else:
+                self.assertEqual(kwargs['env']['DECKCTL_SOURCE_REVISION'],'c'*40)
+                self.assertEqual(command[0],'bash')
+            return Mock(returncode=0)
+        with patch.object(sys,'argv',['bootstrap']), patch.object(namespace['shutil'],'which',return_value='/usr/bin/git'), \
+                patch.object(namespace['subprocess'],'run',side_effect=run) as command, \
+                patch.object(namespace['subprocess'],'check_output',return_value='c'*40+'\n'), \
+                patch('builtins.open',side_effect=terminal):
+            self.assertEqual(namespace['main'](),0)
+        self.assertEqual(command.call_count,2)
+
     def test_unattended_failure_tail_redacts_and_logs(self):
         with patch('deckctl.install_log.note') as note, contextlib.redirect_stdout(io.StringIO()) as out:
             with self.assertRaises(RuntimeError):

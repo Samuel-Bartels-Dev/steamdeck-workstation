@@ -14,12 +14,16 @@ From Konsole in Desktop Mode, as your normal Deck user:
 curl -fL https://raw.githubusercontent.com/Samuel-Bartels-Dev/steamdeck-workstation/main/bootstrap.sh -o /tmp/steamdeck-workstation-install.sh && bash /tmp/steamdeck-workstation-install.sh
 ```
 
-The bootstrap resolves the latest stable GitHub release, downloads its tar and
-checksums, verifies SHA-256 and archive structure, then runs the normal installer.
-It fails before provisioning when assets are unavailable or invalid. The command
-becomes usable once a public release with the required assets is published.
-Use `--version 0.2.43` to select this release or `--download-only DIRECTORY` to
-save verified download files without installation. Download-only directories must
+The default bootstrap clones the newest `main` commit with `git`, validates the
+checkout, then runs the normal installer. Each main commit uses its own local
+control-plane directory, and the previous one remains available for rollback.
+This follows source changes immediately; it is not a fixed, checksum-verified
+release. `git` and Python 3 are required.
+
+Use `bash /tmp/steamdeck-workstation-install.sh --version 0.2.43` for a fixed
+published release instead. That mode downloads the release tar and checksums,
+verifies SHA-256 and archive structure, then runs the normal installer.
+`--download-only DIRECTORY` also requires `--version`. Download-only directories must
 not already contain those filenames. SHA-256 checks corruption against GitHub's
 manifest; it is not a separate cryptographic publisher signature.
 
