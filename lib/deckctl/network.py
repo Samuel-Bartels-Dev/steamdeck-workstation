@@ -38,7 +38,7 @@ def remote_test(host):
             samples=[ms for ms,_ in replies]
             routes=[route for _,route in replies]
             path=routes[-1]
-            print(f"Tailscale: {path.upper()} | replies {len(replies)}/5 | avg {sum(samples)/len(samples):.1f} ms | spread {max(samples)-min(samples):.1f} ms")
+            print(f"Tailscale: {path.upper()} | replies {len(replies)}/5 (missed {5-len(replies)}) | avg {sum(samples)/len(samples):.1f} ms | spread {max(samples)-min(samples):.1f} ms")
             if 'relay' in routes and path=='direct': print('Route became direct during the test.')
         else:
             print(f'Tailscale: no measured replies ({out[-200:] or "command failed"})')
