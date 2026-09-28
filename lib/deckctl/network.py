@@ -13,6 +13,61 @@ def _ping(host):
     vals=[float(x) for x in re.findall(r'time[=<]([0-9.]+)\s*ms',out)]
     return {'ok':rc==0,'samples_ms':vals,'avg_ms':round(sum(vals)/len(vals),1) if vals else None,'output':out[-600:]}
 
+def _tailscale_samples(output):
+    """Parse successful CLI replies; the last successful reply is the current route."""
+    replies=[]
+    for line in output.splitlines():
+        if not line.lower().startswith('pong from '):
+            continue
+        match=re.search(r'\bin\s+([0-9.]+)\s*ms\b|\btime[= ]([0-9.]+)\s*ms\b',line,re.I)
+        if not match:
+            continue
+        route='relay' if re.search(r'\b(?:DERP|relay)\b',line,re.I) else 'direct' if re.search(r'\bvia\s+\S+',line,re.I) else 'unknown'
+        replies.append((float(match.group(1) or match.group(2)),route))
+    return replies
+
+def remote_test(host):
+    target=host['target']
+    print(f'Target: {target}')
+    replies=[]
+    if shutil.which('tailscale'):
+        # --until-direct defaults to true and may hide an initial relay route.
+        rc,out=_run(['tailscale','ping','--c','5','--until-direct=false',target],timeout=15)
+        replies=_tailscale_samples(out)
+        if replies:
+            samples=[ms for ms,_ in replies]
+            routes=[route for _,route in replies]
+            path=routes[-1]
+            print(f"Tailscale: {path.upper()} | replies {len(replies)}/5 (missed {5-len(replies)}) | avg {sum(samples)/len(samples):.1f} ms | spread {max(samples)-min(samples):.1f} ms")
+            if 'relay' in routes and path=='direct': print('Route became direct during the test.')
+        else:
+            print(f'Tailscale: no measured replies ({out[-200:] or "command failed"})')
+        if rc and replies: print('Tailscale command reported a warning; inspect the path before streaming.')
+    else:
+        print('Tailscale: CLI not found; route and latency unknown.')
+
+    reachable=False
+    try:
+        with socket.create_connection((target,int(host.get('sunshine_port',47984))),timeout=2):
+            reachable=True
+        print('Sunshine TCP probe: PASS')
+    except OSError as exc:
+        print(f'Sunshine TCP probe: WARN ({exc})')
+
+    if not reachable or not replies:
+        print('Preset: unavailable until host connectivity and route can be measured.')
+        return 1
+    samples=[ms for ms,_ in replies]
+    spread=max(samples)-min(samples)
+    loss=5-len(samples)
+    if replies[-1][1]!='direct' or loss or spread>30 or sum(samples)/len(samples)>100:
+        preset='720p60 at 8 Mbps; try 720p30 if it still stutters'
+    else:
+        preset='720p60 at 10 Mbps; try 1080p60 at 15 Mbps if stable'
+    print(f'Moonlight starting preset: {preset}')
+    print('This is a latency/path estimate, not a bandwidth test. Lower bitrate if Moonlight shows frame drops; compare hotel Wi-Fi and a phone hotspot.')
+    return 0
+
 def test(host=None,as_json=False):
     data={}
     rc,route=_run(['ip','route','show','default']) if shutil.which('ip') else (1,'')

@@ -8,7 +8,7 @@ After installation, the helper adds a managed, idempotent Bash startup block tha
 
 chiaki-ng provides PS4/PS5 Remote Play. Use PSN remote mode normally and test it away from home before travel.
 
-`deckctl remote test` inspects the Tailscale path and probes Sunshine. `deckctl remote wake` supports local WoL or an SSH relay on an always-on home node.
+Register your home PC with `deckctl remote register desktop --target <tailscale-name-or-IP>`, then run `deckctl remote test desktop` from the hotel or a phone hotspot. It reports the latest Tailscale path (direct or relay), five reply samples, average latency, spread, missed replies, Sunshine TCP reachability, and a conservative Moonlight starting preset. The preset is an estimate: these probes cannot measure sustained bandwidth, video decoding, or hotel congestion. Check Moonlight's streaming statistics while playing and lower bitrate if frames drop. `deckctl remote wake` supports local WoL or an SSH relay on an always-on home node.
 
 ## Windows host companion
 
