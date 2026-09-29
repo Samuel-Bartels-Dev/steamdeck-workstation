@@ -293,17 +293,18 @@ class Production(unittest.TestCase):
     def test_candidate_control_plane_and_public_resolution(self):
         import shutil
         import subprocess
+        candidate_version = '9.9.9-rc1'
         source = Path(self.temp.name)/'candidate'
         shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns('.git','__pycache__','release'))
-        (source/'VERSION').write_text('0.2.43-rc1\n')
+        (source/'VERSION').write_text(candidate_version+'\n')
         home = Path(self.temp.name)/'candidate-home'; home.mkdir()
         result = subprocess.run([str(source/'tools/install-control-plane'), str(source)],
                                 env={**os.environ, 'HOME':str(home)}, text=True, capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertTrue((home/'.local/share/steamdeck-workstation/releases/0.2.43-rc1/bin/deckctl').exists())
+        self.assertTrue((home/f'.local/share/steamdeck-workstation/releases/{candidate_version}/bin/deckctl').exists())
         code = (ROOT/'bootstrap.sh').read_text().split("<<'PY'\n",1)[1].rsplit('\nPY',1)[0]
         namespace = {'__name__':'bootstrap_test'}; exec(compile(code, 'bootstrap', 'exec'), namespace)
-        version = '0.2.43-rc1'; repo = namespace['REPO']
+        version = candidate_version; repo = namespace['REPO']
         names = [f'steamdeck-workstation-v{version}.tar.gz', f'steamdeck-workstation-v{version}-SHA256SUMS.txt']
         release = {'tag_name':'v'+version, 'prerelease':True,
                    'assets':[{'name':n, 'browser_download_url':f'https://github.com/{repo}/releases/download/v{version}/{n}'} for n in names]}
