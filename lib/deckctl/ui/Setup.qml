@@ -677,9 +677,14 @@ ApplicationWindow {
         request("finish", null, function(result) { finishItems = result.items; busy = false })
     }
     function finishAction(key, operation) {
+        var existing = finishItems.find(function(item) { return item.key === key })
+        if (operation === "launch" && (key === "remote:tailscale" || (key === "launcher:battlenet" && (!existing || !existing.installed)))) {
+            startOperation("retry", key)
+            return
+        }
         busy = true; problem = ""; notice = ""
         request("finish", {item: key, operation: operation}, function(result) {
-            busy = false; notice = result.confirmed ? "Marked complete by you." : result.terminalRequired ? "Opened the explicitly requested interactive terminal. Complete setup there, then recheck readiness here." : "Opened. Complete setup, then use Recheck readiness."
+            busy = false; notice = result.message || (result.confirmed ? "Marked complete by you." : result.terminalRequired ? "Opened the explicitly requested interactive terminal. Complete setup there, then recheck readiness here." : "Opened. Complete setup, then use Recheck readiness.")
             if (result.confirmed) checkFinish()
         })
     }

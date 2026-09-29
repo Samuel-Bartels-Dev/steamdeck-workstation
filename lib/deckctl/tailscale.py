@@ -4,6 +4,36 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import re
+
+
+def connect_ui():
+    """Keep authentication output private; hand only the login URL to the browser."""
+    from . import privilege
+    if status()['connected']: return None
+    executable = binary()
+    if not executable: raise RuntimeError('Tailscale installation did not produce its CLI. Retry this item.')
+    try:
+        result = subprocess.run(privilege.command([executable, 'up', '--timeout=10s', '--operator=deck', '--ssh']),
+                                env=privilege.environment(), stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=20)
+    except subprocess.TimeoutExpired:
+        return 'Tailscale connection timed out. Retry this item in the setup window.'
+    report = status()
+    if report['connected']: return None
+    if report['backend'] == 'NeedsMachineAuth':
+        return 'Approve this Steam Deck in your Tailscale admin console, then choose Retry here.'
+    # Never print or persist the authentication output, peer details, or login URL.
+    match = re.search(r'https://login\.tailscale\.com/a/[A-Za-z0-9_-]+', result.stdout+'\n'+result.stderr)
+    if match:
+        try:
+            opened = subprocess.run(['xdg-open', match.group(0)], stdin=subprocess.DEVNULL,
+                                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10)
+        except (OSError, subprocess.SubprocessError):
+            return 'Could not open Tailscale sign-in in your browser. Check the default browser, then Retry here.'
+        if opened.returncode: return 'Could not open Tailscale sign-in in your browser. Check the default browser, then Retry here.'
+        return 'Tailscale sign-in opened in your browser. Finish signing in, then choose Retry or Resume here; no terminal is needed.'
+    return 'Tailscale is not connected yet. Check that its service is running, then choose Retry here.'
 
 
 def binary():

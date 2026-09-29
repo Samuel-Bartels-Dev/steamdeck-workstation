@@ -10,5 +10,11 @@ Use the Heroic Flatpak in Desktop Mode for Epic/GOG/Amazon install/update/config
 ## Battle.net / WoW
 Guided setup invokes NonSteamLaunchers with the supported `"Battle.net"` command-line argument, so choosing Battle.net installs only Battle.net instead of opening the full launcher checklist. The generic NonSteamLaunchers desktop launcher remains staged only as an advanced/manual fallback for installing other launchers. Completion is verified from the real Battle.net executable in Steam compatdata, never from the staged helper. Keep launcher/prefix state internal by default and prefer internal NVMe for WoW. Consider ConsolePort for WoW controller play. Back up `WTF/` and `Interface/AddOns/`.
 
+Battle.net setup also runs directly from the setup UI, with output in its console.
+Vendor installer/login windows may appear; no separate terminal is required.
+Missing Desktop Mode prerequisites are reported before invoking NonSteamLaunchers.
+The UI still verifies the installed executable before reporting completion.
+
 ## Proton
+
 ProtonPlus is installed for compatibility-tool management. Do not force GE-Proton globally; select it per-title when needed.

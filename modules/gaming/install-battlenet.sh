@@ -8,6 +8,13 @@ CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/deckctl/nonsteamlaunchers"
 SCRIPT="$CACHE_DIR/NonSteamLaunchers.sh"
 RECEIPT="${XDG_STATE_HOME:-$HOME/.local/state}/deckctl/nsl-battlenet-source.txt"
 
+# Check prerequisites before upstream can offer system-package installs.
+if [ "${DECKCTL_UI_RUN:-0}" = 1 ]; then
+  for tool in zenity wget curl jq steam; do
+    command -v "$tool" >/dev/null 2>&1 || { echo "ERROR: Battle.net needs $tool available in Desktop Mode. No system packages were changed." >&2; exit 2; }
+  done
+fi
+
 mkdir -p "$CACHE_DIR" "$(dirname "$RECEIPT")"
 
 if ! command -v curl >/dev/null 2>&1; then
