@@ -386,6 +386,44 @@ class Experience(unittest.TestCase):
                 setup_install.execute(row)
             self.assertFalse(setup_install.verify(row))
 
+    def test_ui_tailscale_and_battlenet_are_not_terminal_providers(self):
+        from deckctl import privilege, tailscale, launchers
+        ts = dict(key='remote:tailscale', kind='component', owner='remote', component='tailscale')
+        bn = dict(key='launcher:battlenet', kind='launcher', owner='gaming')
+        self.assertFalse(setup_install.interactive_provider(ts))
+        self.assertFalse(setup_install.interactive_provider(bn))
+        self.assertTrue(privilege.needed(ts))
+        self.assertFalse(privilege.needed(bn))
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), patch.object(setup_install, 'verify', return_value=False), patch.object(privilege, 'command', return_value=['sudo','-A']), patch.object(setup_install, '_run') as install, patch.object(tailscale, 'connect_ui', return_value='Sign in in your browser, then Retry here.'):
+            with self.assertRaisesRegex(setup_install.NeedsSetup, 'browser'):
+                setup_install.execute(ts)
+            self.assertIn('SUDO_ASKPASS', install.call_args.kwargs['env'])
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), patch.object(launchers, 'battlenet_installed', return_value=False), patch.object(launchers, 'install_battlenet', return_value=0) as install:
+            setup_install.execute(bn)
+            install.assert_called_once()
+
+    def test_tailscale_ui_keeps_login_url_out_of_output(self):
+        from deckctl import tailscale, privilege
+        import io
+        from contextlib import redirect_stdout, redirect_stderr
+        url = 'https://login.tailscale.com/a/PRIVATE-login-token'
+        output = io.StringIO()
+        pending = {'connected':False, 'backend':'NeedsLogin'}
+        with patch.object(tailscale, 'status', return_value=pending), patch.object(tailscale, 'binary', return_value='/opt/tailscale/tailscale'), patch.object(privilege, 'command', side_effect=lambda args: ['sudo','-A',*args]), patch.object(tailscale.subprocess, 'run', side_effect=[subprocess.CompletedProcess([],1,'',url), subprocess.CompletedProcess([],0)]) as run, redirect_stdout(output), redirect_stderr(output):
+            message = tailscale.connect_ui()
+        self.assertIn('browser', message)
+        self.assertNotIn(url, message + output.getvalue())
+        self.assertEqual(run.call_args_list[1].args[0], ['xdg-open',url])
+        self.assertEqual(run.call_args_list[0].kwargs['stdin'], subprocess.DEVNULL)
+        with patch.object(tailscale, 'status', return_value={'connected':True}), patch.object(tailscale.subprocess, 'run') as run:
+            self.assertIsNone(tailscale.connect_ui())
+            run.assert_not_called()
+
+    def test_tailscale_ui_timeout_stays_retryable_without_terminal(self):
+        from deckctl import tailscale, privilege
+        with patch.object(tailscale, 'status', return_value={'connected':False, 'backend':'Stopped'}), patch.object(tailscale, 'binary', return_value='/opt/tailscale/tailscale'), patch.object(privilege, 'command', return_value=['sudo','-A']), patch.object(tailscale.subprocess, 'run', side_effect=subprocess.TimeoutExpired('tailscale',20)):
+            self.assertIn('Retry', tailscale.connect_ui())
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)

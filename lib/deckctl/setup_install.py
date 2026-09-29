@@ -191,7 +191,12 @@ def execute(row):
         _run(['bash', str(helper/'setup-media.sh'), '--all'], env=dict(os.environ, DECKCTL_CONFIG=str(core.CONFIG_HOME), DECKCTL_MEDIA_ITEM=name))
         return
     if key == 'remote:tailscale':
-        _run([str(core.ROOT/'modules/remote/install-tailscale-steamos.sh')]); return
+        _run([str(core.ROOT/'modules/remote/install-tailscale-steamos.sh')], env=privilege.environment())
+        if os.environ.get('DECKCTL_UI_RUN') == '1':
+            from . import tailscale
+            message = tailscale.connect_ui()
+            if message: raise NeedsSetup(message)
+        return
     if key == 'launcher:battlenet':
         if not launchers.battlenet_installed() and launchers.install_battlenet(): raise NeedsSetup('Complete Battle.net installation, then retry.')
         return
@@ -215,7 +220,7 @@ def execute(row):
 def interactive_provider(row):
     # Vendor wizards still need their interactive workflow. Decky is staged and
     # launched from the UI runner; plugin/CSS privilege is handled separately.
-    return (row['key'] in ('remote:tailscale','launcher:battlenet','dev:distrobox') or
+    return (row['key'] == 'dev:distrobox' or
             (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:decky','module:library')))
 
 
@@ -297,7 +302,7 @@ def _run_plan(only, resume, journal):
                     if not permission.attempted:
                         state['queueStatus'] = 'AUTHENTICATING'
                         core.save_json(state_path(), state)
-                        print('Administrator permission needed for Decky plugin installation. Complete the KDE password dialog; the password is not saved.', flush=True)
+                        print('Administrator permission needed for '+row['name']+'. Complete the KDE password dialog; the password is not saved.', flush=True)
                         try: permission.prepare()
                         except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
                             admin_error = str(exc)
@@ -317,7 +322,7 @@ def _run_plan(only, resume, journal):
                         if os.environ.get('DECKCTL_UI_RUN') != '1': install_log.note(phase+': '+message)
                         run_log.event(key, 'RUNNING', phase+': '+message)
                 try:
-                    interactive = interactive_provider(row) and os.environ.get('DECKCTL_UI_RUN') != '1'
+                    interactive = (interactive_provider(row) or key in ('remote:tailscale','launcher:battlenet')) and os.environ.get('DECKCTL_UI_RUN') != '1'
                     capture = nullcontext(None) if interactive else install_log.capture(key, stdout=os.environ.get('DECKCTL_UI_RUN') == '1')
                     with capture as log_path, install_progress.listen(progress):
                         records[key]['logPath'] = str(log_path) if log_path else None

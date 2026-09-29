@@ -10,7 +10,7 @@ HELPER = Path(__file__).parent/'ui/sudo-askpass'
 
 
 def needed(row):
-    return row.get('kind') == 'plugin'
+    return row.get('kind') == 'plugin' or row.get('key') == 'remote:tailscale'
 
 
 def command(args):

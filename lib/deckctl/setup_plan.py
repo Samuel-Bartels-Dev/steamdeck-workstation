@@ -242,7 +242,11 @@ def _size(details, label):
 def review_notes(row):
     key = row['key']
     notes = []
-    if row['kind'] in ('plugin','css','css-profile'):
+    if key == 'remote:tailscale':
+        notes.append('Setup stays in this window. A KDE password dialog authorizes the service; sign-in opens in your browser. Retry here after signing in.')
+    elif key == 'launcher:battlenet':
+        notes.append('Setup starts here with live console output. Complete any Battle.net installer or login windows; no terminal is required.')
+    elif row['kind'] in ('plugin','css','css-profile'):
         notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
     elif key in ('module:decky','module:android','remote:tailscale'):
         notes.append('Vendor setup may need its interactive window or Konsole, including sudo authorization.')

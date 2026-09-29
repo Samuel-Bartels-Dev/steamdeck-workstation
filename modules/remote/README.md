@@ -22,6 +22,12 @@ verifies. Application launchers, user edits, recovery files and unrelated archiv
 are retained. Inspect with `deckctl setup cleanup --dry-run`; run
 `deckctl setup cleanup` to reconcile an existing Desktop.
 
+The setup UI installs Tailscale inline using a KDE administrator password dialog.
+It opens the Tailscale login URL in the default browser without saving that URL
+in installer logs. After sign-in, choose Retry or Resume in setup to verify the
+connection. Existing connected installations are reused. Terminal setup remains
+available for users who explicitly run the command-line helper.
+
 ## Parsec
 
 Choose Parsec under **Remote & storage**, or run `deckctl apps install parsec`.

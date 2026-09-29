@@ -56,6 +56,11 @@ if state.get("Health"): print("Tailscale reports health warnings. Run tailscale 
   exit 0
 fi
 
+if [ -n "$TS_EXISTING" ] && [ "${DECKCTL_UI_RUN:-0}" = 1 ]; then
+  configure_user_shell_path
+  exit 0
+fi
+
 printf '\n=== Tailscale for Steam Deck ===\n\n'
 printf 'This uses the SteamOS-specific tailscale-dev/deck-tailscale installer.\n'
 printf 'It does NOT install Tailscale from Discover/Flatpak or pacman.\n\n'
@@ -87,8 +92,10 @@ cd "$WORK_DIR"
 
 printf '\nThe installer needs sudo because tailscaled is a system service.\n'
 printf 'Enter the Steam Deck sudo password when prompted.\n\n'
-sudo -v
-sudo bash tailscale.sh
+sudo_args=()
+if [ "${DECKCTL_UI_RUN:-0}" = 1 ]; then sudo_args=(-A); fi
+sudo "${sudo_args[@]}" -v
+sudo "${sudo_args[@]}" bash tailscale.sh
 
 # The upstream installer creates this profile fragment. Source it for this shell.
 if [ -r /etc/profile.d/tailscale.sh ]; then
@@ -113,6 +120,8 @@ fi
 # that directory through this profile fragment. Bash terminals are often
 # interactive non-login shells, so make them load it too.
 configure_user_shell_path
+
+if [ "${DECKCTL_UI_RUN:-0}" = 1 ]; then exit 0; fi
 
 printf '\nTailscale installed. Next you will get a QR/login URL.\n'
 printf 'Authenticate it to your PERSONAL tailnet.\n\n'

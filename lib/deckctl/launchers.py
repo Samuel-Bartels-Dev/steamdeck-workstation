@@ -1,5 +1,6 @@
 from __future__ import annotations
 import subprocess
+import os
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -33,4 +34,9 @@ def battlenet_installed(home: Path | None = None) -> bool:
 def install_battlenet() -> int:
     """Run NSL's supported targeted launcher install for Battle.net only."""
     script = ROOT / "modules/gaming/install-battlenet.sh"
+    if os.environ.get('DECKCTL_UI_RUN') == '1':
+        from . import run_log, install_progress
+        install_progress.report('Installing', 'Complete any Battle.net installer windows; progress stays in this console.')
+        run_log.run_step([str(script)], verbose=True)
+        return 0
     return subprocess.run([str(script)]).returncode
