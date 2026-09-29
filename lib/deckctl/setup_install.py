@@ -9,7 +9,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import time
-from . import core, setup_plan, install_log, install_progress, run_log, privilege, user_session
+from . import core, setup_plan, install_log, install_progress, run_log, privilege, user_session, css_connection
 
 
 class NeedsSetup(RuntimeError):
@@ -137,6 +137,10 @@ def execute(row):
     """Only catalog-owned commands may reach this dispatcher."""
     from . import terminal, ai_workspace, workspace, decky_installer, css_stack, containers, launchers
     key, name = row['key'], row.get('component')
+    if row['kind'] == 'css-connection':
+        try: css_connection.prepare()
+        except css_connection.ConnectionError as exc: raise NeedsSetup(str(exc)) from exc
+        return 'CSS Loader connection verified. Resume to continue pending themes.'
     if row['kind'] in ('css', 'css-profile') and verify(row):
         return 'Existing installation verified.'
     if _nested_decky_change(row):
@@ -228,6 +232,7 @@ def verify(row):
     if row['key'] == 'remote:tailscale':
         from . import tailscale
         return tailscale.status()['connected']
+    if row['kind'] == 'css-connection': return css_connection.status()[0]
     if row['kind'] == 'support': return True
     if row['kind'] == 'css':
         from . import css_stack

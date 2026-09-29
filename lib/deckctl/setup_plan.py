@@ -10,7 +10,7 @@ import shutil
 import subprocess
 import urllib.error
 from datetime import datetime, timezone
-from . import core, apps, component_options, gaming_options, css_stack, setup_builder, appearance
+from . import core, apps, component_options, gaming_options, css_stack, setup_builder, appearance, css_connection
 
 GROUPS = {'terminal', 'dev', 'remote', 'media', 'workspace', 'gaming', 'utilities'}
 FLATPAKS = {'remote:moonlight': 'com.moonlight_stream.Moonlight',
@@ -103,12 +103,17 @@ def items(payload=None):
     for option in setup_builder.plugin_items():
         if option['id'] in plan['plugins']:
             add('plugin:'+option['id'], option['name'], 'plugin', 'decky', option['summary'], ['module:decky'], component=option['id'])
+    needs_css = bool(plan['css'] or (plan['appearance'].get('css', True) and css_stack.installed_palette_components()))
+    if needs_css:
+        add(css_connection.KEY, 'CSS Loader connection', 'css-connection', 'decky',
+            'Shared by the selected CSS themes and palette. Retry here, then Resume the queue.',
+            ['plugin:SDH-CssLoader'] if 'plugin:SDH-CssLoader' in rows else [])
     for option in css_stack.selection_items():
         if option['id'] in plan['css']:
-            add('css:'+option['id'], option['name'], 'css', 'decky', option['summary'], ['plugin:SDH-CssLoader'], component=option['id'])
-    if plan['css'] or (plan['appearance'].get('css', True) and css_stack.installed_palette_components()):
+            add('css:'+option['id'], option['name'], 'css', 'decky', option['summary'], [css_connection.KEY], component=option['id'])
+    if needs_css:
         add('dependency:css-profile', 'CSS palette and recovery profile', 'css-profile', 'decky',
-            requires=['css:'+name for name in plan['css']])
+            requires=[css_connection.KEY] + ['css:'+name for name in plan['css']])
     if any('dependency:chrome' in row['requires'] for row in rows.values()):
         add('dependency:chrome', 'Google Chrome', 'flatpak', 'base', 'Shared by your selected web shortcuts and browser extensions.', ['module:base'], flatpak=FLATPAKS['dependency:chrome'])
     if 'module:ai-workspace' in rows:
@@ -142,6 +147,7 @@ def binary(name):
 def present(row):
     """Return installed evidence, separately from account/pairing readiness."""
     key = row['key']
+    if row['kind'] == 'css-connection': return css_connection.status()
     if 'flatpak' in row:
         commit = command(['flatpak', 'info', '--show-commit', row['flatpak']])
         scope = 'user' if command(['flatpak', 'info', '--user', '--show-commit', row['flatpak']]) else 'system'
@@ -218,6 +224,7 @@ def storage_budget(row, installed):
     """Free-space allowances, not fabricated exact download totals."""
     from . import ai_workspace
     path = Path.home()
+    if row['kind'] == 'css-connection': return path, 0, 'Shared local connection; no download'
     if row['key'].startswith('ai-workspace:model'):
         data = next(data for data in ai_workspace.LOCAL_MODELS.values() if data['component'] == row['component'])
         return ai_workspace.MODELS, data['space_bytes'], 'Model staging allowance'
@@ -246,7 +253,9 @@ def review_notes(row):
         notes.append('Setup stays in this window. A KDE password dialog authorizes the service; sign-in opens in your browser. Retry here after signing in.')
     elif key == 'launcher:battlenet':
         notes.append('Setup starts here with live console output. Complete any Battle.net installer or login windows; no terminal is required.')
-    elif row['kind'] in ('plugin','css','css-profile'):
+    elif row['kind'] in css_connection.KINDS:
+        notes.append('Uses CSS Loader’s existing local connection without sudo. Retry the shared connection here, then Resume the queue.')
+    elif row['kind'] == 'plugin':
         notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
     elif key in ('module:decky','module:android','remote:tailscale'):
         notes.append('Vendor setup may need its interactive window or Konsole, including sudo authorization.')
@@ -254,7 +263,9 @@ def review_notes(row):
         notes.append('Uses the existing system app or installs in your user account.')
     else:
         notes.append('Privileges depend on the provider; any administrator prompt stays in Konsole.')
-    if row['kind'] in ('css','css-profile') or key == 'module:decky':
+    if row['kind'] in css_connection.KINDS:
+        notes.append('No Decky restart or session switch is requested for CSS changes.')
+    elif key == 'module:decky':
         notes.append('May restart Decky; check the result in Game Mode.')
     elif key == 'module:controller':
         notes.append('Switch to Game Mode to reload templates; restart Steam only if still missing.')
@@ -347,7 +358,7 @@ def inspect(row, online=False):
     if result.get('providerInstalledBytes') is not None and result['downloadBytes'] is not None:
         budget = result['providerInstalledBytes'] + result['downloadBytes']
         path = Path.home()/'.local/share/flatpak'
-        label = 'Provider estimate plus download staging; shared runtimes are additional'
+        label = 'Provider estimate plus download staging; shared Flatpak runtimes are additional'
     result.update(storagePath=str(path), spaceBytes=budget, spaceLabel=label)
     return result
 
