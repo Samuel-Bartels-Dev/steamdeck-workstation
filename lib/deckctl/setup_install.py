@@ -120,6 +120,9 @@ def _module(mid):
     if result is not None and result.returncode: raise RuntimeError('Module installer failed; see the live output or item log.')
     if mid == 'decky':
         if core._decky_loader_present(): return
+        installer = Path.home()/'Desktop/Deck-Setup-Staged/decky_installer.desktop'
+        if os.environ.get('DECKCTL_UI_RUN') == '1' and core._launch_path(installer):
+            raise NeedsSetup('Decky installer opened. Finish the visible Decky setup, then choose Retry or Resume; plugin installation will request administrator permission afterward.')
         raise NeedsSetup('Open Decky Loader setup below, finish its installer, then resume your plugins.')
     checked = core.module_status(mid)
     if checked.get('status') not in ('READY', 'OPTIONAL'):
@@ -210,9 +213,10 @@ def execute(row):
 
 
 def interactive_provider(row):
-    # Vendor wizards still need their interactive workflow. Decky/CSS use askpass.
+    # Vendor wizards still need their interactive workflow. Decky is staged and
+    # launched from the UI runner; plugin/CSS privilege is handled separately.
     return (row['key'] in ('remote:tailscale','launcher:battlenet','dev:distrobox') or
-            (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:library')))
+            (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:decky','module:library')))
 
 
 def verify(row):
@@ -276,16 +280,6 @@ def _run_plan(only, resume, journal):
         print(f'Run: {journal.id}\nDurable logs: {journal.path}', flush=True)
         try:
             admin_error = None
-            admin_rows = [row for row in rows if row['key'] in wanted and
-                          privilege.needed(row) and not _nested_decky_change(row)]
-            if os.environ.get('DECKCTL_UI_RUN') == '1' and any(not verify(row) for row in admin_rows):
-                state['queueStatus'] = 'AUTHENTICATING'
-                core.save_json(state_path(), state)
-                print('Administrator permission needed before installation. Complete the KDE password dialog; the password is not saved.', flush=True)
-                try: permission.prepare()
-                except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
-                    admin_error = str(exc)
-                    print(admin_error, flush=True)
             for row in rows:
                 key = row['key']
                 if key not in wanted: continue
@@ -293,11 +287,23 @@ def _run_plan(only, resume, journal):
                 if (resume or only is not None) and records[key]['status'] == 'DONE' and verify(row): continue
                 if _nested_decky_change(row) and not verify(row):
                     record(key, 'NEEDS_SETUP', user_session.NESTED_DESKTOP_NOTICE); continue
-                if admin_error and privilege.needed(row) and not verify(row):
-                    record(key, 'NEEDS_SETUP', admin_error); continue
                 blockers = [parent for parent in row['requires'] if records.get(parent, {}).get('status') != 'DONE']
                 if blockers:
                     record(key, 'BLOCKED', 'Finish '+', '.join(by_key[parent]['name'] for parent in blockers)+' first.'); continue
+                if (os.environ.get('DECKCTL_UI_RUN') == '1' and privilege.needed(row)
+                        and not _nested_decky_change(row) and not verify(row)):
+                    if admin_error:
+                        record(key, 'NEEDS_SETUP', admin_error); continue
+                    if not permission.attempted:
+                        state['queueStatus'] = 'AUTHENTICATING'
+                        core.save_json(state_path(), state)
+                        print('Administrator permission needed for Decky plugin installation. Complete the KDE password dialog; the password is not saved.', flush=True)
+                        try: permission.prepare()
+                        except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+                            admin_error = str(exc)
+                            print(admin_error, flush=True)
+                            record(key, 'NEEDS_SETUP', admin_error)
+                            continue
                 records[key].update(startedAt=time.time(), finishedAt=None, phase='Checking', downloaded=None, total=None)
                 record(key, 'RUNNING', 'Checking prerequisites and available space.')
                 print('\n['+key+'] Checking: '+row['name'], flush=True)

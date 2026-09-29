@@ -339,19 +339,21 @@ class Experience(unittest.TestCase):
                 permission.prepare()
             run.assert_not_called()
 
-    def test_admin_cancel_precedes_install_and_does_not_block_user_apps(self):
+    def test_admin_cancel_is_deferred_to_plugin_and_does_not_block_user_apps(self):
         from deckctl import privilege
         rows = [dict(key='app:test',name='User app',kind='flatpak',requires=[]),
-                dict(key='plugin:Example',name='Example',kind='plugin',requires=[])]
+                dict(key='plugin:Example',name='Example',kind='plugin',requires=[]),
+                dict(key='app:after',name='Later user app',kind='flatpak',requires=[])]
         order = []
         def prepare():
             order.append('authorize')
             raise RuntimeError('Authorization cancelled; retry to open the password dialog.')
         with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_plan,'items',return_value=(self.plan,rows)), patch.object(setup_plan,'storage_budget',return_value=(self.root,None,'')), patch.object(setup_install,'verify',side_effect=lambda row: row['kind']=='flatpak'), patch.object(privilege.Session,'prepare',side_effect=prepare), patch.object(setup_install,'execute',side_effect=lambda row: order.append(row['key'])):
             self.assertEqual(setup_install.run(),2)
-        self.assertEqual(order,['authorize','app:test'])
+        self.assertEqual(order,['app:test','authorize','app:after'])
         records = setup_install.snapshot()['items']
         self.assertEqual(records['app:test']['status'],'DONE')
+        self.assertEqual(records['app:after']['status'],'DONE')
         self.assertEqual(records['plugin:Example']['status'],'NEEDS_SETUP')
         self.assertIn('password dialog',records['plugin:Example']['message'])
 
@@ -423,6 +425,69 @@ class Experience(unittest.TestCase):
         with patch.object(core, '_decky_loader_present', return_value=True), patch.object(core, 'module_status', side_effect=AssertionError('Aggregate plugin state must not block the loader')):
             self.assertTrue(setup_plan.present({'key': 'module:decky', 'kind': 'module', 'owner': 'decky'})[0])
             setup_install._module('decky')
+
+    def test_decky_ui_launches_before_plugin_sudo_and_blocks_dependents_until_verified(self):
+        from deckctl import privilege
+        rows = [
+            dict(key='module:decky', name='Decky', kind='module', owner='decky', requires=[]),
+            dict(key='plugin:Example', name='Example plugin', kind='plugin', owner='decky', component='Example', requires=['module:decky']),
+            dict(key='module:library', name='Library', kind='module', owner='library', requires=['module:decky']),
+        ]
+        loader = {'ready': False}
+        plugin = {'installed': False}
+        events = []
+        def verify(row):
+            if row['key'] == 'module:decky': return loader['ready']
+            if row['key'] == 'plugin:Example': return plugin['installed']
+            return row['key'] == 'module:library'
+        def execute(row):
+            if verify(row): return 'Existing installation verified.'
+            events.append('execute:'+row['key'])
+            if row['key'] == 'module:decky':
+                raise setup_install.NeedsSetup('Decky installer opened. Finish the visible Decky setup, then choose Retry or Resume; plugin installation will request administrator permission afterward.')
+            if row['key'] == 'plugin:Example':
+                events.append('plugin-ran')
+                plugin['installed'] = True
+        def prepare():
+            events.append('sudo')
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), \
+             patch.object(setup_plan, 'items', return_value=(self.plan, rows)), \
+             patch.object(setup_plan, 'storage_budget', return_value=(self.root, None, '')), \
+             patch.object(setup_install, 'verify', side_effect=verify), \
+             patch.object(setup_install, 'execute', side_effect=execute), \
+             patch.object(privilege.Session, 'prepare', side_effect=prepare):
+            self.assertEqual(setup_install.run(), 2)
+        first = setup_install.snapshot()['items']
+        self.assertEqual(first['module:decky']['status'], 'NEEDS_SETUP')
+        self.assertEqual(first['plugin:Example']['status'], 'BLOCKED')
+        self.assertEqual(first['module:library']['status'], 'BLOCKED')
+        self.assertNotIn('sudo', events)
+
+        loader['ready'] = True
+        events.clear()
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), \
+             patch.object(setup_plan, 'items', return_value=(self.plan, rows)), \
+             patch.object(setup_plan, 'storage_budget', return_value=(self.root, None, '')), \
+             patch.object(setup_install, 'verify', side_effect=verify), \
+             patch.object(setup_install, 'execute', side_effect=execute), \
+             patch.object(privilege.Session, 'prepare', side_effect=prepare):
+            self.assertEqual(setup_install.run(resume=True), 0)
+        self.assertEqual(events[0], 'sudo')
+        self.assertIn('execute:plugin:Example', events)
+        self.assertEqual(setup_install.snapshot()['items']['module:decky']['status'], 'DONE')
+        self.assertEqual(setup_install.snapshot()['items']['plugin:Example']['status'], 'DONE')
+        self.assertEqual(setup_install.snapshot()['items']['module:library']['status'], 'DONE')
+
+    def test_decky_module_is_not_deferred_as_generic_interactive_provider(self):
+        row = dict(key='module:decky', kind='module', owner='decky')
+        self.assertFalse(setup_install.interactive_provider(row))
+        with patch.dict(os.environ, {'DECKCTL_UI_RUN':'1'}), \
+             patch.object(core, '_decky_loader_present', return_value=False), \
+             patch.object(core, 'run_action', return_value=None), \
+             patch.object(core, '_launch_path', return_value=True) as launch:
+            with self.assertRaisesRegex(setup_install.NeedsSetup, 'Decky installer opened'):
+                setup_install._module('decky')
+            launch.assert_called_once()
 
     def test_low_space_preview_checks_the_target_filesystem(self):
         row = dict(key='terminal:tmux', visible=True, action='NEW', spaceBytes=2*setup_plan.GIB, storagePath=str(self.root))
