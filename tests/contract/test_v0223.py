@@ -39,7 +39,9 @@ class ExistingInstallation(unittest.TestCase):
         p.chmod(0o755)
 
     def run_tool(self,*args):
-        result=subprocess.run([sys.executable,str(ROOT/'tools/install-control-plane'),*map(str,args)],env=self.env,capture_output=True,text=True,timeout=45)
+        env=dict(self.env)
+        env.pop('DECKCTL_SOURCE_REVISION',None)
+        result=subprocess.run([sys.executable,str(ROOT/'tools/install-control-plane'),*map(str,args)],env=env,capture_output=True,text=True,timeout=45)
         self.assertEqual(result.returncode,0,result.stderr)
         return Path(result.stdout.strip())
 
