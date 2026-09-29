@@ -298,8 +298,10 @@ class Production(unittest.TestCase):
         shutil.copytree(ROOT, source, ignore=shutil.ignore_patterns('.git','__pycache__','release'))
         (source/'VERSION').write_text(candidate_version+'\n')
         home = Path(self.temp.name)/'candidate-home'; home.mkdir()
+        env = {**os.environ, 'HOME':str(home)}
+        env.pop('DECKCTL_SOURCE_REVISION', None)
         result = subprocess.run([str(source/'tools/install-control-plane'), str(source)],
-                                env={**os.environ, 'HOME':str(home)}, text=True, capture_output=True, timeout=30)
+                                env=env, text=True, capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertTrue((home/f'.local/share/steamdeck-workstation/releases/{candidate_version}/bin/deckctl').exists())
         code = (ROOT/'bootstrap.sh').read_text().split("<<'PY'\n",1)[1].rsplit('\nPY',1)[0]
