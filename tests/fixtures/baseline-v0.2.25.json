@@ -1042,10 +1042,14 @@
     "modules/remote/install-tailscale-steamos.sh",
     "lib/deckctl/network.py",
     "lib/deckctl/launchers.py",
-    "modules/gaming/install-battlenet.sh"
+    "modules/gaming/install-battlenet.sh",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "docs/ai/COMMON.md"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
   "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved.",
   "v0.2.44_tailscale_review": "Connected Tailscale installations skip vendor download and login; existing failed-refresh preservation tests remain enforced. Historical file hashes are unchanged.",
-  "remote_stream_review": "The network module now reports Tailscale route and latency observations for the registered Sunshine host."
+  "remote_stream_review": "The network module now reports Tailscale route and latency observations for the registered Sunshine host.",
+  "agent_collaboration_review": "User-requested shared model selection, bounded parallel work, ownership and communication policy. Historical hashes remain unchanged; the explicitly reviewed AI entry points and shared context may evolve."
 }

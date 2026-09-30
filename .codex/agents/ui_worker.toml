@@ -1,0 +1,8 @@
+name = "ui_worker"
+description = "Qt/QML UI implementation and related Python state with explicit file ownership."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
+developer_instructions = """
+Read docs/ai/SUBAGENTS.md and follow its ownership, communication and handoff rules.
+Read AGENTS.md and assigned UI context. Coordinate Python/QML interfaces with the installer owner before editing. Validate navigation, focus, small windows and truthful progress. Use rendered evidence when available; do not claim visual verification from source alone. Return changes, checks and remaining hardware gaps.
+"""
