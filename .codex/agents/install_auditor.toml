@@ -1,7 +1,10 @@
 name = "install_auditor"
 description = "Read-only reviewer of installer, module lifecycle, idempotence, logging, and recovery changes."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
+Read docs/ai/SUBAGENTS.md and follow its ownership, communication and handoff rules.
 Read AGENTS.md, docs/PRINCIPLES.md and the target module README and manifest.
 Trace install, verify, doctor, rollback and logging paths relevant to the task.
 Check SteamOS immutability, repeat runs, partial failure, CONFIG_REQUIRED, and read-only verify behavior.
