@@ -112,6 +112,27 @@ and installs the permanent command at:
 ~/.local/bin/deckctl
 ```
 
+To test the reviewed installer fixes in PR #60 before merging, close any existing
+setup window and use a separate checkout of its branch:
+
+```bash
+git clone --branch fix/app-owned-installer https://github.com/Samuel-Bartels-Dev/steamdeck-workstation.git steamdeck-workstation-pr60
+cd steamdeck-workstation-pr60
+./bin/deckctl update preview --source "$PWD"
+DECKCTL_SOURCE_REVISION="$(git rev-parse HEAD)" ./tools/install-control-plane "$PWD"
+~/.local/bin/deckctl setup customize
+```
+
+This promotes the installer runtime while preserving saved selections and the
+previous releases. Application installation starts when you choose Install in
+the setup app. An open window keeps its loaded runtime until you close it.
+The version label can remain the same across main and PR builds; check the
+active release's commit suffix to confirm which code is running:
+
+```bash
+readlink -f ~/.local/share/steamdeck-workstation/current
+```
+
 When the installer finishes, open a new Konsole window or run:
 
 ```bash
