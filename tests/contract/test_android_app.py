@@ -29,6 +29,7 @@ class AndroidApp(unittest.TestCase):
         android_fixtures.AndroidProvisioning.setUp(self)
         self.stack.enter_context(patch.dict(os.environ, {'DECKCTL_UI_RUN':'1', 'DECKCTL_APP_SUDO':'test-owner'}))
         self.stack.enter_context(patch.object(user_session, 'nested_desktop', return_value=False))
+        self.stack.enter_context(patch.object(android,'RUNTIME_LIBRARY',self.home/'.local/share/steamdeck-workstation/releases/reviewed-fixture/lib'))
         self.release = self.stack.enter_context(patch.object(app_sudo,'release_session',create=True,return_value=0))
 
     def test_nested_rejects_provider_and_launcher_before_authorization(self):
@@ -72,6 +73,33 @@ class AndroidApp(unittest.TestCase):
             self.assertIn('launcher-diagnostics',result.stdout)
             self.assertIn(str(android.LAUNCHER.parent),staged.read_text())
         self.assertEqual(android.LAUNCHER.read_text(),text)
+
+    def test_resolution_adapter_drains_xdpyinfo_and_keeps_real_failures(self):
+        fake = self.home/'fake-x11'
+        fake.mkdir()
+        xdpyinfo = fake/'xdpyinfo'
+        xdpyinfo.write_text('#!/usr/bin/python3\nimport os, signal\nsignal.signal(signal.SIGPIPE, signal.SIG_DFL)\n'
+                           'os.write(1,b"dimensions: 1280x800 pixels\\n")\n'
+                           'for _ in range(1024): os.write(1,b"ignored data"*1024+b"\\n")\n'
+                           'os.write(1,b"dimensions: 640x480 pixels\\n")\n')
+        xdpyinfo.chmod(0o700)
+        native = '#!/bin/bash\nset -Eeuo pipefail\n'+android.RESOLUTION_COMMAND+'\nprintf "%s\\n" "$RESOLUTION"\n'
+        android.LAUNCHER.write_text(native)
+        digest = hashlib.sha256(native.encode()).hexdigest()
+        env = dict(os.environ,PATH=str(fake)+os.pathsep+os.environ['PATH'])
+        result = subprocess.run([str(android.LAUNCHER)],capture_output=True,text=True,env=env)
+        self.assertEqual(result.returncode,141)
+        self.assertEqual(result.stdout,'')
+        with patch.object(android,'LAUNCHER_DIGEST',digest), android._app_launcher() as adapted:
+            result = subprocess.run([str(adapted)],capture_output=True,text=True,env=env)
+            self.assertEqual(result.returncode,0)
+            self.assertEqual(result.stdout,'1280x800\n')
+            xdpyinfo.write_text('#!/bin/sh\nprintf "dimensions: 1280x800 pixels\\n"\nexit 9\n')
+            result = subprocess.run([str(adapted)],capture_output=True,text=True,env=env)
+            self.assertEqual(result.returncode,9)
+            self.assertEqual(result.stdout,'')
+        self.assertEqual(android.LAUNCHER.read_text(),native)
+        self.assertEqual(android.IMAGE.read_bytes(),b'preserved image')
 
     def test_unsupported_launcher_preserves_image_without_launch(self):
         before = android.IMAGE.read_bytes()
@@ -156,17 +184,89 @@ class AndroidApp(unittest.TestCase):
         self.assertEqual(android.IMAGE.read_bytes(),b'preserved image')
 
     def test_wrapper_executes_python_module_and_forwards_package(self):
-        fake_library = self.home/'.local/share/steamdeck-workstation/current/lib'
+        fake_library = android.RUNTIME_LIBRARY
         fake_module = fake_library/'deckctl/android.py'
         fake_module.parent.mkdir(parents=True)
         (fake_module.parent/'__init__.py').write_text('')
-        fake_module.write_text('import os, sys\nfrom pathlib import Path\nPath(os.environ["HOME"], "wrapper-args").write_text("\\n".join(sys.argv[1:]))\n')
+        fake_module.write_text('import os\nfrom pathlib import Path\ndef launch(args):\n    Path(os.environ["HOME"], "wrapper-args").write_text("\\n".join(args))\n    return 0\n')
         original = android.LAUNCHER.read_bytes()
         with patch.object(android,'LAUNCHER_DIGEST',hashlib.sha256(original).hexdigest()):
             android._install_launch_wrapper()
             subprocess.run([str(android.LAUNCHER),'com.fixture.game'], check=True, env=dict(os.environ))
         self.assertEqual((self.home/'wrapper-args').read_text(),'com.fixture.game')
         self.assertEqual(android.LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh').read_bytes(),original)
+
+    def test_wrapper_survives_current_rollback_and_refuses_missing_launch_capability(self):
+        pinned = android.RUNTIME_LIBRARY/'deckctl'
+        pinned.mkdir(parents=True)
+        (pinned/'__init__.py').write_text('')
+        (pinned/'android.py').write_text('def launch(args):\n    print("pinned-release:"+args[0])\n    return 0\n')
+        older = pinned.parents[2]/'older-main'
+        older_module = older/'lib/deckctl'
+        older_module.mkdir(parents=True)
+        (older_module/'__init__.py').write_text('')
+        (older_module/'android.py').write_text('# Earlier main has no launch function.\n')
+        current = self.home/'.local/share/steamdeck-workstation/current'
+        current.symlink_to(older)
+        original = android.LAUNCHER.read_bytes()
+        with patch.object(android,'LAUNCHER_DIGEST',hashlib.sha256(original).hexdigest()):
+            android._install_launch_wrapper()
+            result = subprocess.run([str(android.LAUNCHER),'com.fixture.game'],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0)
+            self.assertEqual(result.stdout,'pinned-release:com.fixture.game\n')
+            competing = self.home/'launch-directory/deckctl'
+            competing.mkdir(parents=True)
+            (competing/'__init__.py').write_text('')
+            (competing/'android.py').write_text('def launch(args):\n    raise RuntimeError("wrong runtime")\n')
+            result = subprocess.run([str(android.LAUNCHER),'com.fixture.game'],capture_output=True,text=True,cwd=competing.parent)
+            self.assertEqual(result.returncode,0)
+            self.assertEqual(result.stdout,'pinned-release:com.fixture.game\n')
+            (pinned/'android.py').write_text('# Pinned runtime unexpectedly lacks launch.\n')
+            result = subprocess.run([str(android.LAUNCHER)],capture_output=True,text=True)
+            self.assertEqual(result.returncode,2)
+            self.assertIn('lacks Android launch support',result.stderr)
+        self.assertEqual(current.resolve(),older)
+        self.assertEqual(android.LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh').read_bytes(),original)
+
+    def test_exact_legacy_wrapper_migrates_without_changing_vendor_or_state(self):
+        original = android.LAUNCHER.read_bytes()
+        vendor = android.LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
+        vendor.write_bytes(original)
+        android.LAUNCHER.write_text(android._legacy_wrapper_text())
+        with patch.object(android,'LAUNCHER_DIGEST',hashlib.sha256(original).hexdigest()):
+            android._install_launch_wrapper()
+            self.assertEqual(android.LAUNCHER.read_text(),android._wrapper_text())
+            self.assertEqual(android._launcher_source(),vendor)
+        self.assertEqual(vendor.read_bytes(),original)
+        self.assertEqual(android.IMAGE.read_bytes(),b'preserved image')
+        self.assertFalse(android.STATE.exists())
+
+    def test_known_pinned_wrapper_migrates_to_new_installed_release(self):
+        original = android.LAUNCHER.read_bytes()
+        vendor = android.LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
+        vendor.write_bytes(original)
+        older = android.RUNTIME_LIBRARY.parent.parent/'previous-reviewed/lib'
+        android.LAUNCHER.write_text(android._wrapper_text(older))
+        with patch.object(android,'LAUNCHER_DIGEST',hashlib.sha256(original).hexdigest()):
+            android._install_launch_wrapper()
+            self.assertEqual(android.LAUNCHER.read_text(),android._wrapper_text())
+            self.assertEqual(android._launcher_source(),vendor)
+        self.assertEqual(vendor.read_bytes(),original)
+
+    def test_edited_legacy_wrapper_is_preserved_and_development_runtime_is_refused(self):
+        original = android.LAUNCHER.read_bytes()
+        vendor = android.LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
+        vendor.write_bytes(original)
+        edited = android._legacy_wrapper_text()+'# user edit\n'
+        android.LAUNCHER.write_text(edited)
+        with patch.object(android,'LAUNCHER_DIGEST',hashlib.sha256(original).hexdigest()):
+            with self.assertRaisesRegex(RuntimeError,'wrapper was edited'):
+                android._install_launch_wrapper()
+            with patch.object(android,'RUNTIME_LIBRARY',self.home/'disposable-worktree/lib'):
+                with self.assertRaisesRegex(RuntimeError,'persistent installed release'):
+                    android._install_launch_wrapper()
+        self.assertEqual(android.LAUNCHER.read_text(),edited)
+        self.assertEqual(vendor.read_bytes(),original)
 
     def test_durable_launch_replaces_inherited_stale_transport_and_sudo_path(self):
         stale = self.home/'stale-owner'
@@ -205,7 +305,7 @@ class AndroidApp(unittest.TestCase):
             android._install_launch_wrapper()
             result = subprocess.run([str(android.LAUNCHER)], capture_output=True, text=True)
         self.assertEqual(result.returncode,2)
-        self.assertIn('restore the deckctl control plane',result.stderr)
+        self.assertIn('restore the pinned deckctl release',result.stderr)
         self.assertFalse((self.home/'launched').exists())
 
     def test_launcher_owner_crash_stops_stubborn_gui_standin(self):

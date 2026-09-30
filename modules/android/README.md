@@ -103,10 +103,20 @@ authorization when Android closes. Each durable launch creates its own owner and
 discards inherited setup sockets, sudo shim paths and queue-control variables.
 It preserves package arguments and does not
 store passwords. Edited vendor scripts and unrelated recovery files are refused
-and preserved. The wrapper loads the persistent control plane at
-`~/.local/share/steamdeck-workstation/current`; restore it with `install.sh` if
-it is missing. It never points into the temporary provider adapter or a development
-checkout.
+and preserved. The wrapper pins the immutable installed release that created it
+under `~/.local/share/steamdeck-workstation/releases/`, so changing or rolling
+back `current` does not send Android into an older runtime without launch support.
+Missing release files or launch capability produce CONFIG_REQUIRED; activate the
+reviewed release with `install.sh` and Retry. A retry can migrate an exact known
+older generated wrapper, including the former `current/lib` wrapper, while
+preserving vendor bytes and refusing custom edits. Temporary adapters and
+development checkouts are refused as durable launch targets.
+
+The temporary launcher adapter also changes the inspected resolution pipeline
+to drain all `xdpyinfo` output while retaining its first dimensions result.
+This prevents an early `awk` exit from causing SIGPIPE/status 141 under `pipefail`;
+real display-command failures still fail. The original vendor launcher, image,
+apps and login state remain untouched by this adaptation.
 
 Controller helpers started by the inspected vendor runtime are supervised for
 the Android session, rather than killed when its startup command returns. Their

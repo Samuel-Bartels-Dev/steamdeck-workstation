@@ -21,6 +21,8 @@ LEGACY = HOME / 'waydroid'
 SHORTCUT_HELPER = HOME / 'Android_Waydroid/steam-shortcuts.py'
 LAUNCHER = HOME / 'Android_Waydroid/Android_Waydroid_Cage.sh'
 WRAPPER_MARKER = '# deckctl Android launch: temporary administrator authorization.\n'
+RUNTIME_LIBRARY = Path(__file__).resolve().parent.parent
+RESOLUTION_COMMAND = "RESOLUTION=\"$(xdpyinfo | awk '/dimensions/{print $2; exit}')\""
 
 # Inspected provider 6f643fb42afc0595a7c8fe1d6f3350b748c8001c.
 # Only the files whose contracts we adapt are pinned, not the bundle catalog.
@@ -35,7 +37,7 @@ AUTH_END = "\tprintf 'Sudo authentication succeeded.\\n'\n"
 INSTALLER_ROOT = "printf '%s\\n' \"$WORKING_DIR\" >~/Android_Waydroid/installer-root"
 
 
-def _wrapper_text():
+def _legacy_wrapper_text():
     library = str(HOME/'.local/share/steamdeck-workstation/current/lib')
     return ('#!/bin/sh\n'+WRAPPER_MARKER+
             'runtime='+shlex.quote(library)+'\n'
@@ -46,10 +48,47 @@ def _wrapper_text():
             'exec /usr/bin/python3 -B -m deckctl.android "$@"\n')
 
 
+def _installed_library(library):
+    library = Path(library).resolve()
+    releases = (HOME/'.local/share/steamdeck-workstation/releases').resolve()
+    if library.name != 'lib' or library.parent.parent != releases:
+        raise RuntimeError('Android launch wrapper requires a persistent installed release. Activate the reviewed release with install.sh, then Retry; development checkouts are not durable launch targets.')
+    return library
+
+
+def _wrapper_text(library=None):
+    library = _installed_library(RUNTIME_LIBRARY if library is None else library)
+    dispatch = ("import sys\n"+"sys.path.insert(0, "+repr(str(library))+")\nfrom deckctl import android\n"
+                "launch = getattr(android, 'launch', None)\n"
+                "if not callable(launch):\n"
+                "    print('Android CONFIG_REQUIRED: the pinned deckctl release lacks Android launch support. Activate the reviewed release and Retry.', file=sys.stderr)\n"
+                "    raise SystemExit(2)\n"
+                "raise SystemExit(launch(sys.argv[1:]))\n")
+    return ('#!/bin/sh\n'+WRAPPER_MARKER+
+            'runtime='+shlex.quote(str(library))+'\n'
+            'if [ ! -r "$runtime/deckctl/android.py" ]; then\n'
+            '  printf "%s\\n" "Android CONFIG_REQUIRED: restore the pinned deckctl release with install.sh before launching." >&2\n'
+            '  exit 2\nfi\n'
+            'export PYTHONPATH="$runtime"\n'
+            'exec /usr/bin/python3 -B -c '+shlex.quote(dispatch)+' "$@"\n')
+
+
+def _known_wrapper(text):
+    if text == _legacy_wrapper_text():
+        return True
+    try:
+        assignment = shlex.split(text.splitlines()[2])
+        if len(assignment) != 1 or not assignment[0].startswith('runtime='):
+            return False
+        return text == _wrapper_text(assignment[0].removeprefix('runtime='))
+    except (IndexError, ValueError, RuntimeError):
+        return False
+
+
 def _launcher_source():
     text = LAUNCHER.read_text()
     if text.startswith('#!/bin/sh\n'+WRAPPER_MARKER):
-        if text != _wrapper_text():
+        if not _known_wrapper(text):
             raise RuntimeError('Android app launcher wrapper was edited. It was preserved; review the changes before retrying.')
         return LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
     return LAUNCHER
@@ -59,10 +98,11 @@ def _install_launch_wrapper():
     """Keep the existing Steam target and exact vendor bytes with GUI auth."""
     if LAUNCHER.is_symlink():
         raise RuntimeError('Android launcher is a symlink. Preserve it and review the app launch adapter before retrying.')
+    wrapper = _wrapper_text()
     source = _launcher_source()
     if source.is_symlink() or hashlib.sha256(source.read_bytes()).hexdigest() != LAUNCHER_DIGEST:
         raise RuntimeError('Installed Android launcher contract changed. The existing launcher was preserved; app adapter needs review.')
-    if source != LAUNCHER:
+    if source != LAUNCHER and LAUNCHER.read_text() == wrapper:
         return
     vendor = LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
     if vendor.exists() or vendor.is_symlink():
@@ -78,7 +118,7 @@ def _install_launch_wrapper():
         temporary = Path(stream.name)
     try:
         with temporary.open('w') as stream:
-            stream.write(_wrapper_text())
+            stream.write(wrapper)
         temporary.chmod(0o700)
         temporary.replace(LAUNCHER)
     finally:
@@ -167,6 +207,10 @@ def _app_launcher():
     with tempfile.TemporaryDirectory(prefix='deckctl-android-launch-') as directory:
         target = Path(directory)/LAUNCHER.name
         text = source.read_text()
+        # Keep pipefail while consuming all xdpyinfo output: an early awk exit
+        # can give xdpyinfo SIGPIPE and abort this launcher with status 141.
+        text = text.replace(RESOLUTION_COMMAND,
+                            "RESOLUTION=\"$(xdpyinfo | awk '/dimensions/ && !found {print $2; found=1}')\"")
         text = text.replace('SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"',
                             'SCRIPT_DIR='+shlex.quote(str(LAUNCHER.parent)))
         text = text.replace('>"$LAUNCH_ERROR_LOG" 2>&1', '> >(tee "$LAUNCH_ERROR_LOG") 2>&1')
