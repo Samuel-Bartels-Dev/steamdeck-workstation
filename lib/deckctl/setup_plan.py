@@ -254,7 +254,7 @@ def review_notes(row):
     elif key == 'launcher:battlenet':
         notes.append('Setup starts here with live console output. Complete any Battle.net installer or login windows; no terminal is required.')
     elif row['kind'] in css_connection.KINDS:
-        notes.append('Uses CSS Loader’s existing local connection without sudo. Retry the shared connection here, then Resume the queue.')
+        notes.append('Prefers live CSS without sudo. Normal Desktop fallback uses the KDE administrator dialog. Retry the connection here, then Resume.')
     elif row['kind'] == 'plugin':
         notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
     elif key in ('module:decky','module:android','remote:tailscale'):
@@ -264,7 +264,7 @@ def review_notes(row):
     else:
         notes.append('Privileges depend on the provider; any administrator prompt stays in Konsole.')
     if row['kind'] in css_connection.KINDS:
-        notes.append('No Decky restart or session switch is requested for CSS changes.')
+        notes.append('Normal Desktop fallback may restart Decky temporarily. Nested Desktop never restarts Decky or Steam; no session switch is requested.')
     elif key == 'module:decky':
         notes.append('May restart Decky; check the result in Game Mode.')
     elif key == 'module:controller':

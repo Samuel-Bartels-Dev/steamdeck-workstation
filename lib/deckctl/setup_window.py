@@ -318,8 +318,9 @@ class Session:
         records = setup_install.resume_records(state, plan, rows)
         nested = user_session.nested_desktop()
         def desktop_deferred(record, row):
-            return (nested and setup_install._nested_decky_change(row) and record.get('status') == 'NEEDS_SETUP' and
-                    record.get('message') == user_session.NESTED_DESKTOP_NOTICE)
+            return (nested and record.get('status') == 'NEEDS_SETUP' and (
+                    (setup_install._nested_decky_change(row) and record.get('message') == user_session.NESTED_DESKTOP_NOTICE) or
+                    (row.get('kind') == 'css-connection' and record.get('message', '').startswith('[NESTED_DESKTOP]'))))
         unfinished = [(records.get(row['key'], {}), row) for row in rows
                       if records.get(row['key'], {}).get('status') != 'DONE'] if records else []
         desktop_deferred_count = sum(desktop_deferred(record, row) for record, row in unfinished)

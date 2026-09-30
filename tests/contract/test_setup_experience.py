@@ -21,13 +21,14 @@ class Experience(unittest.TestCase):
                 self.assertEqual(user_session.nested_desktop(), expected)
 
     def test_nested_desktop_css_uses_live_bridge_and_blocks_service_restart(self):
-        from deckctl import css_stack, decky_installer
+        from deckctl import css_stack, css_connection, decky_installer
         backend = Mock()
         backend.themes.return_value = []
         backend.call.side_effect = [str(css_stack.THEMES_DIR), 9]
         with patch.dict(os.environ, {'XDG_RUNTIME_DIR':'/run/user/1000/nested-desktop.TEST'}), \
                 patch.object(css_stack, '_validate_plugin'), \
                 patch.object(css_stack, 'Backend', return_value=backend), \
+                patch.object(css_connection, '_probe'), \
                 patch.object(decky_installer.subprocess, 'run') as run:
             with css_stack._backend_session(): pass
             self.assertFalse(decky_installer._restart_decky())

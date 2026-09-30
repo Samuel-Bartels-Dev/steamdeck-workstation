@@ -17,7 +17,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from . import core, css_live
+from . import core
 
 STACK_PATH = core.ROOT / 'modules/decky/css-stack.json'
 THEMES_DIR = Path.home() / 'homebrew/themes'
@@ -188,31 +188,13 @@ def _validate_plugin():
 
 @contextmanager
 def _backend_session():
-    _validate_plugin()
-    backend = Backend()
+    from . import css_connection
     try:
-        backend.themes()
-    except OSError:
-        print('Opening CSS Loader live connection through Steam; no Decky restart.')
-        try:
-            css_live.enable()
-        except css_live.LiveError as exc:
-            raise CSSError(str(exc) + ' In Decky → CSS Loader → Settings, enable Standalone Backend, then retry. No service or session restart was requested.') from exc
-        deadline = time.monotonic() + 5
-        while True:
-            try:
-                backend.themes()
-                break
-            except OSError:
-                if time.monotonic() >= deadline:
-                    raise CSSError('CSS Loader live API did not become ready; enable Standalone Backend in CSS Loader settings and retry. No restart was requested.')
-                time.sleep(.2)
-    if Path(backend.call('fetch_theme_path')).resolve() != THEMES_DIR.resolve():
-        raise CSSError('CSS Loader uses a different theme directory; refusing to modify the wrong tree')
-    version = backend.call('get_backend_version')
-    if not isinstance(version, int) or version < 9:
-        raise CSSError('CSS Loader manifest support 9 or newer is required for configurable colors')
-    yield backend
+        with css_connection.session():
+            css_connection.prepare()
+            yield Backend()
+    except css_connection.ConnectionError as exc:
+        raise CSSError(str(exc)) from exc
 
 
 def _resolve_store_theme(name):
