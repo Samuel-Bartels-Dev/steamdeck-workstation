@@ -192,6 +192,12 @@ removes methods or changes the bridge is a real `CONFIG_REQUIRED` condition,
 not a fabricated success. Retry after resolving the reported problem with
 `deckctl decky css apply`. Internet is required only for missing Store components.
 
+The historical selection ID `Game Cover Shine Animation` resolves explicitly to
+**Game Cover Shine Animation Color**, the approved Theme Store name. The setup UI
+shows the Store name while keeping the saved selection/queue ID intact. Native
+backend names are used for configuration and profile dependencies. This mapping
+does not permit partial matches or silently replace unavailable themes.
+
 ## Artwork ownership
 
 SteamGridDB remains a core default plugin and owns Gaming Mode covers, hero images,

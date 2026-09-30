@@ -262,6 +262,42 @@ class CSSBehavior(Isolated):
         with patch.object(css, '_fetch_json', side_effect=[{'items': [item], 'total': 1}, {**item, 'disabled': True}]):
             with self.assertRaises(css.CSSError): css._resolve_store_theme(item['displayName'])
 
+    def test_legacy_shine_selection_resolves_exact_store_name(self):
+        legacy = 'Game Cover Shine Animation'
+        canonical = 'Game Cover Shine Animation Color'
+        write_json(core.CONFIG_HOME / 'css-selection.json', {'selected': [legacy]})
+        before = (core.CONFIG_HOME / 'css-selection.json').read_bytes()
+        self.assertEqual(css.selection(), [legacy])
+        self.assertEqual(next(item for item in css.selection_items() if item['id'] == legacy)['name'], canonical)
+        item = {'id': 'a55d59e2-17ff-41f2-a672-45864169d394', 'name': canonical,
+                'displayName': canonical, 'type': 'Css', 'manifestVersion': 5,
+                'approved': True, 'disabled': False, 'download': {'id': 'blob'}}
+        with patch.object(css, '_fetch_json', side_effect=[{'items': [item], 'total': 1}, item]) as fetch:
+            self.assertEqual(css._resolve_store_theme(legacy)['id'], item['id'])
+            self.assertIn('search=Game+Cover+Shine+Animation+Color', fetch.call_args_list[0].args[0])
+        for candidates in ([{**item, 'name': canonical + ' Extra', 'displayName': canonical + ' Extra'}],
+                           [item, {**item, 'id': 'duplicate'}]):
+            with patch.object(css, '_fetch_json', return_value={'items': candidates, 'total': len(candidates)}), self.assertRaises(css.CSSError):
+                css._resolve_store_theme(legacy)
+        self.assertEqual((core.CONFIG_HOME / 'css-selection.json').read_bytes(), before)
+
+    def test_shine_retry_installs_native_name_and_resume_builds_profile(self):
+        legacy = 'Game Cover Shine Animation'
+        canonical = 'Game Cover Shine Animation Color'
+        write_json(core.CONFIG_HOME / 'css-selection.json', {'selected': [legacy]})
+        backend = self.fake_install()
+        backend.available[legacy].update(name=canonical, display_name=canonical)
+        self.assertEqual(css.apply(only=legacy), 0)
+        self.assertTrue(css.component_ready(legacy))
+        self.assertTrue(css._find(css._installed_themes(), legacy))
+        calls = len([m for m, _ in backend.calls if m == 'download_theme_from_url'])
+        self.assertEqual(css.apply(), 0)
+        self.assertTrue(css.readiness()[0])
+        self.assertEqual(len([m for m, _ in backend.calls if m == 'download_theme_from_url']), calls)
+        profile = css.THEMES_DIR / (css._stack()['preset'] + '.profile/theme.json')
+        self.assertEqual(set(json.loads(profile.read_text())['dependencies']), {canonical})
+        self.assertEqual(css.selection(), [legacy])
+
     def test_backend_rejects_error_and_malformed_schema(self):
         for envelope in ({'success': False, 'res': 'error'}, {'success': True, 'res': {'success': False}}, {'success': True, 'res': {'fails': ['bad theme']}}):
             with patch.object(css, '_fetch_json', return_value=envelope):
