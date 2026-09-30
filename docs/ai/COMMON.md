@@ -15,3 +15,9 @@ The project is an endpoint-management layer for Steam Deck, not a custom SteamOS
 - Add tests and verification for every meaningful capability.
 - Do not make `verify` mutate state.
 - Do not silently change a user's performance settings, storage layout, or personal data.
+
+## Collaboration
+
+Follow [SUBAGENTS.md](SUBAGENTS.md) for task division, model selection, agent
+communication and integration. Delegate independent work when its benefit exceeds
+coordination overhead; keep small tasks with one agent.

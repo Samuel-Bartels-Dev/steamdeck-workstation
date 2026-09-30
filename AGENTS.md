@@ -6,8 +6,9 @@ This repository provisions and operates Steam Deck systems.
 
 1. `docs/PRINCIPLES.md`
 2. `docs/ai/COMMON.md`
-3. The active task under `tasks/active/`, if one exists.
-4. The `README.md` for any module you modify.
+3. `docs/ai/SUBAGENTS.md` for model selection, delegation and communication.
+4. The active task under `tasks/active/`, if one exists.
+5. The `README.md` for any module you modify.
 
 ## Repository rules
 
