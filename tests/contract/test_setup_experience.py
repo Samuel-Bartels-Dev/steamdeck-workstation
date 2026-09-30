@@ -144,12 +144,68 @@ class Experience(unittest.TestCase):
             while not pidfile.exists() and time.monotonic()<deadline: time.sleep(.01)
             self.assertTrue(pidfile.exists())
             started = time.monotonic(); handle.close(grace=.1)
-            self.assertLess(time.monotonic()-started, 3)
-            self.assertEqual(handle.wait(3), -9)
+            self.assertLess(time.monotonic()-started, 4)
+            self.assertIn(handle.wait(4), (130,137))
             child = Path('/proc')/pidfile.read_text()
             if (child/'stat').exists(): self.assertEqual((child/'stat').read_text().split()[2], 'Z')
             self.assertEqual(list(core.STATE.glob('setup-control-*')), [])
         finally: handle.close(grace=.1)
+
+    def test_abrupt_app_death_stops_detached_queue_descendants(self):
+        import time
+        pidfile = self.root/'orphan.pid'
+        ready = self.root/'owner-ready'
+        payload = ('import os,signal,time,pathlib; signal.signal(signal.SIGINT,signal.SIG_IGN); '
+                   'child=os.fork(); os.setsid() if child==0 else None; '
+                   'pathlib.Path('+repr(str(pidfile))+').write_text(str(os.getpid())) if child==0 else None; time.sleep(30)')
+        owner_source = ('import sys,time; from pathlib import Path; sys.path.insert(0,'+repr(str(core.ROOT/'lib'))+'); '
+                        'from deckctl import core,setup_process; core.STATE=Path('+repr(str(core.STATE))+'); '
+                        'handle=setup_process.start('+repr([sys.executable,'-c',payload])+', "crash"); '
+                        'Path('+repr(str(ready))+').touch(); time.sleep(30)')
+        owner = subprocess.Popen([sys.executable,'-c',owner_source], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        try:
+            deadline=time.monotonic()+5
+            while (not ready.exists() or not pidfile.exists()) and time.monotonic()<deadline: time.sleep(.02)
+            self.assertTrue(pidfile.exists())
+            owner.kill(); owner.wait(3)
+            child=Path('/proc')/pidfile.read_text()
+            deadline=time.monotonic()+5
+            while child.exists() and time.monotonic()<deadline: time.sleep(.02)
+            self.assertFalse(child.exists(), 'Detached installer survived owning app death')
+        finally:
+            if owner.poll() is None: owner.kill(); owner.wait()
+
+    def test_app_crash_allows_foreground_finally_cleanup(self):
+        import time
+        sentinel=self.root/'owned-temporary-flag'
+        cleaned=self.root/'cleanup-finished'
+        payload=('import time; from pathlib import Path; p=Path('+repr(str(sentinel))+'); p.touch(); '
+                 '\ntry: time.sleep(30)\nfinally: p.unlink(); Path('+repr(str(cleaned))+').touch()')
+        owner_source=('import sys,time; from pathlib import Path; sys.path.insert(0,'+repr(str(core.ROOT/'lib'))+'); '
+                      'from deckctl import core,setup_process; core.STATE=Path('+repr(str(core.STATE))+'); '
+                      'handle=setup_process.start('+repr([sys.executable,'-c',payload])+', "cleanup"); time.sleep(30)')
+        owner=subprocess.Popen([sys.executable,'-c',owner_source],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        try:
+            deadline=time.monotonic()+5
+            while not sentinel.exists() and time.monotonic()<deadline: time.sleep(.02)
+            self.assertTrue(sentinel.exists())
+            owner.kill(); owner.wait(3)
+            deadline=time.monotonic()+5
+            while not cleaned.exists() and time.monotonic()<deadline: time.sleep(.02)
+            self.assertTrue(cleaned.exists(), 'Crash revocation skipped foreground cleanup')
+            self.assertFalse(sentinel.exists())
+        finally:
+            if owner.poll() is None: owner.kill(); owner.wait()
+
+    def test_retry_replaces_crashed_authorization_helper(self):
+        from deckctl import setup_process, app_sudo
+        session=setup_window.Session(); session.selected=['base']
+        old=Mock(); old.alive.return_value=False; session.authorization=old
+        new=Mock()
+        with patch.object(app_sudo,'Owner',return_value=new), patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'app:slack'}])), patch.object(session,'progress',return_value={}), patch.object(setup_process,'start') as start:
+            session.start('retry','app:slack')
+        old.close.assert_called_once()
+        self.assertIs(start.call_args.args[2],new)
 
     def test_local_link_is_distinct_from_internet_and_rate(self):
         from deckctl import setup_activity
@@ -175,6 +231,7 @@ class Experience(unittest.TestCase):
     def test_docker_action_is_selected_captured_runner_and_accounts_rejected(self):
         from deckctl import setup_process
         session = setup_window.Session(); session.selected = ['base']
+        session.authorization = Mock()
         handle = Mock(); handle.poll.return_value = 0
         with patch.object(setup_install, 'running', return_value=False), patch.object(setup_plan, 'items', return_value=(self.plan,[{'key':'dev:docker'}])), patch.object(session, 'progress', return_value={}), patch.object(setup_process, 'start', return_value=handle) as start:
             session.start('docker')
@@ -233,7 +290,7 @@ class Experience(unittest.TestCase):
             time.sleep(10.1)
             self.assertTrue(process.controls()['forceAvailable'])
             process.control('force')
-            self.assertEqual(process.wait(5), -9)
+            self.assertIn(process.wait(5), (130,137))
             self.assertFalse(process.controls()['available'])
         finally:
             if process.poll() is None:
@@ -265,6 +322,7 @@ class Experience(unittest.TestCase):
     def test_ui_install_resume_retry_do_not_launch_konsole(self):
         from deckctl import setup_process
         session = setup_window.Session(); session.selected = ['base']
+        session.authorization = Mock()
         process = Mock(); process.poll.return_value = 0
         with patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'app:slack'}])), patch.object(session,'progress',return_value={}), patch.object(setup_process,'start',return_value=process) as start, patch.object(setup_window.subprocess,'Popen') as terminal:
             for action in ('install','resume','retry'):
@@ -276,13 +334,15 @@ class Experience(unittest.TestCase):
                 if action == 'retry': self.assertIn('--item',command)
             terminal.assert_not_called()
 
-    def test_terminal_launch_is_explicit_and_clears_noninteractive_mode(self):
+    def test_android_interactive_action_uses_shared_queue(self):
+        from deckctl import setup_process
         session = setup_window.Session(); session.selected = ['base']
-        with patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'module:android'}])), patch.object(session,'progress',return_value={}), patch.object(setup_window.shutil,'which',return_value='/usr/bin/konsole'), patch.object(setup_window.subprocess,'Popen') as launch, patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}):
+        session.authorization = Mock()
+        with patch.object(setup_install,'running',return_value=False), patch.object(setup_plan,'items',return_value=(self.plan,[{'key':'module:android'}])), patch.object(session,'progress',return_value={}), patch.object(setup_process,'start') as start, patch.object(setup_window.subprocess,'Popen') as launch:
             session.start('interactive','module:android')
-            self.assertEqual(launch.call_args.args[0][0],'/usr/bin/konsole')
-            self.assertEqual(launch.call_args.args[0][-2:],['--item','module:android'])
-            self.assertNotIn('DECKCTL_UI_RUN',launch.call_args.kwargs['env'])
+            self.assertEqual(start.call_args.args[0][-3:],['--item','module:android','--verbose'])
+            self.assertIs(start.call_args.args[2], session.authorization)
+            launch.assert_not_called()
 
     def test_ui_console_is_bounded_redacted_and_has_no_input(self):
         from deckctl import setup_process
@@ -301,10 +361,12 @@ class Experience(unittest.TestCase):
         self.assertEqual(unicode_run.wait(5),0)
         self.assertLessEqual(len(setup_process.snapshot('unicode-plan')['text'].encode('utf-8')),setup_process.LIMIT)
 
-    def test_ui_defers_interactive_vendor_without_invoking_it(self):
+    def test_ui_android_invokes_retry_without_terminal_or_staging_only(self):
+        from deckctl import android, privilege
         row = dict(key='module:android',kind='module',owner='android')
-        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_install,'verify',return_value=False), patch.object(setup_install,'_module') as vendor:
-            with self.assertRaisesRegex(setup_install.NeedsSetup,'Continue in terminal'): setup_install.execute(row)
+        with patch.dict(os.environ,{'DECKCTL_UI_RUN':'1'}), patch.object(setup_install,'verify',return_value=False), patch.object(privilege,'command'), patch.object(setup_install,'_module') as vendor, patch.object(android,'retry',return_value=2) as retry:
+            with self.assertRaisesRegex(setup_install.NeedsSetup,'did not verify'): setup_install.execute(row)
+            retry.assert_called_once()
             vendor.assert_not_called()
 
     def test_sudo_session_uses_native_askpass_and_invalidates_on_exit(self):

@@ -2,6 +2,6 @@
 # stdout is the private askpass pipe owned by sudo, never installer output.
 set +x
 ulimit -c 0
-exec /usr/bin/kdialog --title 'Steam Deck Workstation — Administrator permission' --password 'Allow this installation run to perform the selected administrator setup step?
+exec /usr/bin/kdialog --title 'Steam Deck Workstation — Administrator permission' --password 'Allow administrator setup steps while this setup app remains open?
 
-Enter your Steam Deck account password. It is passed directly to sudo and is not saved by the installer. Cancel leaves administrator steps pending.'
+Enter your Steam Deck account password. It passes directly to sudo and is never saved. Temporary authorization is reused for Install, Retry and Resume until you close this app. If sudo revokes it, you may be asked again. Cancel leaves administrator steps retryable; independent app installs can continue.'

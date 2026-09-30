@@ -130,7 +130,7 @@ def _module(mid):
 
 
 def _nested_decky_change(row):
-    return row.get('kind') == 'plugin' and user_session.nested_desktop()
+    return (row.get('kind') == 'plugin' or row.get('key') == 'module:android') and user_session.nested_desktop()
 
 
 def execute(row):
@@ -148,7 +148,7 @@ def execute(row):
         raise NeedsSetup(user_session.NESTED_DESKTOP_NOTICE)
     if os.environ.get('DECKCTL_UI_RUN') == '1' and privilege.needed(row):
         if verify(row): return 'Existing installation verified.'
-        privilege.command([])  # Refuse mutation without this runner's authorization.
+        privilege.command([])  # Resolve transport; the app owner validates every sudo invocation.
     if os.environ.get('DECKCTL_UI_RUN') == '1' and interactive_provider(row):
         if verify(row):
             return setup_plan.present(row)[1].get('message') or 'Existing installation verified.'
@@ -156,6 +156,11 @@ def execute(row):
     if 'flatpak' in row:
         return _flatpak(row['flatpak'])
     if row['kind'] == 'support': return
+    if key == 'module:android':
+        from . import android
+        install_progress.report('Android setup', 'Follow the Android image chooser or sign-in window, then close Android to resume verification here.')
+        if android.retry(): raise NeedsSetup('Android setup did not verify. See the shared console; Retry preserves existing images and apps.')
+        return 'Android image and user state verified; account sign-in is not checked automatically.'
     if key == 'module:ai-workspace': ai_workspace.configure(); return
     if row['kind'] == 'module': _module(row['owner']); return
     if key.startswith('terminal:'):
@@ -225,7 +230,7 @@ def interactive_provider(row):
     # Vendor wizards still need their interactive workflow. Decky is staged and
     # launched from the UI runner; plugin/CSS privilege is handled separately.
     return (row['key'] == 'dev:distrobox' or
-            (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:decky','module:library')))
+            (row.get('kind') == 'module' and row['key'] not in ('module:base','module:ai-workspace','module:controller','module:hardware','module:decky','module:library','module:android')))
 
 
 def verify(row):

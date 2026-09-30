@@ -91,6 +91,15 @@ The archive installs `deckctl` locally without fetching its source repository. O
 
 **Do not run `sudo ./install.sh`.** Provisioning runs as the normal `deck` user and asks for sudo only when a narrow operation genuinely requires it.
 
+The setup app uses the KDE password dialog when administrator work first needs
+authorization, then reuses sudo's temporary authorization for Install, Retry and
+Resume while that app stays open. Closing it ends authorization. Passwords are
+never saved. Cancel leaves affected items retryable while independent app installs
+continue. Android setup runs in the shared queue and console; follow its visible
+image chooser/sign-in windows, then close Android for verification. Its Steam
+shortcut obtains temporary authorization for each later Android launch; the
+original provider launcher is retained for recovery.
+
 The installer creates a persistent control-plane copy under:
 
 ```text
@@ -101,6 +110,30 @@ and installs the permanent command at:
 
 ```text
 ~/.local/bin/deckctl
+```
+
+To test the reviewed installer fixes in PR #60 before merging, close any existing
+setup window and use a separate checkout of its branch:
+
+```bash
+git clone --branch fix/app-owned-installer https://github.com/Samuel-Bartels-Dev/steamdeck-workstation.git steamdeck-workstation-pr60
+cd steamdeck-workstation-pr60
+./bin/deckctl update preview --source "$PWD"
+runtime="$(DECKCTL_SOURCE_REVISION="$(git rev-parse HEAD)" ./tools/install-control-plane "$PWD")"
+"$runtime/bin/deckctl" setup customize
+```
+
+This promotes the installer runtime while preserving saved selections and the
+previous releases. Launching the returned release path pins this window to the
+reviewed fixes even if another checkout later changes `current`. Running an older
+checkout's `install.sh` promotes that checkout again; use the PR branch and pinned
+release when testing these fixes. Application installation starts when you choose
+Install in the setup app. An open window keeps its loaded runtime until you close it.
+The version label can remain the same across main and PR builds; check the
+active release's commit suffix to confirm which code is running:
+
+```bash
+readlink -f ~/.local/share/steamdeck-workstation/current
 ```
 
 When the installer finishes, open a new Konsole window or run:

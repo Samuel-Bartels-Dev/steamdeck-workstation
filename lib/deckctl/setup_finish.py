@@ -25,7 +25,7 @@ def rows():
         if key == 'remote:tailscale': ready = bool(evidence.get('connected'))
         status = 'Ready' if ready else 'Needs pairing' if installed and followup == 'pairing' else 'Needs sign-in' if installed and followup == 'signin' else 'Needs setup'
         result.append({**row, 'status': status, 'installed': installed,
-                       'terminalRequired':(key in STEPS and key not in ('remote:tailscale', 'launcher:battlenet')) or key in ('dev:codex', 'dev:claude-code'),
+                       'terminalRequired':(key in STEPS and key not in ('remote:tailscale', 'launcher:battlenet', 'module:android')) or key in ('dev:codex', 'dev:claude-code'),
                        'note': evidence['message'] if key == 'remote:tailscale' else 'Confirmed by you. Recheck after changing this installation.' if ready and confirmed and followup else 'Complete the staged installer, then confirm setup.' if installed and followup == 'setup' else 'Installed; account sign-in is not checked automatically.' if installed and followup and not detected else 'Installation detected.' if installed else 'Complete installation or vendor setup, then recheck.',
                        'canLaunch': bool(key == 'launcher:nonsteamlaunchers' or 'flatpak' in row or key in STEPS or key in ('dev:codex', 'dev:claude-code') or row['owner'] in ('workspace', 'media')),
                        'canConfirm': installed and followup in ('signin', 'pairing', 'setup') and key not in ('dev:codex', 'dev:claude-code', 'remote:tailscale')})
@@ -53,6 +53,8 @@ def action(key, operation):
         return {'launched': True, 'message': 'Steam Library opened. Launch Battle.net there to sign in, then return here.'}
     if key == 'remote:tailscale':
         raise ValueError('Choose Retry in the installation queue to connect Tailscale without a terminal.')
+    if key == 'module:android':
+        raise ValueError('Choose Retry in the installation queue to open Android setup and verify it here.')
     if key == 'launcher:nonsteamlaunchers':
         path = Path.home()/'Desktop/Deck-Setup-Staged/NonSteamLaunchers.desktop'
         if not path.is_file() or not core._launch_path(path): raise ValueError('Stage the official installer first.')

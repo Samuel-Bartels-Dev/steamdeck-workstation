@@ -117,11 +117,13 @@ class SetupWindow(unittest.TestCase):
     def test_renderer_failure_closes_only_owned_handle_and_reports_import_error(self):
         handle = Mock()
         session = setup_window.Session(); session.process = handle
+        session.authorization = Mock()
         def crash(args, **kwargs):
             kwargs['stderr'].write(b'module "QtQuick.Controls" is not installed\n')
             return 1
         with patch.object(setup_window, 'Session', return_value=session), patch.object(setup_window.shutil,'which',return_value='/fake/qml'), patch.object(setup_window.subprocess, 'call', side_effect=crash):
             with self.assertRaisesRegex(ValueError, 'QtQuick.Controls'): setup_window.launch()
+        session.authorization.close.assert_called_once()
         handle.close.assert_called_once_with()
 
     def setUp(self):

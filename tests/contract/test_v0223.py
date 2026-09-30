@@ -120,11 +120,14 @@ class ExistingInstallation(unittest.TestCase):
         maintenance=set(json.loads((ROOT/'tests/fixtures/baseline-v0.2.23.json').read_text())['maintenance_changes'])
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.24.json').read_text())['plugin_changes'])
         maintenance.update(json.loads((ROOT/'tests/fixtures/baseline-v0.2.25.json').read_text())['reliability_changes'])
+        # The app-owned Android adapter intentionally changes authorization and
+        # output. test_android_app.py and test_v0222.py exercise preservation of
+        # existing images/state, protected repair and failed-launch readiness.
         self.assertEqual(changed-maintenance,set(guard['maintenance_changes'])-maintenance)
         # Control-plane copying now deliberately selects a lean runtime. Its
         # install/repeat/conflict and corruption contracts are exercised in
         # test_v0220.py and test_production.py, rather than freezing old bytes.
-        for name in ('lib/deckctl/android.py','modules/decky/css-stack.json'):
+        for name in ('modules/decky/css-stack.json',):
             self.assertNotIn(name,changed)
 
 

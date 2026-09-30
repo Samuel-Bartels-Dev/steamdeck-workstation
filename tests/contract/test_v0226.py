@@ -243,7 +243,9 @@ class UpgradeAndBootstrap(Fixture):
         self.assertEqual(changed,set(guard['reliability_changes']) & set(guard['files']))
         # Lean runtime copying intentionally changes the control plane; isolated
         # install/repeat/conflict/corruption tests cover its new behavior.
-        for name in ['lib/deckctl/android.py','lib/deckctl/setup_cleanup.py','modules/decky/plugins.json']:
+        # Android authorization/output is now covered by executable app adapter
+        # and preserved-image tests; the reviewed-change list retains old hashes.
+        for name in ['lib/deckctl/setup_cleanup.py','modules/decky/plugins.json']:
             self.assertNotIn(name,changed)
 
 

@@ -65,6 +65,70 @@ Headless sessions report CONFIG_REQUIRED and request Desktop Mode.
 READY verifies image plus user-state presence; the recommendation line does not
 claim to detect the installed Android version or Google account authentication.
 
+## Setup app execution
+
+Install, Retry and Resume execute `android retry` through the existing queue.
+Provider stdout/stderr, its redirected installation log, launcher diagnostics,
+errors and final verification appear in the shared console. Follow the visible
+Android-image chooser and Google Play windows, then close Android to resume
+verification. A launcher exit alone never establishes readiness. Healthy images
+and user state are reused; missing first-run state opens the existing launcher;
+missing launchers use upstream protected host repair. Reinstallation remains an
+explicit command, outside the normal retry path.
+
+The app uses a temporary adapter for provider commit
+`6f643fb42afc0595a7c8fe1d6f3350b748c8001c`. SHA-256 checks pin the installer,
+authentication function and launcher contracts being adapted. Unknown versions
+stop with CONFIG_REQUIRED and a review message. The launcher source is checked
+before provider execution as well as before launching. The original checkout is
+preserved. Compatibility, bundle/fingerprint, storage, protected-repair and
+image selection checks execute as upstream supplied them.
+The installed Toolbox records the original checkout as its recovery source,
+so it never points at a removed temporary adapter.
+
+The adapter replaces only the stdin password prompt and its `sudo -S -k -v`
+validation with app-owned sudo validation. Its password variable is empty; no
+password is supplied to the provider. The scoped sudo shim rejects invalidation
+and unknown policy flags. The provider's four runtime sudoers entries retain their
+exact command restrictions but use PASSWD in the temporary copy, so this path
+adds no persistent NOPASSWD rules. Existing rules and installations are not
+removed. Terminal CLI behavior remains upstream's interactive path.
+
+App provisioning keeps the existing Steam shortcut target usable after setup
+closes. It saves the exact inspected vendor launcher as
+`~/Android_Waydroid/Android_Waydroid_Cage.vendor.sh` and installs a small wrapper
+at the original launcher path. The wrapper opens the same foreground Android
+session with temporary KDE administrator authorization, then invalidates that
+authorization when Android closes. Each durable launch creates its own owner and
+discards inherited setup sockets, sudo shim paths and queue-control variables.
+It preserves package arguments and does not
+store passwords. Edited vendor scripts and unrelated recovery files are refused
+and preserved. The wrapper pins the immutable installed release that created it
+under `~/.local/share/steamdeck-workstation/releases/`, so changing or rolling
+back `current` does not send Android into an older runtime without launch support.
+Missing release files or launch capability produce CONFIG_REQUIRED; activate the
+reviewed release with `install.sh` and Retry. A retry can migrate an exact known
+older generated wrapper, including the former `current/lib` wrapper, while
+preserving vendor bytes and refusing custom edits. Temporary adapters and
+development checkouts are refused as durable launch targets.
+
+The temporary launcher adapter also changes the inspected resolution pipeline
+to drain all `xdpyinfo` output while retaining its first dimensions result.
+This prevents an early `awk` exit from causing SIGPIPE/status 141 under `pipefail`;
+real display-command failures still fail. The original vendor launcher, image,
+apps and login state remain untouched by this adaptation.
+
+Controller helpers started by the inspected vendor runtime are supervised for
+the Android session, rather than killed when its startup command returns. Their
+lease is released when Android closes, including when the setup window remains
+open. Closing or losing the standalone launcher also stops its foreground GUI
+and supervised privileged helpers.
+
+In Nested Desktop, incomplete Android work is deferred before authorization,
+downloads or provider execution because the provider can stop/restart Decky.
+Healthy Android items are reused, and independent user-space installs continue.
+Switch manually to normal Desktop Mode before Retry; setup never switches sessions.
+
 ## Installer cleanup
 
 Known staging files are fingerprinted after successful creation. Provisioning

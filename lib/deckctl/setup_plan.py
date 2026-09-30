@@ -253,11 +253,13 @@ def review_notes(row):
         notes.append('Setup stays in this window. A KDE password dialog authorizes the service; sign-in opens in your browser. Retry here after signing in.')
     elif key == 'launcher:battlenet':
         notes.append('Setup starts here with live console output. Complete any Battle.net installer or login windows; no terminal is required.')
+    elif key == 'module:android':
+        notes.append('Setup runs in this queue and console. Follow the Android image chooser or Google Play window, then close Android for verification. App administrator authorization is reused; Retry preserves images and apps.')
     elif row['kind'] in css_connection.KINDS:
         notes.append('Prefers live CSS without sudo. Normal Desktop fallback uses the KDE administrator dialog. Retry the connection here, then Resume.')
     elif row['kind'] == 'plugin':
-        notes.append('A KDE password dialog requests sudo before the UI run. The password is never saved; Cancel leaves this item retryable.')
-    elif key in ('module:decky','module:android','remote:tailscale'):
+        notes.append('A KDE password dialog requests sudo when needed and reuses temporary authorization until this app closes. The password is never saved; Cancel leaves this item retryable.')
+    elif key == 'module:decky':
         notes.append('Vendor setup may need its interactive window or Konsole, including sudo authorization.')
     elif 'flatpak' in row:
         notes.append('Uses the existing system app or installs in your user account.')
