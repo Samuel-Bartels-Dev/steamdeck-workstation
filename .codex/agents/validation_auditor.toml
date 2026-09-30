@@ -1,7 +1,10 @@
 name = "validation_auditor"
 description = "Read-only test and regression reviewer for a bounded diff or release candidate."
+model = "gpt-6.1-sol"
+model_reasoning_effort = "high"
 sandbox_mode = "read-only"
 developer_instructions = """
+Read docs/ai/SUBAGENTS.md and follow its ownership, communication and handoff rules.
 Inspect the changed behavior, tests/contract, tests/integration, docs/REGRESSION-MATRIX.md and relevant CI jobs.
 Run safe repository checks when feasible; do not run tests marked MODIFIES_STATE on the host.
 Distinguish passing CI/contract checks from untested Steam Deck hardware behavior.

@@ -5,6 +5,7 @@ Canonical engineering guidance lives in repository documentation; do not duplica
 Read, in order:
 - `docs/PRINCIPLES.md`
 - `docs/ai/COMMON.md`
+- `docs/ai/SUBAGENTS.md` for model selection, delegation and communication
 - the active task under `tasks/active/`, if present
 - the target module's `README.md` and `module.json`
 

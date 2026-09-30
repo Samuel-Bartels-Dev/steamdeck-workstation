@@ -51,6 +51,9 @@ class Owner:
     def environment(self):
         return {SOCKET_ENV: self.socket, 'PATH':self.directory.name+os.pathsep+os.environ.get('PATH', '')}
 
+    def alive(self):
+        return self.process.poll() is None
+
     def close(self):
         if self.writer is not None:
             os.close(self.writer); self.writer = None
@@ -61,26 +64,35 @@ class Owner:
         self.directory.cleanup()
 
 
+def release_session(token, env=None):
+    return subprocess.run([sys.executable, str(HERE/'app_sudo.py'), 'client', '--release-session', token],
+                          env=env, stdin=subprocess.DEVNULL, check=False).returncode
+
+
 def client(args):
     path = os.environ.get(SOCKET_ENV)
     if not path:
         print('App administrator authorization is unavailable. Reopen setup.', file=sys.stderr)
         return 125
-    # Only supported provider flags. -S is deliberately removed: stdin never
-    # authenticates. Invalidation flags and arbitrary sudo policy flags fail closed.
+    # -S is removed: stdin carries command payload only, never authentication.
+    # Invalidation flags and arbitrary sudo policy flags fail closed.
     args = list(args)
     noninteractive = False
     while args and args[0] in ('-A', '-S', '-n'):
         noninteractive = noninteractive or args[0] == '-n'
         args.pop(0)
-    if args and args[0].startswith('-') and args != ['-v']:
+    release = len(args) == 2 and args[0] == '--release-session'
+    if args and args[0].startswith('-') and args != ['-v'] and not release:
         print('Unsupported app sudo option. Provider contract needs review.', file=sys.stderr)
         return 125
     request = json.dumps({'args':args, 'cwd':os.getcwd(), 'noninteractive':noninteractive,
-                          'run':os.environ.get('DECKCTL_UI_CONTROL')}).encode()
+                          'run':os.environ.get('DECKCTL_UI_CONTROL'),
+                          'keepDescendants':os.environ.get('DECKCTL_SUDO_KEEP_DESCENDANTS') == '1',
+                          'session':os.environ.get('DECKCTL_SUDO_SESSION'),
+                          'release':args[1] if release else None}).encode()
     with socket.socket(socket.AF_UNIX, socket.SOCK_SEQPACKET) as connection:
         connection.connect(path)
-        connection.sendmsg([request], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array('i', [1, 2]))])
+        connection.sendmsg([request], [(socket.SOL_SOCKET, socket.SCM_RIGHTS, array.array('i', [0, 1, 2]))])
         response = connection.recv(1024)
     return int(response) if response else 125
 
@@ -96,6 +108,7 @@ def serve(path, owner_fd):
     authorized = False
     last_refresh = 0
     denied_runs = set()
+    retained = []
     def stop(*_):
         nonlocal alive
         alive = False
@@ -113,6 +126,9 @@ def serve(path, owner_fd):
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, check=False)
     def refresh():
         nonlocal authorized, last_refresh
+        for item in list(retained):
+            if item[0].poll() is not None:
+                item[1].close(); retained.remove(item)
         if authorized and time.monotonic()-last_refresh >= 30:
             try:
                 authorized = subprocess.run([sudo, '-n', '-v'], env=env, stdin=subprocess.DEVNULL,
@@ -131,45 +147,81 @@ def serve(path, owner_fd):
                     pid, uid, gid = struct.unpack('3i', connection.getsockopt(socket.SOL_SOCKET, socket.SO_PEERCRED, 12))
                     if uid != os.getuid(): continue
                     if not select.select([connection, owner_fd], [], [], 2)[0] or not owner_alive(): continue
-                    raw, ancillary, flags, _ = connection.recvmsg(65536, socket.CMSG_SPACE(8))
+                    raw, ancillary, flags, _ = connection.recvmsg(65536, socket.CMSG_SPACE(12))
                     fds = array.array('i')
                     for level, kind, value in ancillary:
                         if level == socket.SOL_SOCKET and kind == socket.SCM_RIGHTS: fds.frombytes(value)
                     try:
-                        if flags & (socket.MSG_TRUNC | socket.MSG_CTRUNC) or len(fds) != 2: continue
+                        if flags & (socket.MSG_TRUNC | socket.MSG_CTRUNC) or len(fds) != 3: continue
                         request = json.loads(raw)
                         args = request['args']
                         if not isinstance(args, list) or not all(isinstance(a, str) for a in args): continue
+                        release = request.get('release')
+                        if isinstance(release, str) and release:
+                            released = [item for item in retained if item[2] == release]
+                            for item in released: item[1].close()
+                            for item in released:
+                                item[0].wait(timeout=6); retained.remove(item)
+                            connection.send(b'0'); continue
                         if args and args[0].startswith('-') and args != ['-v']: continue
                         scope = request.get('run')
                         if scope is not None and not isinstance(scope, str): continue
                         if scope in denied_runs:
-                            os.write(fds[1], (ERROR+'\n').encode())
+                            os.write(fds[2], (ERROR+'\n').encode())
                             connection.send(b'1'); continue
                         # Recheck sudo's real ticket for every request; the boolean
                         # controls renewal only and is never proof of authorization.
                         authorized = False
                         active = subprocess.Popen([sudo, '-n' if request.get('noninteractive') else '-A', '-v'], env=env, stdin=subprocess.DEVNULL,
-                                                  stdout=subprocess.DEVNULL, stderr=fds[1], start_new_session=True)
+                                                  stdout=subprocess.DEVNULL, stderr=fds[2], process_group=0)
                         rc = wait(active, connection)
                         if rc is None:
                             os.killpg(active.pid, signal.SIGTERM)
-                            active.wait(timeout=5); continue
+                            try: active.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                os.killpg(active.pid, signal.SIGKILL); active.wait()
+                            continue
                         authorized = rc == 0
                         last_refresh = time.monotonic()
                         if rc:
                             if scope and not request.get('noninteractive'): denied_runs.add(scope)
-                            os.write(fds[1], (ERROR+'\n').encode())
+                            os.write(fds[2], (ERROR+'\n').encode())
                         elif args and args != ['-v']:
-                            active = subprocess.Popen([sudo, '-n', '--', sys.executable, str(HERE/'sudo_watch.py')],
-                                                      env=env, stdin=subprocess.PIPE, stdout=fds[0], stderr=fds[1])
-                            try:
-                                active.stdin.write(json.dumps({'command':args, 'cwd':request['cwd']}).encode()+b'\n')
-                                active.stdin.flush()
-                                rc = wait(active, connection)
-                            finally:
-                                active.stdin.close()  # EOF kills privileged descendants.
-                                active.wait(timeout=6)
+                            lifetime_path = str(Path(path).parent/('watch-'+str(time.monotonic_ns())))
+                            lifetime = None
+                            session = request.get('session')
+                            keep = request.get('keepDescendants') is True and isinstance(session, str) and bool(session)
+                            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as listener:
+                                listener.bind(lifetime_path); listener.listen(1)
+                                metadata = json.dumps({'command':args, 'cwd':request['cwd'],
+                                                       'lifetime':lifetime_path, 'keepDescendants':keep})
+                                active = subprocess.Popen([sudo, '-n', '--', sys.executable, str(HERE/'sudo_watch.py'), metadata],
+                                                          env=env, stdin=fds[0], stdout=fds[1], stderr=fds[2])
+                                try:
+                                    deadline = time.monotonic()+5
+                                    while active.poll() is None and owner_alive() and time.monotonic() < deadline:
+                                        if select.select([listener, connection], [], [], .1)[0]:
+                                            if select.select([connection], [], [], 0)[0]: break
+                                            lifetime = listener.accept()[0]; break
+                                    if lifetime is None:
+                                        rc = active.poll()
+                                        if rc is None: active.terminate(); rc = active.wait(timeout=5)
+                                    else:
+                                        response = b''
+                                        while active.poll() is None and owner_alive():
+                                            refresh()
+                                            ready = select.select([lifetime, connection], [], [], .1)[0]
+                                            if connection in ready: break
+                                            if lifetime in ready:
+                                                response += lifetime.recv(1024)
+                                                if b'\n' in response: break
+                                        rc = int(response.split(b'\n')[0]) if b'\n' in response else active.poll()
+                                        if keep and rc == 0 and owner_alive():
+                                            retained.append((active, lifetime, session)); lifetime = None
+                                finally:
+                                    if lifetime is not None: lifetime.close()
+                                    Path(lifetime_path).unlink(missing_ok=True)
+                                    if not any(item[0] is active for item in retained): active.wait(timeout=6)
                             if rc is None: continue
                         try: connection.send(str(rc if rc >= 0 else 128-rc).encode())
                         except BrokenPipeError: pass
@@ -180,6 +232,10 @@ def serve(path, owner_fd):
                         for fd in fds: os.close(fd)
                         active = None
         finally:
+            for _, lifetime, _ in retained: lifetime.close()
+            for process, _, _ in retained:
+                try: process.wait(timeout=6)
+                except subprocess.TimeoutExpired: pass
             invalidate()
             Path(path).unlink(missing_ok=True)
     return 0

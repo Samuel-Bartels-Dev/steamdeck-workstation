@@ -231,7 +231,8 @@ class Session:
         command = [str(core.ROOT/'bin/deckctl'), *commands[operation]]
         if operation in ('install','resume','retry','docker') or (operation == 'interactive' and item == 'module:android'):
             from . import setup_process, setup_activity
-            if self.authorization is None:
+            if self.authorization is None or not self.authorization.alive():
+                if self.authorization is not None: self.authorization.close()
                 from .app_sudo import Owner
                 self.authorization = Owner()
             self.activity = setup_activity.Sampler()

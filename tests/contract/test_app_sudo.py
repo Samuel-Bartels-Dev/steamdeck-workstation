@@ -25,13 +25,14 @@ args=sys.argv[1:]
 with (root/'calls').open('a') as out: out.write(json.dumps([os.getppid(),args])+'\\n')
 if args==['-k']:
  ticket.unlink(missing_ok=True); sys.exit(0)
+valid=ticket.exists() and ticket.read_text()==str(os.getsid(0))
 if args in (['-A','-v'],['-n','-v']):
- if not ticket.exists():
+ if not valid:
   if args[0]=='-n': sys.exit(1)
   with (root/'prompts').open('a') as out: out.write('prompt\\n')
   if (root/'cancel').exists(): sys.exit(1)
- ticket.touch(); sys.exit(0)
-if args[:2]==['-n','--'] and ticket.exists(): os.execv(args[2],args[2:])
+ ticket.write_text(str(os.getsid(0))); sys.exit(0)
+if args[:2]==['-n','--'] and valid: os.execv(args[2],args[2:])
 sys.exit(1)
 '''
 
@@ -71,6 +72,62 @@ class AppSudo(unittest.TestCase):
         calls = [json.loads(line) for line in (self.root/'calls').read_text().splitlines()]
         self.assertEqual({pid for pid, _ in calls}, {self.owner.process.pid})
         self.assertTrue(all('-S' not in args for _, args in calls))
+
+    def test_command_stdin_payload_is_preserved(self):
+        result = subprocess.run([sys.executable, str(app_sudo.HERE/'app_sudo.py'), 'client',
+                                 '-S', sys.executable, '-c', 'import sys; print(sys.stdin.read())'],
+                                env=self.client_env, input='provider script payload', capture_output=True,
+                                text=True, timeout=10)
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'provider script payload')
+
+    def test_runtime_helpers_remain_until_owner_closes(self):
+        pidfile = self.root/'runtime-pid'
+        child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path("+repr(str(pidfile))+").write_text(str(os.getpid())); time.sleep(60)"
+        parent = "import subprocess,time; from pathlib import Path; subprocess.Popen(["+repr(sys.executable)+",'-c',"+repr(child)+"], start_new_session=True); p=Path("+repr(str(pidfile))+");\nwhile not p.exists(): time.sleep(.01)"
+        self.client_env['DECKCTL_SUDO_KEEP_DESCENDANTS'] = '1'
+        self.client_env['DECKCTL_SUDO_SESSION'] = 'android-session'
+        self.assertEqual(self.client([sys.executable, '-c', parent]).returncode, 0)
+        pid = int(pidfile.read_text())
+        self.assertFalse(self.gone(pid))
+        self.assertEqual(self.client(['-v']).returncode, 0)
+        self.owner.close()
+        self.eventually(lambda: self.gone(pid))
+
+    def test_thread_forked_detached_child_is_cleaned_on_cancel(self):
+        pidfile = self.root/'thread-child-pid'
+        child = "import os,signal,time; from pathlib import Path; signal.signal(signal.SIGTERM,signal.SIG_IGN); Path("+repr(str(pidfile))+").write_text(str(os.getpid())); time.sleep(60)"
+        source = "import subprocess,threading,signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN);\ndef worker():\n subprocess.Popen(["+repr(sys.executable)+",'-c',"+repr(child)+"],start_new_session=True)\n time.sleep(60)\nthreading.Thread(target=worker).start(); time.sleep(60)"
+        client = subprocess.Popen([sys.executable, str(app_sudo.HERE/'app_sudo.py'), 'client',
+                                   sys.executable, '-c', source], env=self.client_env,
+                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(lambda: client.kill() if client.poll() is None else None)
+        self.eventually(pidfile.exists)
+        pid = int(pidfile.read_text())
+        client.kill(); client.wait()
+        self.eventually(lambda: self.gone(pid))
+        self.assertEqual(self.client(['-v']).returncode, 0)
+
+    def test_runtime_session_release_preserves_owner_and_other_sessions(self):
+        pids = []
+        for session in ('first-session', 'second-session'):
+            self.client_env.update(DECKCTL_SUDO_KEEP_DESCENDANTS='1', DECKCTL_SUDO_SESSION=session)
+            pidfile = self.root/session
+            child = "import os,time; from pathlib import Path; Path("+repr(str(pidfile))+").write_text(str(os.getpid())); time.sleep(60)"
+            parent = "import subprocess,time,sys; from pathlib import Path; subprocess.Popen(["+repr(sys.executable)+",'-c',"+repr(child)+"], start_new_session=True); p=Path("+repr(str(pidfile))+");\nwhile not p.exists(): time.sleep(.01)\nprint('x'*80000); print('y'*80000,file=sys.stderr); print('startup complete')"
+            result = self.client([sys.executable, '-c', parent])
+            self.assertEqual(result.returncode, 0)
+            self.assertIn('startup complete', result.stdout)
+            self.assertEqual(result.stdout, 'x'*80000+'\nstartup complete\n')
+            self.assertEqual(result.stderr, 'y'*80000+'\n')
+            pids.append(int(pidfile.read_text()))
+        self.assertEqual(app_sudo.release_session('first-session', env=self.client_env), 0)
+        self.eventually(lambda: self.gone(pids[0]))
+        self.assertFalse(self.gone(pids[1]))
+        self.assertTrue(self.owner.alive())
+        self.assertEqual(self.prompts(), 1)
+        self.assertEqual(app_sudo.release_session('second-session', env=self.client_env), 0)
+        self.eventually(lambda: self.gone(pids[1]))
 
     def test_close_reopen_and_expiry_reauthorize(self):
         self.assertEqual(self.client(['-v']).returncode,0)

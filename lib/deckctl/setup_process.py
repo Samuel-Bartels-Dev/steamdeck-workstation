@@ -1,5 +1,8 @@
 """On-demand noninteractive setup process and private, bounded UI output."""
 import os
+import json
+import sys
+from pathlib import Path
 import select
 import signal
 import secrets
@@ -25,19 +28,29 @@ def start(command, fingerprint, authorization=None):
     core.save_json(control_path, control)
     data = {'fingerprint':fingerprint, 'startedAt':time.time(), 'text':'Starting installation…\n', 'exitCode':None}
     core.save_json(path(), data)
+    process = None
     try:
-        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
+        process = subprocess.Popen([sys.executable, str(Path(__file__).with_name("sudo_watch.py"))], stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, start_new_session=True,
                                    env=dict(os.environ, **(authorization.environment() if authorization else {}),
                                             DECKCTL_UI_RUN='1', DECKCTL_UI_CONTROL=str(control_path), PYTHONUNBUFFERED='1'))
+        process.stdin.write(json.dumps({'command':command, 'cwd':os.getcwd(), 'interrupt':'SIGINT', 'grace':15}).encode()+b'\n')
+        process.stdin.flush()
     except BaseException:
+        if process is not None:
+            process.stdin.close()
+            process.stdout.close()
+            process.wait(timeout=6)
         control_path.unlink(missing_ok=True)
         raise
     finished = threading.Event()
     cancelled_at = None
+    def revoke():
+        if not process.stdin.closed:
+            process.stdin.close()  # App death also closes this lifetime pipe.
     class Handle:
         def close(self, grace=5):
-            """Stop only this window's process group if its renderer disappears.
+            """Stop this window's installation and descendants if its renderer disappears.
 
             SIGINT gives the installer time to persist its interrupted journal. A
             provider/grandchild ignoring it cannot keep the window owner alive.
@@ -50,17 +63,15 @@ def start(command, fingerprint, authorization=None):
             except ProcessLookupError: pass
             # The direct child can exit before grandchildren close inherited pipes.
             finished.wait(grace)
-            try: os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError: pass
-            finished.wait(2)
+            revoke()
+            finished.wait(4)
 
         def control(self, action):
             nonlocal cancelled_at
             if action == 'force':
                 if process.poll() is not None or cancelled_at is None or time.monotonic()-cancelled_at < 10:
                     raise ValueError('Cancel first and allow ten seconds for the provider to stop.')
-                try: os.killpg(process.pid, signal.SIGKILL)
-                except ProcessLookupError: pass
+                revoke()
                 return dict(control)
             if process.poll() is not None or control['cancel']: raise ValueError('This run has finished or cancellation is already pending.')
             if action not in ('pause','continue','cancel'): raise ValueError('Unknown queue action')
@@ -118,9 +129,10 @@ def start(command, fingerprint, authorization=None):
             if pending and not skipping: append(pending)
         finally:
             process.stdout.close()
+            revoke()
             data['exitCode'] = process.wait()
             # No foreground installer descendant may outlive its owning run.
-            # Services started through systemd have their own process group.
+            # Services handed to systemd have a different parent.
             try: os.killpg(process.pid, signal.SIGKILL)
             except ProcessLookupError: pass
             data['finishedAt'] = time.time()

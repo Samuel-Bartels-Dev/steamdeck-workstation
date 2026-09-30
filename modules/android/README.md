@@ -79,8 +79,9 @@ explicit command, outside the normal retry path.
 The app uses a temporary adapter for provider commit
 `6f643fb42afc0595a7c8fe1d6f3350b748c8001c`. SHA-256 checks pin the installer,
 authentication function and launcher contracts being adapted. Unknown versions
-stop with CONFIG_REQUIRED and a review message. The original checkout and launcher
-are preserved. Compatibility, bundle/fingerprint, storage, protected-repair and
+stop with CONFIG_REQUIRED and a review message. The launcher source is checked
+before provider execution as well as before launching. The original checkout is
+preserved. Compatibility, bundle/fingerprint, storage, protected-repair and
 image selection checks execute as upstream supplied them.
 The installed Toolbox records the original checkout as its recovery source,
 so it never points at a removed temporary adapter.
@@ -92,6 +93,26 @@ and unknown policy flags. The provider's four runtime sudoers entries retain the
 exact command restrictions but use PASSWD in the temporary copy, so this path
 adds no persistent NOPASSWD rules. Existing rules and installations are not
 removed. Terminal CLI behavior remains upstream's interactive path.
+
+App provisioning keeps the existing Steam shortcut target usable after setup
+closes. It saves the exact inspected vendor launcher as
+`~/Android_Waydroid/Android_Waydroid_Cage.vendor.sh` and installs a small wrapper
+at the original launcher path. The wrapper opens the same foreground Android
+session with temporary KDE administrator authorization, then invalidates that
+authorization when Android closes. Each durable launch creates its own owner and
+discards inherited setup sockets, sudo shim paths and queue-control variables.
+It preserves package arguments and does not
+store passwords. Edited vendor scripts and unrelated recovery files are refused
+and preserved. The wrapper loads the persistent control plane at
+`~/.local/share/steamdeck-workstation/current`; restore it with `install.sh` if
+it is missing. It never points into the temporary provider adapter or a development
+checkout.
+
+Controller helpers started by the inspected vendor runtime are supervised for
+the Android session, rather than killed when its startup command returns. Their
+lease is released when Android closes, including when the setup window remains
+open. Closing or losing the standalone launcher also stops its foreground GUI
+and supervised privileged helpers.
 
 In Nested Desktop, incomplete Android work is deferred before authorization,
 downloads or provider execution because the provider can stop/restart Decky.

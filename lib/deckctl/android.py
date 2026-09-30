@@ -9,6 +9,8 @@ import shlex
 import subprocess
 import tempfile
 import threading
+import sys
+import secrets
 from pathlib import Path
 
 HOME = Path.home()
@@ -18,17 +20,69 @@ STATE = HOME / '.local/share/waydroid'
 LEGACY = HOME / 'waydroid'
 SHORTCUT_HELPER = HOME / 'Android_Waydroid/steam-shortcuts.py'
 LAUNCHER = HOME / 'Android_Waydroid/Android_Waydroid_Cage.sh'
+WRAPPER_MARKER = '# deckctl Android launch: temporary administrator authorization.\n'
 
 # Inspected provider 6f643fb42afc0595a7c8fe1d6f3350b748c8001c.
 # Only the files whose contracts we adapt are pinned, not the bundle catalog.
+LAUNCHER_DIGEST = '08a8cda7d23059976bc061c603a636cabfea2918f6de2c3ded6901e92136970d'
 PROVIDER_CONTRACT = {
     'steamos-waydroid-installer.sh': '7f1c36f3666f7e149e180f58d09470b336ba11138ef9d137f28b1145c5b7bd0a',
     'libexec/steamos-waydroid/installer-sanity-checks.sh': '2a6bb23ec4a4338d619888a36ea2ab1dfa1f3d8bd42e44433771ba79b32f8279',
+    'extras/scripts/Android_Waydroid_Cage.sh': LAUNCHER_DIGEST,
 }
 AUTH_START = '\tIFS= read -r -s -p "Please enter current sudo password: " current_password\n'
 AUTH_END = "\tprintf 'Sudo authentication succeeded.\\n'\n"
 INSTALLER_ROOT = "printf '%s\\n' \"$WORKING_DIR\" >~/Android_Waydroid/installer-root"
-LAUNCHER_DIGEST = '08a8cda7d23059976bc061c603a636cabfea2918f6de2c3ded6901e92136970d'
+
+
+def _wrapper_text():
+    library = str(HOME/'.local/share/steamdeck-workstation/current/lib')
+    return ('#!/bin/sh\n'+WRAPPER_MARKER+
+            'runtime='+shlex.quote(library)+'\n'
+            'if [ ! -r "$runtime/deckctl/android.py" ]; then\n'
+            '  printf "%s\\n" "Android CONFIG_REQUIRED: restore the deckctl control plane with install.sh before launching." >&2\n'
+            '  exit 2\nfi\n'
+            'export PYTHONPATH="$runtime"\n'
+            'exec /usr/bin/python3 -B -m deckctl.android "$@"\n')
+
+
+def _launcher_source():
+    text = LAUNCHER.read_text()
+    if text.startswith('#!/bin/sh\n'+WRAPPER_MARKER):
+        if text != _wrapper_text():
+            raise RuntimeError('Android app launcher wrapper was edited. It was preserved; review the changes before retrying.')
+        return LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
+    return LAUNCHER
+
+
+def _install_launch_wrapper():
+    """Keep the existing Steam target and exact vendor bytes with GUI auth."""
+    if LAUNCHER.is_symlink():
+        raise RuntimeError('Android launcher is a symlink. Preserve it and review the app launch adapter before retrying.')
+    source = _launcher_source()
+    if source.is_symlink() or hashlib.sha256(source.read_bytes()).hexdigest() != LAUNCHER_DIGEST:
+        raise RuntimeError('Installed Android launcher contract changed. The existing launcher was preserved; app adapter needs review.')
+    if source != LAUNCHER:
+        return
+    vendor = LAUNCHER.with_name('Android_Waydroid_Cage.vendor.sh')
+    if vendor.exists() or vendor.is_symlink():
+        if vendor.is_symlink() or vendor.read_bytes() != source.read_bytes():
+            raise RuntimeError('Android vendor launcher backup already exists with different content. It was preserved; review before retrying.')
+    else:
+        # Exclusive creation protects an existing recovery file from replacement.
+        with vendor.open('xb') as stream:
+            stream.write(source.read_bytes())
+        vendor.chmod(0o700)
+    with tempfile.NamedTemporaryFile(mode='w', prefix='.deckctl-android-launch-',
+                                     dir=LAUNCHER.parent, delete=False) as stream:
+        temporary = Path(stream.name)
+    try:
+        with temporary.open('w') as stream:
+            stream.write(_wrapper_text())
+        temporary.chmod(0o700)
+        temporary.replace(LAUNCHER)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 @contextmanager
@@ -107,11 +161,12 @@ def _provider_output(directory):
 def _app_launcher():
     if not os.environ.get('DECKCTL_APP_SUDO'):
         raise RuntimeError('App administrator authorization is unavailable. Reopen setup.')
-    if hashlib.sha256(LAUNCHER.read_bytes()).hexdigest() != LAUNCHER_DIGEST:
+    source = _launcher_source()
+    if source.is_symlink() or hashlib.sha256(source.read_bytes()).hexdigest() != LAUNCHER_DIGEST:
         raise RuntimeError('Installed Android launcher contract changed. App adapter needs review; the existing image was not changed.')
     with tempfile.TemporaryDirectory(prefix='deckctl-android-launch-') as directory:
         target = Path(directory)/LAUNCHER.name
-        text = LAUNCHER.read_text()
+        text = source.read_text()
         text = text.replace('SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"',
                             'SCRIPT_DIR='+shlex.quote(str(LAUNCHER.parent)))
         text = text.replace('>"$LAUNCH_ERROR_LOG" 2>&1', '> >(tee "$LAUNCH_ERROR_LOG") 2>&1')
@@ -271,6 +326,8 @@ def _run_provider(checkout, mode):
     if rc != 0:
         return rc
     if not _app_authorization_result(): return 2
+    if os.environ.get('DECKCTL_UI_RUN') == '1' and IMAGE.is_file():
+        _install_launch_wrapper()
     if IMAGE.is_file() and not _state_present():
         return _first_run()
 
@@ -302,7 +359,25 @@ def _app_authorization_result():
     return True
 
 
-def _first_run():
+def _run_app_launcher(launcher, arguments, env):
+    """A closed lifetime pipe also stops Cage after a launcher-owner crash."""
+    supervisor = Path(__file__).parent/'sudo_watch.py'
+    process = subprocess.Popen([sys.executable, str(supervisor)], stdin=subprocess.PIPE,
+                               cwd=LAUNCHER.parent, env=env, start_new_session=True)
+    try:
+        process.stdin.write(json.dumps({'command':[str(launcher), *arguments],
+                                       'cwd':str(LAUNCHER.parent)}).encode()+b'\n')
+        process.stdin.flush()
+        return process.wait()
+    finally:
+        process.stdin.close()
+        try:
+            process.wait(timeout=6)
+        except subprocess.TimeoutExpired:
+            process.kill(); process.wait()
+
+
+def _first_run(arguments=()):
     """Use the vendor launcher that mounts the existing image before opening Android."""
     from . import user_session
     if user_session.nested_desktop():
@@ -318,10 +393,17 @@ def _first_run():
     print('Complete Android/Google Play sign-in if prompted, then close Android to resume provisioning.', flush=True)
     try:
         if os.environ.get('DECKCTL_UI_RUN') == '1':
+            _install_launch_wrapper()
             with _app_launcher() as launcher:
-                rc = subprocess.run([str(launcher)], cwd=LAUNCHER.parent).returncode
+                from . import app_sudo
+                session = secrets.token_hex(16)
+                env = dict(os.environ, DECKCTL_SUDO_KEEP_DESCENDANTS='1', DECKCTL_SUDO_SESSION=session)
+                try:
+                    rc = _run_app_launcher(launcher, arguments, env)
+                finally:
+                    app_sudo.release_session(session, env=env)
         else:
-            rc = subprocess.run([str(LAUNCHER)], cwd=LAUNCHER.parent).returncode
+            rc = subprocess.run([str(LAUNCHER), *arguments], cwd=LAUNCHER.parent).returncode
     except (OSError, RuntimeError) as exc:
         print(f'Android launcher failed: {exc}')
         return 2
@@ -330,6 +412,44 @@ def _first_run():
         return rc
     if not _app_authorization_result(): return 2
     return status()
+
+
+def launch(arguments=()):
+    """Installed Steam shortcut entry point; authorization lasts for this launch."""
+    from . import app_sudo, privilege, user_session
+    if user_session.nested_desktop():
+        print(user_session.NESTED_DESKTOP_NOTICE, flush=True)
+        return 2
+    if not (os.environ.get('DISPLAY') or os.environ.get('WAYLAND_DISPLAY')):
+        print('Android CONFIG_REQUIRED: open Android in a graphical session to authorize the runtime helpers.', flush=True)
+        return 2
+    owner = None
+    before = dict(os.environ)
+    try:
+        # Steam may inherit the provider's temporary transport when shortcut
+        # creation starts it. A durable launch always owns fresh authorization.
+        inherited = os.environ.pop('DECKCTL_APP_SUDO', None)
+        if inherited:
+            shim = Path(inherited).parent
+            os.environ['PATH'] = os.pathsep.join(entry for entry in os.environ.get('PATH', '').split(os.pathsep)
+                                               if Path(entry) != shim)
+        for key in ('DECKCTL_UI_CONTROL', 'DECKCTL_UI_RUN', 'DECKCTL_SUDO_SESSION', 'DECKCTL_SUDO_KEEP_DESCENDANTS'):
+            os.environ.pop(key, None)
+        owner = app_sudo.Owner()
+        os.environ.update(owner.environment())
+        os.environ['DECKCTL_UI_RUN'] = '1'
+        with privilege.Session() as permission:
+            permission.prepare()
+            return _first_run(arguments)
+    except (OSError, RuntimeError, subprocess.SubprocessError) as exc:
+        print('Android CONFIG_REQUIRED: '+str(exc), flush=True)
+        return 2
+    finally:
+        try:
+            if owner is not None:
+                owner.close()
+        finally:
+            os.environ.clear(); os.environ.update(before)
 
 
 def install():
@@ -350,6 +470,12 @@ def repair():
 
 def retry():
     if ready():
+        if os.environ.get('DECKCTL_UI_RUN') == '1':
+            try:
+                _install_launch_wrapper()
+            except (OSError, RuntimeError) as exc:
+                print('Android CONFIG_REQUIRED: '+str(exc), flush=True)
+                return 2
         return status()
     if IMAGE.is_file() and LAUNCHER.is_file() and os.access(LAUNCHER, os.X_OK):
         return _first_run()
@@ -359,3 +485,7 @@ def retry():
 def reinstall():
     print('WARNING: deliberate Android recreation. Upstream archives recoverable prior state and asks for confirmation.')
     return _run('--reinstall-android')
+
+
+if __name__ == '__main__':
+    raise SystemExit(launch(sys.argv[1:]))
