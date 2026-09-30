@@ -46,10 +46,10 @@ class ConnectionContracts(unittest.TestCase):
             self.assertEqual(probe.call_count, 2)
 
     def test_live_failure_preserves_specific_diagnostic_without_blanket_advice(self):
-        with patch.object(connection, '_validate'), patch.object(connection, '_probe', side_effect=connection.ConnectionError('BACKEND_UNREACHABLE', 'offline')), patch.object(css_live, 'enable', side_effect=css_live.LiveError('Open Steam Big Picture, then retry.', 'STEAM_CONTEXT')):
+        with patch.object(connection, '_validate'), patch.object(connection, '_probe', side_effect=connection.ConnectionError('BACKEND_UNREACHABLE', 'offline')), patch.object(css_live, 'enable', side_effect=css_live.LiveError('Open Steam Big Picture, then retry.', 'PLUGIN_CALL_FAILED')):
             with self.assertRaises(connection.ConnectionError) as caught:
                 connection.prepare()
-            self.assertEqual(caught.exception.code, 'STEAM_CONTEXT')
+            self.assertEqual(caught.exception.code, 'PLUGIN_CALL_FAILED')
             self.assertNotIn('Standalone Backend', str(caught.exception))
 
     def test_bad_contract_and_response_never_activate(self):
@@ -65,7 +65,7 @@ class ConnectionContracts(unittest.TestCase):
                 self.assertEqual(caught.exception.code, code)
 
     def test_activation_has_bounded_readiness_wait(self):
-        with patch.object(connection, '_validate'), patch.object(connection, '_probe', side_effect=connection.ConnectionError('BACKEND_UNREACHABLE', 'offline')), patch.object(css_live, 'enable') as enable, patch.object(connection.time, 'monotonic', side_effect=[0, 6]):
+        with patch.object(connection, '_validate'), patch.object(connection, '_probe', side_effect=connection.ConnectionError('BACKEND_UNREACHABLE', 'offline')), patch.object(css_live, 'enable') as enable, patch.object(connection.time, 'monotonic', side_effect=[0, 6]), patch.object(connection, '_desktop_bridge', side_effect=connection.ConnectionError('BACKEND_NOT_READY', 'offline')):
             with self.assertRaises(connection.ConnectionError) as caught: connection.prepare()
             self.assertEqual(caught.exception.code, 'BACKEND_NOT_READY')
             enable.assert_called_once_with()
@@ -81,6 +81,97 @@ class ConnectionContracts(unittest.TestCase):
         row = dict(key=connection.KEY, kind='css-connection', owner='decky')
         with patch.object(connection, 'prepare', side_effect=connection.ConnectionError('STEAM_CONTEXT', 'Retry here.')):
             with self.assertRaisesRegex(setup_install.NeedsSetup, 'STEAM_CONTEXT'): setup_install.execute(row)
+
+
+class DesktopBridgeContracts(unittest.TestCase):
+    def setUp(self):
+        self.directory = tempfile.TemporaryDirectory()
+        self.addCleanup(self.directory.cleanup)
+        self.root = Path(self.directory.name)
+        self.stack = __import__('contextlib').ExitStack()
+        self.addCleanup(self.stack.close)
+        self.stack.enter_context(patch.object(css_stack, 'THEMES_DIR', self.root))
+        self.stack.enter_context(patch.object(connection, '_validate'))
+        self.stack.enter_context(patch.object(connection.user_session, 'nested_desktop', return_value=False))
+        self.stack.enter_context(patch.dict(os.environ, {'DECKCTL_UI_RUN': '1'}))
+        self.permission = Mock(attempted=False)
+        self.stack.enter_context(patch.object(connection.privilege, 'command', return_value=[]))
+        self.restart = self.stack.enter_context(patch.object(connection.decky_installer, '_restart_decky', return_value=True))
+        self.live = self.stack.enter_context(patch.object(css_live, 'enable', side_effect=css_live.LiveError('offline', 'DEBUGGER_UNREACHABLE')))
+        self.probe = self.stack.enter_context(patch.object(connection, '_probe', side_effect=[connection.ConnectionError('BACKEND_UNREACHABLE', 'offline'), None]))
+
+    def test_desktop_without_debugger_authorizes_repairs_and_cleans(self):
+        with connection.session(self.permission):
+            connection.prepare()
+            self.assertTrue((self.root / 'SERVER').exists())
+            self.permission.prepare.assert_called_once()
+            self.restart.assert_called_once()
+        self.assertFalse((self.root / 'SERVER').exists())
+        self.assertEqual(self.restart.call_count, 2)
+
+    def test_nested_never_authorizes_writes_or_restarts(self):
+        with patch.object(connection.user_session, 'nested_desktop', return_value=True), connection.session(self.permission):
+            with self.assertRaises(connection.ConnectionError) as caught: connection.prepare()
+            self.assertEqual(caught.exception.code, 'NESTED_DESKTOP')
+        self.permission.prepare.assert_not_called()
+        self.restart.assert_not_called()
+        self.assertFalse((self.root / 'SERVER').exists())
+
+    def test_nested_live_path_remains_available(self):
+        self.live.side_effect = None
+        with patch.object(connection.user_session, 'nested_desktop', return_value=True), connection.session(self.permission): connection.prepare()
+        self.restart.assert_not_called()
+        self.permission.prepare.assert_not_called()
+
+    def test_cancellation_has_no_flag_or_restart_and_retry_works(self):
+        self.permission.prepare.side_effect = RuntimeError('cancelled')
+        with connection.session(self.permission), self.assertRaisesRegex(connection.ConnectionError, 'AUTHORIZATION'): connection.prepare()
+        self.restart.assert_not_called()
+        self.assertFalse((self.root / 'SERVER').exists())
+        self.permission.prepare.side_effect = None
+        self.probe.side_effect = [connection.ConnectionError('BACKEND_UNREACHABLE', 'offline'), None]
+        with connection.session(self.permission): connection.prepare()
+        self.assertEqual(self.restart.call_count, 2)
+
+    def test_failure_after_start_cleans_and_preserves_settings(self):
+        settings = self.root / 'config.json'
+        settings.write_text('personal settings')
+        self.probe.side_effect = [connection.ConnectionError('BACKEND_UNREACHABLE', 'offline'), connection.ConnectionError('BACKEND_RESPONSE', 'bad response')]
+        with self.assertRaisesRegex(connection.ConnectionError, 'BACKEND_RESPONSE'), connection.session(self.permission): connection.prepare()
+        self.assertFalse((self.root / 'SERVER').exists())
+        self.assertEqual(settings.read_text(), 'personal settings')
+        self.assertEqual(self.restart.call_count, 2)
+
+    def test_normal_cancellation_closes_bridge(self):
+        with self.assertRaises(KeyboardInterrupt), connection.session(self.permission):
+            connection.prepare()
+            raise KeyboardInterrupt()
+        self.assertFalse((self.root / 'SERVER').exists())
+        self.assertEqual(self.restart.call_count, 2)
+
+    def test_existing_server_setting_is_preserved(self):
+        sentinel = self.root / 'SERVER'
+        sentinel.write_text('user-owned')
+        with connection.session(self.permission): connection.prepare()
+        self.assertEqual(sentinel.read_text(), 'user-owned')
+        self.restart.assert_called_once()
+
+    def test_failed_restart_still_removes_temporary_flag(self):
+        self.restart.side_effect = [False, True]
+        with self.assertRaisesRegex(connection.ConnectionError, 'BRIDGE_RESTART'), connection.session(self.permission): connection.prepare()
+        self.assertFalse((self.root / 'SERVER').exists())
+
+    def test_cleanup_failure_is_visible(self):
+        self.restart.side_effect = [True, False]
+        with self.assertRaisesRegex(connection.ConnectionError, 'BRIDGE_CLEANUP'), connection.session(self.permission): connection.prepare()
+        self.assertFalse((self.root / 'SERVER').exists())
+
+    def test_nested_scopes_keep_bridge_until_queue_finishes(self):
+        with connection.session(self.permission):
+            connection.prepare()
+            with connection.session(): self.assertTrue((self.root / 'SERVER').exists())
+            self.restart.assert_called_once()
+        self.assertEqual(self.restart.call_count, 2)
 
 
 class PlanContracts(unittest.TestCase):
@@ -107,11 +198,11 @@ class PlanContracts(unittest.TestCase):
         self.assertEqual([row['key'] for row in rows], [connection.KEY, 'dependency:css-profile'])
         self.assertEqual(rows[0]['requires'], [])
 
-    def test_css_review_promises_no_sudo_or_restart(self):
+    def test_css_review_explains_desktop_fallback_and_nested_safety(self):
         for kind in connection.KINDS:
             notes = ' '.join(setup_plan.review_notes({'key': connection.KEY, 'kind': kind}))
-            self.assertIn('without sudo', notes)
-            self.assertIn('No Decky restart', notes)
+            self.assertIn('KDE administrator dialog', notes)
+            self.assertIn('Nested Desktop never restarts', notes)
             self.assertNotIn('May restart', notes)
 
 
@@ -125,7 +216,7 @@ class QueueContracts(unittest.TestCase):
         def execute(row):
             attempts.append(row['key'])
             if row['key'] == connection.KEY and fail:
-                raise setup_install.NeedsSetup('[STEAM_CONTEXT] Open Steam Big Picture, then Retry here.')
+                raise setup_install.NeedsSetup('[AUTHORIZATION] Retry here to open the KDE password dialog.')
             ready.add(row['key'])
         def save(path, value): state[str(path)] = json.loads(json.dumps(value))
         def load(path, default=None): return json.loads(json.dumps(state.get(str(path), default)))
@@ -133,7 +224,7 @@ class QueueContracts(unittest.TestCase):
             root = Path(directory)
             (root / 'VERSION').write_text('0.0.0-test')
             journal = SimpleNamespace(id='test-css', path=root / 'logs')
-            with patch.object(core, 'ROOT', root), patch.object(core, 'STATE', root), patch.object(core, 'save_json', side_effect=save), patch.object(core, 'load_json', side_effect=load), patch.object(setup_plan, 'items', return_value=({}, rows)), patch.object(setup_plan, 'storage_budget', return_value=(root, None, '')), patch.object(setup_install, 'lock', return_value=nullcontext()), patch.object(setup_install.privilege, 'Session', return_value=nullcontext()), patch.object(setup_install, 'queue_checkpoint'), patch.object(setup_install, '_nested_decky_change', return_value=False), patch.object(setup_install.privilege, 'needed', return_value=False), patch.object(setup_install, 'execute', side_effect=execute), patch.object(setup_install, 'verify', side_effect=lambda row: row['key'] in ready), patch.object(setup_install.install_log, 'capture', side_effect=lambda *a, **k: nullcontext(None)), patch.object(setup_install.install_progress, 'listen', side_effect=lambda *a: nullcontext()), patch.object(setup_install.install_progress, 'report'), patch.object(setup_install.run_log, 'event'), patch.object(setup_install.run_log, 'archive_item'), patch.dict(os.environ, {'DECKCTL_UI_RUN': '1'}):
+            with patch.object(core, 'ROOT', root), patch.object(core, 'STATE', root), patch.object(core, 'save_json', side_effect=save), patch.object(core, 'load_json', side_effect=load), patch.object(setup_plan, 'items', return_value=({}, rows)), patch.object(setup_plan, 'storage_budget', return_value=(root, None, '')), patch.object(setup_install, 'lock', return_value=nullcontext()), patch.object(setup_install.privilege, 'Session', side_effect=lambda: nullcontext(Mock(attempted=False))), patch.object(setup_install, 'queue_checkpoint'), patch.object(setup_install, '_nested_decky_change', return_value=False), patch.object(setup_install.privilege, 'needed', return_value=False), patch.object(setup_install, 'execute', side_effect=execute), patch.object(setup_install, 'verify', side_effect=lambda row: row['key'] in ready), patch.object(setup_install.install_log, 'capture', side_effect=lambda *a, **k: nullcontext(None)), patch.object(setup_install.install_progress, 'listen', side_effect=lambda *a: nullcontext()), patch.object(setup_install.install_progress, 'report'), patch.object(setup_install.run_log, 'event'), patch.object(setup_install.run_log, 'archive_item'), patch.dict(os.environ, {'DECKCTL_UI_RUN': '1'}):
                 self.assertEqual(setup_install._run_plan(None, False, journal), 2)
                 records = load(setup_install.state_path())['items']
                 self.assertEqual(records[connection.KEY]['status'], 'NEEDS_SETUP')

@@ -19,7 +19,7 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'lib'))
-from deckctl import core, css_stack as css, decky_installer, desktop, reliability, workspace
+from deckctl import css_live, css_connection, core, css_stack as css, decky_installer, desktop, reliability, workspace
 
 FIXTURES = ROOT / 'tests/fixtures/css'
 
@@ -277,14 +277,14 @@ class CSSBehavior(Isolated):
         (css.PLUGIN_DIR / 'css_utils.py').write_text('def store_or_file_config(key): return key.upper()\n')
         css._validate_plugin()
         backend = NativeBackend()
-        with patch.object(css, 'Backend', return_value=backend), patch.object(backend, 'themes', side_effect=[OSError('not started'), []]), patch.object(css.css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky', side_effect=AssertionError('No restart')) as restart:
+        with patch.object(css, 'Backend', return_value=backend), patch.object(css_connection, '_probe', side_effect=[css_connection.ConnectionError('BACKEND_UNREACHABLE', 'offline'), None]), patch.object(css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky', side_effect=AssertionError('No restart')) as restart:
             with css._backend_session(): self.assertFalse((css.THEMES_DIR / 'SERVER').exists())
             self.assertFalse((css.THEMES_DIR / 'SERVER').exists()); restart.assert_not_called(); enable.assert_called_once()
         (css.PLUGIN_DIR / 'main.py').write_text('')
         with self.assertRaises(css.CSSError): css._validate_plugin()
 
     def test_live_transport_uses_only_local_shared_context_and_existing_decky_router(self):
-        live = css.css_live
+        live = css_live
         tabs = [{'title':'SharedJSContext', 'url':'https://steamloopback.host/routes/',
                  'webSocketDebuggerUrl':'ws://127.0.0.1:8080/devtools/page/shared'}]
         response = MagicMock(); response.status = 200
@@ -314,7 +314,7 @@ class CSSBehavior(Isolated):
         client.__aexit__.assert_awaited_once()
 
     def test_live_target_rejects_remote_debuggers_unrelated_pages_and_ambiguity(self):
-        live = css.css_live
+        live = css_live
         good = {'title':'SharedJSContext', 'url':'https://steamloopback.host/routes/',
                 'webSocketDebuggerUrl':'ws://127.0.0.1:8080/devtools/page/shared'}
         self.assertEqual(live._target([good]), good['webSocketDebuggerUrl'])
@@ -330,7 +330,7 @@ class CSSBehavior(Isolated):
             self.skipTest('Optional aiohttp is absent; mocked transport tests still run')
         from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
         from threading import Thread
-        live = css.css_live
+        live = css_live
         received = []
         class Destination(BaseHTTPRequestHandler):
             def log_message(self, *_args): pass
@@ -356,23 +356,20 @@ class CSSBehavior(Isolated):
         self.assertEqual(received, [])
 
     def test_live_timeout_and_unavailable_activation_never_fall_back_to_restart(self):
-        live = css.css_live
+        live = css_live
         with patch.object(live, '_evaluate', new=AsyncMock(side_effect=TimeoutError)), self.assertRaisesRegex(live.LiveError, 'timed out'):
             live.enable()
-        with patch.object(css, '_validate_plugin'), patch.object(css, 'Backend') as factory, patch.object(live, 'enable', side_effect=live.LiveError('Unavailable')) as enable, patch.object(decky_installer, '_restart_decky') as restart:
-            factory.return_value.themes.side_effect = OSError('Unavailable')
-            with self.assertRaisesRegex(css.CSSError, 'Standalone Backend'):
+        with patch.object(css, '_validate_plugin'), patch.object(css_connection, '_probe', side_effect=css_connection.ConnectionError('BACKEND_UNREACHABLE', 'offline')), patch.object(live, 'enable', side_effect=live.LiveError('Unavailable')) as enable, patch.object(decky_installer, '_restart_decky') as restart:
+            with self.assertRaisesRegex(css.CSSError, 'Unavailable'):
                 with css._backend_session(): self.fail('Unavailable connection must fail')
             restart.assert_not_called(); enable.assert_called_once()
             self.assertFalse((css.THEMES_DIR/'SERVER').exists())
 
     def test_existing_css_api_and_malformed_reply_never_enable_or_restart(self):
-        with patch.object(css, '_validate_plugin'), patch.object(css, 'Backend') as factory, patch.object(css.css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky') as restart:
-            factory.return_value.themes.return_value = []
-            factory.return_value.call.side_effect = [str(css.THEMES_DIR), 9]
+        with patch.object(css, '_validate_plugin'), patch.object(css_connection, '_probe') as probe, patch.object(css_live, 'enable') as enable, patch.object(decky_installer, '_restart_decky') as restart:
             with css._backend_session(): pass
             enable.assert_not_called(); restart.assert_not_called()
-            factory.return_value.themes.side_effect = css.CSSError('Malformed reply')
+            probe.side_effect = css_connection.ConnectionError('BACKEND_RESPONSE', 'Malformed reply')
             with self.assertRaisesRegex(css.CSSError, 'Malformed reply'):
                 with css._backend_session(): self.fail('Malformed reply must fail')
             enable.assert_not_called(); restart.assert_not_called()

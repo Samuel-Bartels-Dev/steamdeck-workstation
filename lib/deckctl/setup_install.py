@@ -270,7 +270,7 @@ def _run_plan(only, resume, journal):
             wanted.add(key)
             for parent in by_key[key]['requires']: include(parent)
         include(only)
-    with lock(), privilege.Session() as permission:
+    with lock(), privilege.Session() as permission, css_connection.session(permission):
         core.save_json(journal.path/'plan.json', {**core.load_json(journal.path/'plan.json', {}), 'plan': plan, 'items': rows, 'requested_item': only, 'resume': resume})
         fingerprint = setup_plan.fingerprint(plan)
         previous = core.load_json(state_path(), {})

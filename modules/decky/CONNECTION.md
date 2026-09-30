@@ -24,11 +24,20 @@ activation failures. Raw debugger payloads and third-party exception text are no
 included in these messages. Standalone Backend instructions are no longer appended
 to every shared-step failure regardless of cause.
 
-Opening Steam Big Picture or changing a CSS Loader setting may still require a
-user action when the live connection is unavailable. Setup does not switch
-sessions, restart Decky/Steam, request sudo for CSS, retrieve authentication tokens,
-connect another Decky frontend socket or install Python packages. Review, status
-and verification never enable the backend or mutate theme settings.
+Normal Desktop Mode does not require Big Picture, Gaming Mode or a terminal.
+If live activation is unavailable, setup uses the installed upstream `SERVER`
+flag contract and a controlled Decky restart. The existing KDE administrator
+authorization dialog is requested only when this fallback is needed. The flag
+created by setup lives until the queue exits, then is removed before a closing
+restart, including on failure or normal cancellation. Existing flags and stored
+settings are preserved. Cleanup failures are reported; abrupt termination cannot
+guarantee cleanup.
+
+Nested Desktop can use an existing/live backend but never uses the restart
+fallback. It defers that connection with `NESTED_DESKTOP` before authorization,
+writes or restarts. Other installations and saved completed work remain intact.
+Review, status and verification are read-only and never enable the backend.
+Malformed responses and unsupported plugin contracts fail without repair.
 
 Selecting only the CSS Loader plugin does not add a theme connection step.
 Recoloring supported themes that are already installed adds the connection check

@@ -150,7 +150,10 @@ Completed downloads/configuration are reused on retry.
 2. Reuse the plugin’s loopback API when available. Otherwise call its public
    `enable_server` method through Steam’s existing Decky frontend connection,
    using the already available local debugger. No new Decky frontend connection,
-   authentication token retrieval, `SERVER` sentinel or service restart is used.
+   authentication token retrieval is used. When live activation is unavailable in
+   normal Desktop Mode, use the upstream `SERVER` flag temporarily with a controlled
+   Decky restart. The existing KDE authorization dialog handles privileged repair.
+   Nested Desktop defers this fallback before authorization or writes.
 3. Resolve an exact Theme Store name, reject ambiguous/unavailable results, then
    call `download_theme_from_url` with the Store ID and `https://api.deckthemes.com`.
    CSS Loader owns blob downloads and dependency installation. No raw repo cloning.
@@ -161,11 +164,13 @@ Completed downloads/configuration are reused on retry.
    and actual `config_USER.json` or `config_ROOT.json` saved by the plugin.
 6. Generate a native profile containing only the managed components, verify its
    dependencies/settings, reload/recheck, and capture it with existing recovery tools.
-7. Close the temporary debugger connection. CSS Loader’s loopback API remains
-   available for the rest of its current plugin session; the installer does not
-   persist the server setting or restart Decky to turn it off. Upstream CSS Loader
-   may create Steam’s CEF debugging flag when enabling its API; this is separate
-   from the CSS server setting and is not removed by setup.
+7. Close the temporary debugger connection. A live connection stays available for
+   the current plugin session. The Desktop fallback owns only its newly created
+   `SERVER` flag: remove it and restart Decky at queue completion, failure or normal
+   cancellation. Existing flags and stored server settings are preserved. Abrupt
+   process termination/power loss cannot guarantee cleanup; an existing flag is
+   treated as user-owned on the next run. Cleanup failure is reported explicitly.
+   CSS Loader may create Steam’s CEF debugging flag; setup never removes it.
 
 Successful repeated application is a no-op. A receipt is not proof: status checks
 actual component manifests, active flags, saved palette values and the native
@@ -177,9 +182,10 @@ before regeneration. CSS capture/restore and post-update recovery remain availab
 
 Live activation uses the optional Python `aiohttp` package (present on the tested
 SteamOS installation); it never downloads Python packages. If this package, Steam’s
-local debugger or the existing Decky connection is unavailable, enable **Standalone
-Backend** in Decky → CSS Loader → Settings, then retry. An already enabled loopback
-API works without `aiohttp`. Failure never triggers a restart fallback.
+local debugger or the existing Decky connection is unavailable, normal Desktop
+uses the controlled temporary backend fallback. Opening Big Picture or Gaming Mode
+is not required. Nested Desktop can use an existing/live backend but never restarts
+Decky or Steam. Retry the shared connection in normal Desktop when fallback is needed.
 
 The bridge contract is checked from the installed source. A plugin update that
 removes methods or changes the bridge is a real `CONFIG_REQUIRED` condition,
@@ -268,10 +274,10 @@ target off. A disabled, empty selection is a no-op and reports UNCHANGED.
 
 ## Administrator permission in the setup window
 
-Before a UI run that needs plugin installation, KDE opens a masked
+When a UI run needs plugin installation or the Desktop CSS repair, KDE opens a masked
 password dialog. The password goes directly to sudo through its native askpass
 pipe; it never passes through the setup HTTP API, configuration, console, or logs.
-Only the narrow directory repair and Decky restart commands for plugin installation run as administrator. CSS changes use the live backend without sudo.
+Only the narrow directory repair and Decky restart commands for plugin installation run as administrator. CSS changes prefer the live backend without sudo; the normal Desktop restart fallback uses this same authorization dialog on demand.
 The installer itself remains your normal user.
 
 The run starts with a fresh sudo ticket and invalidates its session ticket on

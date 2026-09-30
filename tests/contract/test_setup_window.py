@@ -41,6 +41,19 @@ class SetupWindow(unittest.TestCase):
             self.assertTrue(progress['resumable'])
             self.assertFalse(progress['items'][0]['requiresDesktop'])
 
+    def test_css_connection_fallback_defers_only_in_nested_desktop(self):
+        from deckctl import setup_plan, setup_install, user_session, css_connection
+        plan = {'modules': ['base']}
+        row = dict(key=css_connection.KEY, name='CSS Loader connection', kind='css-connection', visible=True, requires=[])
+        state = {'fingerprint': setup_plan.fingerprint(plan), 'items': {
+            row['key']: {'status': 'NEEDS_SETUP', 'message': '[NESTED_DESKTOP] ' + user_session.NESTED_DESKTOP_NOTICE}}}
+        with patch.object(setup_plan, 'items', return_value=(plan, [row])), patch.object(setup_install, 'snapshot', return_value=state):
+            for directory, deferred in [('/run/user/1000/nested-desktop.TEST', True), ('/run/user/1000', False)]:
+                with patch.dict(setup_window.os.environ, {'XDG_RUNTIME_DIR': directory}):
+                    progress = setup_window.Session().progress()
+                    self.assertEqual(progress['items'][0]['requiresDesktop'], deferred)
+                    self.assertEqual(progress['resumeBlocked'], deferred)
+
     def test_old_css_deferral_becomes_retryable_in_nested_desktop(self):
         from deckctl import setup_plan, setup_install, user_session
         plan = {'modules':['base']}
