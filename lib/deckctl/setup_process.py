@@ -19,7 +19,7 @@ def snapshot(fingerprint):
     return data if data.get('fingerprint') == fingerprint else {'text':''}
 
 
-def start(command, fingerprint):
+def start(command, fingerprint, authorization=None):
     control_path = core.STATE/('setup-control-'+secrets.token_hex(16)+'.json')
     control = {'pause':False,'cancel':False}
     core.save_json(control_path, control)
@@ -28,7 +28,8 @@ def start(command, fingerprint):
     try:
         process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE,
                                    stderr=subprocess.STDOUT, start_new_session=True,
-                                   env=dict(os.environ, DECKCTL_UI_RUN='1', DECKCTL_UI_CONTROL=str(control_path), PYTHONUNBUFFERED='1'))
+                                   env=dict(os.environ, **(authorization.environment() if authorization else {}),
+                                            DECKCTL_UI_RUN='1', DECKCTL_UI_CONTROL=str(control_path), PYTHONUNBUFFERED='1'))
     except BaseException:
         control_path.unlink(missing_ok=True)
         raise

@@ -59,6 +59,7 @@ class Session:
         self.progress_lock = threading.Lock()
         self.progress_cache = {}
         self.process = None
+        self.authorization = None
         self.operation = None
         self.selected = None
         self.preview_result = {}
@@ -228,10 +229,13 @@ class Session:
         if operation not in commands:
             raise ValueError('Unknown setup operation.')
         command = [str(core.ROOT/'bin/deckctl'), *commands[operation]]
-        if operation in ('install','resume','retry','docker'):
+        if operation in ('install','resume','retry','docker') or (operation == 'interactive' and item == 'module:android'):
             from . import setup_process, setup_activity
+            if self.authorization is None:
+                from .app_sudo import Owner
+                self.authorization = Owner()
             self.activity = setup_activity.Sampler()
-            self.process = setup_process.start([*command, '--verbose'], setup_plan.fingerprint(setup_plan.items()[0]))
+            self.process = setup_process.start([*command, '--verbose'], setup_plan.fingerprint(setup_plan.items()[0]), self.authorization)
         else:
             terminal = shutil.which('konsole')
             if not terminal: raise ValueError('Konsole is required for this interactive action.')
@@ -505,6 +509,7 @@ def launch(plan_only=False):
             return result or (2 if plan_only and session.selected is None else 0)
         finally:
             if session.process and hasattr(session.process, 'close'): session.process.close()
+            if session.authorization: session.authorization.close()
             if session.inventory_scan: session.inventory_scan.close()
             server.shutdown()
             thread.join()

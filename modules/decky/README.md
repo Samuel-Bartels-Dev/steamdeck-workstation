@@ -280,17 +280,26 @@ target off. A disabled, empty selection is a no-op and reports UNCHANGED.
 
 ## Administrator permission in the setup window
 
-When a UI run needs plugin installation or the Desktop CSS repair, KDE opens a masked
+When the app first needs plugin installation or the Desktop CSS repair, KDE opens a masked
 password dialog. The password goes directly to sudo through its native askpass
 pipe; it never passes through the setup HTTP API, configuration, console, or logs.
 Only the narrow directory repair and Decky restart commands for plugin installation run as administrator. CSS changes prefer the live backend without sudo; the normal Desktop restart fallback uses this same authorization dialog on demand.
 The installer itself remains your normal user.
 
-The run starts with a fresh sudo ticket and invalidates its session ticket on
-completion, failure, or normal cancellation. No password is retained and no
-background renewal runs. If the OS ticket expires during a long install, another
-dialog may appear. Forced termination relies on sudo's normal process/session
-checks and timeout. On a fresh Deck, set the account password with `passwd` first.
+An unprivileged app-owned helper invokes every supported sudo command with the
+same parent-process scope and no controlling terminal. sudo owns the temporary
+ticket; queue runs, Retry, Resume, the CSS bridge and supported provider children
+reuse it. The helper renews an existing ticket with `sudo -n -v` while the app is
+open, never authenticating in the background. Each command checks sudo again;
+revoked or expired authorization may require another dialog.
+
+Closing the app closes the helper's lifetime pipe, stops active commands and
+invalidates that ticket. Renderer failure takes the same cleanup path; app crashes
+close the pipe automatically. A small sudo-invoked command supervisor stops and
+reaps privileged descendants on client cancellation or helper death. It supports
+noninteractive command stdin only; GUI steps remain visible. The app and provider
+remain unprivileged. No password, authorization token, or persistent NOPASSWD rule
+is created. On a fresh Deck, set the account password with `passwd` first.
 
 Canceling authentication keeps administrator items pending and lets independent
 user-space installs continue. Retry an item to authenticate again. Vendor setup

@@ -1,20 +1,25 @@
-"""Run-scoped sudo authorization; passwords travel only from KDE to sudo."""
+"""Sudo authorization; passwords travel only from KDE to sudo."""
 from contextvars import ContextVar
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 
 _authorized = ContextVar('setup_sudo_authorized', default=False)
 HELPER = Path(__file__).parent/'ui/sudo-askpass'
 
 
 def needed(row):
-    return row.get('kind') == 'plugin' or row.get('key') == 'remote:tailscale'
+    return row.get('kind') == 'plugin' or row.get('key') in ('remote:tailscale', 'module:android')
 
 
 def command(args):
     if os.environ.get('DECKCTL_UI_RUN') != '1': return ['sudo', *args]
+    if os.environ.get('DECKCTL_APP_SUDO'):
+        # Subprocesses have no inherited Python context variable. The app's
+        # ticket owner checks real sudo authorization for every invocation.
+        return [sys.executable, str(Path(__file__).parent/'app_sudo.py'), 'client', *args]
     if not _authorized.get():
         raise RuntimeError('Administrator permission is required. Retry this item to open the password dialog.')
     return ['sudo', '-A', *args]
@@ -43,6 +48,13 @@ class Session:
         if readiness['state'] in ('PASSWORD_MISSING', 'PASSWORD_LOCKED'):
             raise RuntimeError(readiness['message'])
         self.attempted = True
+        if os.environ.get('DECKCTL_APP_SUDO'):
+            result = subprocess.run([sys.executable, str(Path(__file__).parent/'app_sudo.py'), 'client', '-v'],
+                                    env=environment(), stdin=subprocess.DEVNULL, check=False)
+            if result.returncode:
+                raise RuntimeError('Administrator authorization was cancelled or failed. Retry to open the password dialog again.')
+            _authorized.set(True)
+            return
         # No controlling terminal: sudo uses this runner's parent-process ticket
         # under SteamOS's default policy. Start fresh; do not renew in background.
         subprocess.run(['sudo', '-k'], stdin=subprocess.DEVNULL, check=True)
@@ -54,7 +66,7 @@ class Session:
 
     def __exit__(self, *_):
         try:
-            if self.attempted:
+            if self.attempted and not os.environ.get('DECKCTL_APP_SUDO'):
                 subprocess.run(['sudo', '-k'], stdin=subprocess.DEVNULL,
                                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5, check=False)
         except (OSError, subprocess.SubprocessError):

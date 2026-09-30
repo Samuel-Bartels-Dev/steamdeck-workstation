@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import json
+import hashlib
+from contextlib import contextmanager
 import os
 import shutil
+import shlex
 import subprocess
 import tempfile
+import threading
 from pathlib import Path
 
 HOME = Path.home()
@@ -14,6 +18,108 @@ STATE = HOME / '.local/share/waydroid'
 LEGACY = HOME / 'waydroid'
 SHORTCUT_HELPER = HOME / 'Android_Waydroid/steam-shortcuts.py'
 LAUNCHER = HOME / 'Android_Waydroid/Android_Waydroid_Cage.sh'
+
+# Inspected provider 6f643fb42afc0595a7c8fe1d6f3350b748c8001c.
+# Only the files whose contracts we adapt are pinned, not the bundle catalog.
+PROVIDER_CONTRACT = {
+    'steamos-waydroid-installer.sh': '7f1c36f3666f7e149e180f58d09470b336ba11138ef9d137f28b1145c5b7bd0a',
+    'libexec/steamos-waydroid/installer-sanity-checks.sh': '2a6bb23ec4a4338d619888a36ea2ab1dfa1f3d8bd42e44433771ba79b32f8279',
+}
+AUTH_START = '\tIFS= read -r -s -p "Please enter current sudo password: " current_password\n'
+AUTH_END = "\tprintf 'Sudo authentication succeeded.\\n'\n"
+INSTALLER_ROOT = "printf '%s\\n' \"$WORKING_DIR\" >~/Android_Waydroid/installer-root"
+LAUNCHER_DIGEST = '08a8cda7d23059976bc061c603a636cabfea2918f6de2c3ded6901e92136970d'
+
+
+@contextmanager
+def _app_provider():
+    """Adapt only inspected authentication, output and password-required rules.
+
+    The original checkout is untouched. Compatibility, bundle/fingerprint,
+    storage, protected-repair and GUI image selection remain upstream code.
+    """
+    for relative, digest in PROVIDER_CONTRACT.items():
+        source = CHECKOUT/relative
+        if not source.is_file() or source.is_symlink() or hashlib.sha256(source.read_bytes()).hexdigest() != digest:
+            raise RuntimeError('Android provider contract changed: '+relative+'. No provider changes were run; the app adapter needs review.')
+    with tempfile.TemporaryDirectory(prefix='deckctl-android-provider-') as directory:
+        staged = Path(directory)/'provider'
+        shutil.copytree(CHECKOUT, staged, ignore=shutil.ignore_patterns('.git', 'logfile', 'logfile-test'))
+        sanity = staged/'libexec/steamos-waydroid/installer-sanity-checks.sh'
+        text = sanity.read_text()
+        start, end = text.index(AUTH_START), text.index(AUTH_END)+len(AUTH_END)
+        text = text[:start]+("\t# No password is read or passed to this provider.\n"
+                            "\tcurrent_password=''\n"
+                            "\tif ! sudo -v; then\n"
+                            "\t\tprintf 'App administrator authorization failed; Retry in setup.\\n' >&2\n"
+                            "\t\treturn 1\n\tfi\n")+text[end:]
+        sanity.write_text(text)
+        installer = staged/'steamos-waydroid-installer.sh'
+        # The installed Toolbox must point back to the original checkout, not a
+        # temporary adapter that disappears when this installation returns.
+        installer.write_text(installer.read_text().replace(INSTALLER_ROOT,
+                             "printf '%s\\n' "+shlex.quote(str(CHECKOUT))+" >~/Android_Waydroid/installer-root"))
+        # Upstream ships runtime NOPASSWD rules. Do not add persistent password
+        # bypasses through this app: retain the commands with PASSWD instead.
+        rules = staged/'extras/zzzzzzzz-waydroid'
+        expected = ''.join('deck ALL=(root) NOPASSWD: /usr/bin/'+name+'\n' for name in
+                           ('waydroid-startup-scripts', 'waydroid-shutdown-scripts', 'waydroid-mount', 'waydroid-firewall'))
+        if rules.read_text() != expected:
+            raise RuntimeError('Android provider sudoers contract changed. Adapter needs review; nothing was installed.')
+        rules.write_text(expected.replace('NOPASSWD:', 'PASSWD:'))
+        version = subprocess.run(['git', '-C', str(CHECKOUT), 'rev-parse', '--short', 'HEAD'], capture_output=True, text=True, check=True)
+        (staged/'.source-version').write_text(version.stdout.strip()+'\n')
+        yield staged
+
+
+@contextmanager
+def _provider_output(directory):
+    """Forward upstream's redirected privileged-step log to the shared console."""
+    stopped = threading.Event()
+    def follow():
+        offset = 0
+        while True:
+            path = directory/'logfile'
+            if path.is_file():
+                with path.open('rb') as stream:
+                    stream.seek(offset)
+                    raw = stream.read()
+                    offset = stream.tell()
+                if raw:
+                    from . import install_log
+                    print(install_log.redact(raw.decode('utf-8', errors='replace')), end='', flush=True)
+            if stopped.wait(.1):
+                # Final drain happens on the next loop before exit.
+                if path.is_file():
+                    with path.open('rb') as stream:
+                        stream.seek(offset)
+                        raw = stream.read()
+                    if raw:
+                        from . import install_log
+                        print(install_log.redact(raw.decode('utf-8', errors='replace')), end='', flush=True)
+                return
+    thread = threading.Thread(target=follow, daemon=True); thread.start()
+    try: yield
+    finally: stopped.set(); thread.join(timeout=2)
+
+
+@contextmanager
+def _app_launcher():
+    if not os.environ.get('DECKCTL_APP_SUDO'):
+        raise RuntimeError('App administrator authorization is unavailable. Reopen setup.')
+    if hashlib.sha256(LAUNCHER.read_bytes()).hexdigest() != LAUNCHER_DIGEST:
+        raise RuntimeError('Installed Android launcher contract changed. App adapter needs review; the existing image was not changed.')
+    with tempfile.TemporaryDirectory(prefix='deckctl-android-launch-') as directory:
+        target = Path(directory)/LAUNCHER.name
+        text = LAUNCHER.read_text()
+        text = text.replace('SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"',
+                            'SCRIPT_DIR='+shlex.quote(str(LAUNCHER.parent)))
+        text = text.replace('>"$LAUNCH_ERROR_LOG" 2>&1', '> >(tee "$LAUNCH_ERROR_LOG") 2>&1')
+        # Mirror error guidance into the console and keep the provider GUI visible.
+        text = text.replace('kdialog --error', 'deckctl_launch_error --error')
+        text = text.replace('set -Eeuo pipefail', "set -Eeuo pipefail\ndeckctl_launch_error() { printf '%s\\n' \"$2\" >&2; kdialog \"$@\"; }")
+        target.write_text(text); target.chmod(0o700)
+        yield target
 
 
 def _state_present():
@@ -120,29 +226,51 @@ def _write_nonblocking_steam_shim(directory: Path, real_add: str) -> Path:
 
 
 def _run(mode=None):
+    from . import user_session
+    if user_session.nested_desktop():
+        print(user_session.NESTED_DESKTOP_NOTICE, flush=True)
+        return 2
     if not _ensure_checkout():
         return 1
-    cmd = [str(CHECKOUT / 'steamos-waydroid-installer.sh')]
+    if os.environ.get('DECKCTL_UI_RUN') == '1':
+        if not os.environ.get('DECKCTL_APP_SUDO'):
+            print('Android CONFIG_REQUIRED: reopen setup to obtain app administrator authorization.')
+            return 2
+        try:
+            with _app_provider() as staged:
+                return _run_provider(staged, mode)
+        except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+            print('Android CONFIG_REQUIRED: '+str(exc), flush=True)
+            return 2
+    return _run_provider(CHECKOUT, mode)
+
+
+def _run_provider(checkout, mode):
+    cmd = [str(checkout / 'steamos-waydroid-installer.sh')]
     if mode:
         cmd.append(mode)
     print('Launching SteamOS Waydroid installer.')
     print('For a fresh install choose: Android 13 with Google Play.')
-    print('The upstream installer may request your sudo password for host integration.')
+    print('Administrator operations use the app authorization.' if os.environ.get('DECKCTL_UI_RUN') == '1'
+          else 'The upstream installer may request your sudo password for host integration.')
+    print('Follow the visible Android image chooser. Progress and verification continue here.', flush=True)
     print('Steam shortcut creation is detached so Steam cannot keep this setup terminal open.')
 
     env = os.environ.copy()
     real_add = shutil.which('steamos-add-to-steam')
-    if not real_add:
-        rc = subprocess.run(cmd, cwd=CHECKOUT, env=env).returncode
-    else:
-        with tempfile.TemporaryDirectory(prefix='deckctl-waydroid-') as tmp:
-            shim_dir = Path(tmp)
-            _write_nonblocking_steam_shim(shim_dir, real_add)
-            env['PATH'] = f"{shim_dir}:{env.get('PATH', '')}"
-            rc = subprocess.run(cmd, cwd=CHECKOUT, env=env).returncode
+    with _provider_output(checkout):
+        if not real_add:
+            rc = subprocess.run(cmd, cwd=checkout, env=env).returncode
+        else:
+            with tempfile.TemporaryDirectory(prefix='deckctl-waydroid-') as tmp:
+                shim_dir = Path(tmp)
+                _write_nonblocking_steam_shim(shim_dir, real_add)
+                env['PATH'] = f"{shim_dir}:{env.get('PATH', '')}"
+                rc = subprocess.run(cmd, cwd=checkout, env=env).returncode
 
     if rc != 0:
         return rc
+    if not _app_authorization_result(): return 2
     if IMAGE.is_file() and not _state_present():
         return _first_run()
 
@@ -162,8 +290,24 @@ def _run(mode=None):
     return 2
 
 
+def _app_authorization_result():
+    # A provider may suppress a failed sudo call in shell cleanup. Never let an
+    # authentication cancellation turn into successful Android completion.
+    if os.environ.get('DECKCTL_UI_RUN') != '1': return True
+    from . import privilege
+    result = subprocess.run(privilege.command(['-n','-v']), env=privilege.environment(), stdin=subprocess.DEVNULL, check=False)
+    if result.returncode:
+        print('Android CONFIG_REQUIRED: administrator authorization failed or was cancelled. Retry here; existing Android state is preserved.', flush=True)
+        return False
+    return True
+
+
 def _first_run():
     """Use the vendor launcher that mounts the existing image before opening Android."""
+    from . import user_session
+    if user_session.nested_desktop():
+        print(user_session.NESTED_DESKTOP_NOTICE, flush=True)
+        return 2
     if not IMAGE.is_file() or not LAUNCHER.is_file() or not os.access(LAUNCHER, os.X_OK):
         print('Android CONFIG_REQUIRED: bundled launcher/image missing; run deckctl android repair.')
         return 2
@@ -173,13 +317,18 @@ def _first_run():
     print('Opening the installed Android image with its bundled Waydroid launcher.', flush=True)
     print('Complete Android/Google Play sign-in if prompted, then close Android to resume provisioning.', flush=True)
     try:
-        rc = subprocess.run([str(LAUNCHER)], cwd=LAUNCHER.parent).returncode
-    except OSError as exc:
+        if os.environ.get('DECKCTL_UI_RUN') == '1':
+            with _app_launcher() as launcher:
+                rc = subprocess.run([str(launcher)], cwd=LAUNCHER.parent).returncode
+        else:
+            rc = subprocess.run([str(LAUNCHER)], cwd=LAUNCHER.parent).returncode
+    except (OSError, RuntimeError) as exc:
         print(f'Android launcher failed: {exc}')
         return 2
     if rc != 0:
         print(f'Android launcher exited with status {rc}; inspect its error dialog before retrying.')
         return rc
+    if not _app_authorization_result(): return 2
     return status()
 
 

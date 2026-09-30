@@ -91,6 +91,13 @@ The archive installs `deckctl` locally without fetching its source repository. O
 
 **Do not run `sudo ./install.sh`.** Provisioning runs as the normal `deck` user and asks for sudo only when a narrow operation genuinely requires it.
 
+The setup app uses the KDE password dialog when administrator work first needs
+authorization, then reuses sudo's temporary authorization for Install, Retry and
+Resume while that app stays open. Closing it ends authorization. Passwords are
+never saved. Cancel leaves affected items retryable while independent app installs
+continue. Android setup runs in the shared queue and console; follow its visible
+image chooser/sign-in windows, then close Android for verification.
+
 The installer creates a persistent control-plane copy under:
 
 ```text
