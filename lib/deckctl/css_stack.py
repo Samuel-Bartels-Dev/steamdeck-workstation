@@ -19,6 +19,15 @@ from pathlib import Path
 
 from . import core
 
+# Keep persisted selection/queue IDs stable while resolving the exact Store name.
+STORE_NAMES = {'Game Cover Shine Animation': 'Game Cover Shine Animation Color'}
+
+
+def _store_name(name):
+    return next((canonical for legacy, canonical in STORE_NAMES.items()
+                 if str(name).casefold() == legacy.casefold()), name)
+
+
 STACK_PATH = core.ROOT / 'modules/decky/css-stack.json'
 THEMES_DIR = Path.home() / 'homebrew/themes'
 PLUGIN_DIR = Path.home() / 'homebrew/plugins/SDH-CssLoader'
@@ -97,7 +106,7 @@ def validate_selection(values):
 
 def selection_items():
     data = _stack(unfiltered=True)
-    return [{'id': item['name'], 'name': item['name'], 'summary': item.get('reason', '')}
+    return [{'id': item['name'], 'name': _store_name(item['name']), 'summary': item.get('reason', '')}
             for category in ('required', 'recommended', 'optional') for item in data.get(category, [])]
 
 
@@ -106,7 +115,7 @@ def _read(path):
 
 
 def _key(name):
-    return ''.join(c for c in str(name).casefold() if c.isalnum())
+    return ''.join(c for c in str(_store_name(name)).casefold() if c.isalnum())
 
 
 def _installed_themes():
@@ -199,6 +208,7 @@ def _backend_session():
 
 def _resolve_store_theme(name):
     """Same search/detail endpoints used by CSS Loader's Theme Store UI."""
+    name = _store_name(name)
     matches = {}
     for page in range(1, 21):
         query = urllib.parse.urlencode({'search': name, 'page': page, 'perPage': 50, 'filters': 'BPM-CSS.-Preset'})
