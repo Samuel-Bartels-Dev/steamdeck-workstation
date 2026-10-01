@@ -1,4 +1,12 @@
-# v0.2.34
+# Changelog
+
+## v0.2.44-rc2
+
+- Reuse app-owned temporary administrator authorization across Install, Retry, Resume and supported provider subprocesses; close/crash cleanup ends authorization.
+- Complete Android setup in the shared app queue and console, preserve existing images and state, and protect Nested Desktop from provider restarts.
+- Fix Android launcher SIGPIPE and pin Steam launches to their installed runtime with exact generated-wrapper migration.
+- Resolve the exact approved CSS Store/native shine name while preserving selections and completed components.
+- Document fixed-release installation and verified installer cleanup. Candidate status retains the outstanding hardware acceptance checks.
 
 ## v0.2.43
 
