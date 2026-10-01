@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.44-rc1 (candidate)
+# Steam Deck Workstation — v0.2.44-rc2 (candidate)
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -74,15 +74,15 @@ applying it. `main` changes have CI checks but may not have completed physical D
 testing; use a published release when you need a tested, fixed version.
 
 For a published, checksum-verified release instead, download the same script and
-run `bash /tmp/steamdeck-workstation-install.sh --version 0.2.43`. Use the desired
-published version in place of `0.2.43`.
+run `bash /tmp/steamdeck-workstation-install.sh --version 0.2.44-rc2`. Use the desired
+published version in place of `0.2.44-rc2`.
 
 To install the local control plane from USB, copy the release tarball into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.43.tar.gz
-cd steamdeck-workstation-0.2.43
+tar -xzf steamdeck-workstation-v0.2.44-rc2.tar.gz
+cd steamdeck-workstation-0.2.44-rc2
 chmod +x install.sh
 ./install.sh
 ```
@@ -112,29 +112,27 @@ and installs the permanent command at:
 ~/.local/bin/deckctl
 ```
 
-To test the reviewed installer fixes in PR #60 before merging, close any existing
-setup window and use a separate checkout of its branch:
-
-```bash
-git clone --branch fix/app-owned-installer https://github.com/Samuel-Bartels-Dev/steamdeck-workstation.git steamdeck-workstation-pr60
-cd steamdeck-workstation-pr60
-./bin/deckctl update preview --source "$PWD"
-runtime="$(DECKCTL_SOURCE_REVISION="$(git rev-parse HEAD)" ./tools/install-control-plane "$PWD")"
-"$runtime/bin/deckctl" setup customize
-```
-
-This promotes the installer runtime while preserving saved selections and the
-previous releases. Launching the returned release path pins this window to the
-reviewed fixes even if another checkout later changes `current`. Running an older
-checkout's `install.sh` promotes that checkout again; use the PR branch and pinned
-release when testing these fixes. Application installation starts when you choose
-Install in the setup app. An open window keeps its loaded runtime until you close it.
-The version label can remain the same across main and PR builds; check the
-active release's commit suffix to confirm which code is running:
+For the fixed candidate runtime, use the published `0.2.44-rc2` release rather
+than a previous checkout. Saved selections and completed installations remain.
+Running an older checkout's `install.sh` promotes that checkout again; an open
+setup window keeps its loaded runtime until it closes. Check the active runtime:
 
 ```bash
 readlink -f ~/.local/share/steamdeck-workstation/current
+~/.local/bin/deckctl --version
 ```
+
+After completing setup, remove only verified, unchanged staged installers:
+
+```bash
+deckctl setup cleanup --dry-run
+deckctl setup cleanup
+```
+
+Unverified or modified installers remain available. Cleanup preserves installed
+applications, Android images/apps/login state, saved selections and recovery
+files. Android's Steam launcher pins the release that created it; keep that
+release until a Retry from a newer installed runtime migrates the launcher.
 
 When the installer finishes, open a new Konsole window or run:
 
@@ -160,8 +158,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.43.tar.gz
-cd steamdeck-workstation-0.2.43
+tar -xzf steamdeck-workstation-v0.2.44-rc2.tar.gz
+cd steamdeck-workstation-0.2.44-rc2
 chmod +x install.sh
 ./install.sh
 ```
@@ -933,7 +931,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [candidate release notes](docs/RELEASE-0.2.44-rc1.md). The default bootstrap continues to install the latest stable release.
+See [candidate release notes](docs/RELEASE-0.2.44-rc2.md). The default bootstrap installs current main; explicit `--version` selects a fixed published release.
 
 ## Online releases and recovery
 
