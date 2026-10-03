@@ -481,9 +481,7 @@ class DesktopBehavior(Isolated):
 
     def test_media_helper_preserves_kiosk_receipts_and_no_duplicate_submission(self):
         helper = self.home / '.local/share/deckctl/media'; helper.mkdir(parents=True)
-        services = json.loads((ROOT / 'modules/media/services.json').read_text())
-        services.pop('tinyfingers')  # This fixture covers the four existing streaming services.
-        (helper / 'services.json').write_text(json.dumps(services))
+        (helper / 'services.json').write_bytes((ROOT / 'modules/media/services.json').read_bytes())
         bindir = self.home / 'fake-bin'; bindir.mkdir()
         (bindir / 'flatpak').write_text('#!/bin/sh\nexit 0\n')
         (bindir / 'steamos-add-to-steam').write_text('#!/bin/sh\nprintf "%s\\n" "$1" >> "$HOME/submissions"\n')
@@ -495,6 +493,7 @@ class DesktopBehavior(Isolated):
             self.assertIn('does not switch sessions or reboot', r.stdout)
             self.assertIn('switch to Game Mode manually', r.stdout)
         self.assertEqual(len((self.home / 'submissions').read_text().splitlines()), 4)
+        self.assertFalse((helper / 'bin/tinyfingers').exists())
         for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video'):
             self.assertIn('--kiosk', (helper / 'bin' / sid).read_text())
             self.assertTrue((helper / 'submitted' / sid).is_file())

@@ -30,7 +30,7 @@ only=os.environ.get('DECKCTL_MEDIA_ITEM')
 if only:
     choices=[only] if choices is None or only in choices else []
 for sid,data in json.load(open(sys.argv[1])).items():
-    if choices is None or sid in choices:
+    if (choices is None and data.get('default',False)) or (choices is not None and sid in choices):
         print(f"{sid}\t{data['name']}\t{data['url']}\t{'Y' if data.get('default',False) else 'N'}")
 PYMEDIA
 if [[ ! -s "$helper/service-lines.tsv" ]]; then
