@@ -151,9 +151,13 @@ def present(row):
     if 'flatpak' in row:
         commit = command(['flatpak', 'info', '--show-commit', row['flatpak']])
         scope = 'user' if command(['flatpak', 'info', '--user', '--show-commit', row['flatpak']]) else 'system'
-        return bool(commit), {'commit': commit, 'scope': scope,
+        details = {'commit': commit, 'scope': scope,
                               'origin': command(['flatpak', 'info', '--'+scope, '--show-origin', row['flatpak']]) if commit else 'flathub',
                               'ref': command(['flatpak', 'info', '--'+scope, '--show-ref', row['flatpak']]) if commit else row['flatpak']}
+        if key.startswith('app:') and key.removeprefix('app:') in apps.GAMING_KEYS:
+            state = apps.gaming_status(key.removeprefix('app:'))
+            details.update(shortcutState=state, configured=state == 'READY', configuration=bool(commit) and state != 'READY')
+        return bool(commit), details
     if row['kind'] == 'support': return True, {}
     if row['kind'] == 'plugin':
         installed = core._decky_installed_plugins().get(row['component'], {})
@@ -198,7 +202,13 @@ def present(row):
         listing = command(['distrobox', 'list', '--no-color']) or ''
         return any('deck-dev' in line.split('|') or 'deck-dev' in line.split() for line in listing.splitlines()), {}
     if row['owner'] == 'workspace':
-        return (Path.home()/'.local/share/applications'/('deck-workspace-'+row['component']+'.desktop')).is_file(), {}
+        path = Path.home()/'.local/share/applications'/('deck-workspace-'+row['component']+'.desktop')
+        details = {}
+        if key == 'workspace:chatgpt':
+            from . import app_shortcuts
+            state = app_shortcuts.status(key, 'ChatGPT', path)
+            details.update(shortcutState=state, configured=state == 'READY', configuration=path.is_file() and state != 'READY')
+        return path.is_file(), details
     if key == 'media:keeper': return core._keeper_installed(), {}
     if row['owner'] == 'media' and row['kind'] == 'component':
         return (Path.home()/'.local/share/applications'/('deck-media-'+row['component']+'.desktop')).is_file(), {}

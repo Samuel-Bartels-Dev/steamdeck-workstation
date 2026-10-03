@@ -3,7 +3,44 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+from pathlib import Path
 from . import core
+
+GAMING_KEYS = frozenset(('discord', 'parsec', 'spotify', 'slack'))
+
+
+def gaming_desktop(key):
+    return Path.home()/'.local/share/applications'/('deck-app-'+key+'.desktop')
+
+
+def gaming_status(key):
+    if key not in GAMING_KEYS:
+        return None
+    from . import app_shortcuts
+    return app_shortcuts.status('app:'+key, catalog()[key]['name'], gaming_desktop(key))
+
+
+def ensure_gaming_shortcut(key):
+    if key not in GAMING_KEYS:
+        return None
+    from . import app_shortcuts
+    app = catalog()[key]
+    if not has(app['id']):
+        raise RuntimeError(app['name']+' is not installed; no Steam shortcut was submitted.')
+    path = gaming_desktop(key)
+    text = ('[Desktop Entry]\nType=Application\nName='+app['name']+'\n'
+            'Exec=/usr/bin/flatpak run '+app['id']+'\nIcon='+app['id']+'\n'
+            'Terminal=false\nCategories=Network;\n')
+    if path.is_symlink() or (path.exists() and path.read_text() != text):
+        raise RuntimeError(app['name']+' managed launcher was edited; it was preserved. Review it before Retry.')
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if not path.exists():
+        with path.open('x') as stream:
+            stream.write(text)
+        path.chmod(0o755)
+    state = app_shortcuts.ensure('app:'+key, app['name'], path)
+    print(app['name']+' Gaming Mode: '+state)
+    return state
 
 
 def catalog():
@@ -52,11 +89,15 @@ def module_action(action, app_id):
     if has(app_id):
         if action == 'install' and has(app_id, '--user'):
             # Flatpak compares repository commits and downloads only updates.
-            return subprocess.run(['flatpak', 'update', '--user', '-y', app_id]).returncode
+            rc = subprocess.run(['flatpak', 'update', '--user', '-y', app_id]).returncode
+            if rc: return rc
+        if action == 'install': ensure_gaming_shortcut(key)
         return 0
     if action == 'verify':
         return 1
-    return subprocess.run(['flatpak', 'install', '--user', '-y', 'flathub', app_id]).returncode
+    rc = subprocess.run(['flatpak', 'install', '--user', '-y', 'flathub', app_id]).returncode
+    if not rc: ensure_gaming_shortcut(key)
+    return rc
 
 
 def choose(names, none=False):
@@ -132,24 +173,28 @@ def dispatch(args):
         apps = catalog()
         selected = selection()
         if args.apps_command == 'list':
-            rows = [{**app, 'key': key, 'selected': key in selected, 'installed': has(app['id'])}
+            rows = [{**app, 'key': key, 'selected': key in selected, 'installed': has(app['id']), 'gamingMode': gaming_status(key)}
                     for key, app in apps.items()]
             if args.json:
                 print(json.dumps(rows, indent=2))
             else:
                 for row in rows:
                     print(f"{row['key']:<10} {'selected' if row['selected'] else 'skipped':<9} "
-                          f"{'installed' if row['installed'] else 'absent':<10} {row['name']}")
+                          f"{'installed' if row['installed'] else 'absent':<10} {row['name']}"+
+                          (f" — Gaming Mode {row['gamingMode']}" if row['gamingMode'] else ''))
             return 0
         names = known(args.names) if args.names else selected
         if args.names:
             save(selected + names)
         failed = False
         for key in names:
-            if module_action('install', apps[key]['id']):
+            try:
+                if module_action('install', apps[key]['id']): failed = True
+            except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as exc:
+                print(f"{apps[key]['name']}: {exc}", file=sys.stderr)
                 failed = True
         return 1 if failed else 0
-    except (ValueError, OSError, EOFError, KeyboardInterrupt) as exc:
+    except (ValueError, OSError, RuntimeError, subprocess.SubprocessError, EOFError, KeyboardInterrupt) as exc:
         print(f'Apps: {exc or "selection cancelled; choices were not saved"}', file=sys.stderr)
         return 1
 
@@ -159,6 +204,6 @@ if __name__ == '__main__':
         if len(sys.argv) != 3 or sys.argv[1] not in ('install', 'verify'):
             raise ValueError('Expected install/verify and a registered Flatpak ID')
         raise SystemExit(module_action(sys.argv[1], sys.argv[2]))
-    except (ValueError, OSError) as exc:
+    except (ValueError, OSError, RuntimeError, subprocess.SubprocessError) as exc:
         print(f'Apps: {exc}', file=sys.stderr)
         raise SystemExit(1)

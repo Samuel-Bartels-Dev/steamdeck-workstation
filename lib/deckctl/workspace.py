@@ -19,11 +19,17 @@ def setup(only=None):
     for sid,(name,url) in SERVICES.items():
         if sid not in chosen: continue
         runner=BINDIR/sid; desktop=APPS/f'deck-workspace-{sid}.desktop'
+        if sid == 'chatgpt' and runner.is_file() and desktop.is_file():
+            print('[ready] ChatGPT: existing launcher reused')
+            continue
         runner.write_text(f'#!/usr/bin/env bash\nexec flatpak run com.google.Chrome --no-first-run --disable-session-crashed-bubble --app="{url}"\n'); runner.chmod(0o755)
         desktop.write_text(f'[Desktop Entry]\nType=Application\nName={name}\nComment={name} workspace app\nExec={exec_line([str(runner)])}\nIcon=web-browser\nTerminal=false\nCategories=Office;Network;\nStartupNotify=true\n'); desktop.chmod(0o755)
         print(f'[ready] {name}: {desktop}')
     from . import desktop as desktop_icons
     desktop_icons.apply()
+    if 'chatgpt' in chosen:
+        from . import app_shortcuts
+        print('ChatGPT Gaming Mode: '+app_shortcuts.ensure('workspace:chatgpt', 'ChatGPT', APPS/'deck-workspace-chatgpt.desktop'))
     print('\nNotion automation: use Notion MCP from an authorized ChatGPT/Codex/Claude client. deckctl never stores the token.')
     return 0
 def status(json_mode=False):
@@ -34,6 +40,9 @@ def status(json_mode=False):
         for sid,(name,_) in SERVICES.items():
             if sid not in data: continue
             print(f"{name:10} {'READY' if data[sid] else 'MISSING'}")
+        if 'chatgpt' in data:
+            from . import app_shortcuts
+            print('ChatGPT Gaming Mode: '+app_shortcuts.status('workspace:chatgpt', 'ChatGPT', APPS/'deck-workspace-chatgpt.desktop'))
     return 0 if all(data.values()) else 2
 def notion_mcp():
     print('Notion MCP\n----------')
@@ -43,6 +52,10 @@ def notion_mcp():
 
 def verify():
     ready = all((APPS / f'deck-workspace-{sid}.desktop').is_file() for sid in component_options.effective('workspace'))
-    print(json.dumps({'status': 'READY' if ready else 'CONFIG_REQUIRED',
-                      'message': 'Workspace shortcuts ready' if ready else 'Run deckctl workspace setup'}))
+    data = {'status': 'READY' if ready else 'CONFIG_REQUIRED',
+            'message': 'Workspace launchers ready' if ready else 'Run deckctl workspace setup'}
+    if 'chatgpt' in component_options.effective('workspace'):
+        from . import app_shortcuts
+        data['gamingMode'] = app_shortcuts.status('workspace:chatgpt', 'ChatGPT', APPS/'deck-workspace-chatgpt.desktop')
+    print(json.dumps(data))
     return 0
