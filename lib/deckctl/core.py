@@ -460,24 +460,33 @@ def _media_desktop_provisioned():
     services=component_options.effective("media") - {"keeper"}
     return all((appdir/f"deck-media-{sid}.desktop").exists() and (bindir/sid).exists() for sid in services)
 
+def _media_steam_ready(sid, name):
+    if sid == "tinyfingers":
+        from . import app_shortcuts
+        return app_shortcuts.status("media:tinyfingers", name, Path.home()/".local/share/applications/deck-media-tinyfingers.desktop") == "READY"
+    return _steam_shortcut_has(name)
+
 def _media_configured():
     appdir=Path.home()/".local/share/applications"
-    services={"netflix":"Netflix","hulu":"Hulu","crunchyroll":"Crunchyroll","prime-video":"Prime Video"}
+    services={sid: data["name"] for sid, data in json.loads((ROOT/"modules/media/services.json").read_text()).items()}
     from . import component_options
     selected=component_options.effective("media")
-    return _media_desktop_provisioned() and all(_steam_shortcut_has(name) for sid,name in services.items() if sid in selected)
+    return _media_desktop_provisioned() and all(_media_steam_ready(sid, name) for sid,name in services.items() if sid in selected)
 
 def media_status():
     appdir=Path.home()/".local/share/applications"
-    services={"netflix":"Netflix","hulu":"Hulu","crunchyroll":"Crunchyroll","prime-video":"Prime Video"}
+    services={sid: data["name"] for sid, data in json.loads((ROOT/"modules/media/services.json").read_text()).items()}
     chrome=_flatpak_installed("com.google.Chrome")
     print("MEDIA APPS")
     print(f"Chrome runtime: {'READY' if chrome else 'MISSING'}")
     submitted=Path.home()/".local/share/deckctl/media/submitted"
     for sid,name in services.items():
         launcher=(appdir/f"deck-media-{sid}.desktop").exists()
-        steam=_steam_shortcut_has(name)
+        steam=_media_steam_ready(sid, name)
         receipt=(submitted/sid).exists()
+        if sid == "tinyfingers" and launcher:
+            from . import app_shortcuts
+            receipt=app_shortcuts.status("media:tinyfingers", name, appdir/f"deck-media-{sid}.desktop") == app_shortcuts.PENDING
         if launcher and steam: state="READY"
         elif launcher and receipt: state="PENDING STEAM REFRESH"
         elif launcher: state="LAUNCHER ONLY"
@@ -669,7 +678,7 @@ def setup_steps():
             "id":"media",
             "module":"media",
             "title":"Optional media apps",
-            "description":"Create Netflix, Hulu, Crunchyroll, and Prime Video as real non-Steam shortcuts. The helper installs Chrome if needed and submits all four shortcuts to Steam; sign into each service from Game Mode afterward.",
+            "description":"Create selected streaming websites and TinyFingers as non-Steam Game Mode shortcuts. The helper installs Chrome if needed; sign into streaming services from Game Mode afterward.",
             "launch":lambda: media_setup()==0,
             "detect":lambda: _media_desktop_provisioned(),
             "noninteractive":True,

@@ -212,6 +212,8 @@ def execute(row):
         helper = Path.home()/'.local/share/deckctl/media'; helper.mkdir(parents=True, exist_ok=True)
         for source in ('services.json', 'setup-media.sh'): shutil.copy2(core.ROOT/'modules/media'/source, helper/source)
         _run(['bash', str(helper/'setup-media.sh'), '--all'], env=dict(os.environ, DECKCTL_CONFIG=str(core.CONFIG_HOME), DECKCTL_MEDIA_ITEM=name))
+        if name == 'tinyfingers' and not verify(row):
+            raise NeedsSetup('TinyFingers launcher ready; Gaming Mode shortcut is waiting for Steam confirmation. Refresh Steam when convenient, then Retry or Resume. No duplicate will be submitted.')
         return
     if key == 'remote:tailscale':
         _run([str(core.ROOT/'modules/remote/install-tailscale-steamos.sh')], env=privilege.environment())
@@ -255,6 +257,9 @@ def verify(row):
     if row['key'] == 'workspace:chatgpt':
         from . import workspace, app_shortcuts
         return setup_plan.present(row)[0] and app_shortcuts.status(row['key'], 'ChatGPT', workspace.APPS/'deck-workspace-chatgpt.desktop') == 'READY'
+    if row['key'] == 'media:tinyfingers':
+        from . import app_shortcuts
+        return setup_plan.present(row)[0] and app_shortcuts.status(row['key'], 'TinyFingers', Path.home()/'.local/share/applications/deck-media-tinyfingers.desktop') == 'READY'
     if row['key'] == 'remote:tailscale':
         from . import tailscale
         return tailscale.status()['connected']

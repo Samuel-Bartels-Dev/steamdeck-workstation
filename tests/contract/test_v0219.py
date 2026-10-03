@@ -493,6 +493,7 @@ class DesktopBehavior(Isolated):
             self.assertIn('does not switch sessions or reboot', r.stdout)
             self.assertIn('switch to Game Mode manually', r.stdout)
         self.assertEqual(len((self.home / 'submissions').read_text().splitlines()), 4)
+        self.assertFalse((helper / 'bin/tinyfingers').exists())
         for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video'):
             self.assertIn('--kiosk', (helper / 'bin' / sid).read_text())
             self.assertTrue((helper / 'submitted' / sid).is_file())

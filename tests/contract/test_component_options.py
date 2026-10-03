@@ -149,6 +149,62 @@ class Components(unittest.TestCase):
         self.assertEqual(result.returncode,0,result.stderr)
         self.assertFalse((self.home/'unwanted-browser').exists())
 
+    def test_tinyfingers_is_optional_and_saved_media_choices_survive(self):
+        self.assertNotIn('tinyfingers', options.selection()['media'])
+        self.save(media=['netflix'])
+        self.assertEqual(options.selection()['media'], ['netflix'])
+        self.assertIn('tinyfingers', options.defaults()['media'])
+        services=json.loads((core.ROOT/'modules/media/services.json').read_text())
+        self.assertEqual(services['tinyfingers']['url'], 'https://tinyfingers.net/')
+        self.assertFalse(services['tinyfingers']['default'])
+        from deckctl import setup_plan
+        _, rows = setup_plan.items({'modules':['media'], 'apps':[], 'components':{'media':['tinyfingers']}})
+        self.assertEqual(next(row for row in rows if row['key']=='media:tinyfingers')['followup'], '')
+
+    def test_tinyfingers_targeted_helper_preserves_other_sites_and_existing_runner(self):
+        self.save(media=['tinyfingers', 'netflix'])
+        helper=self.home/'.local/share/deckctl/media'; helper.mkdir(parents=True)
+        (helper/'services.json').write_bytes((core.ROOT/'modules/media/services.json').read_bytes())
+        control=self.home/'control/lib/deckctl'; control.mkdir(parents=True)
+        (control/'__init__.py').touch()
+        (control/'desktop.py').write_text('def apply(): return 0\n')
+        (control/'app_shortcuts.py').write_text('import os\ndef ensure(*args):\n if os.environ.get("FAIL_HANDOFF"): raise ValueError("handoff failed")\n return "PENDING_STEAM_REFRESH"\n')
+        bindir=self.home/'bin'; bindir.mkdir()
+        flatpak=bindir/'flatpak'; flatpak.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$HOME/flatpak-calls"\n'); flatpak.chmod(0o755)
+        env=dict(os.environ, HOME=str(self.home), DECKCTL_CONFIG=str(core.CONFIG_HOME),
+                 DECKCTL_ROOT=str(control.parents[1]), DECKCTL_MEDIA_ITEM='tinyfingers', PATH=str(bindir)+':'+os.environ['PATH'])
+        command=['bash', str(core.ROOT/'modules/media/setup-media.sh'), '--all']
+        result=subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('PENDING_STEAM_REFRESH', result.stdout)
+        runner=helper/'bin/tinyfingers'
+        self.assertIn('--kiosk', runner.read_text())
+        self.assertIn('https://tinyfingers.net/', runner.read_text())
+        self.assertFalse((helper/'bin/netflix').exists())
+        self.assertNotIn('install', (self.home/'flatpak-calls').read_text())
+        runner.write_text(runner.read_text()+'# personal flags preserved\n')
+        result=subprocess.run(command, env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn('# personal flags preserved', runner.read_text())
+        result=subprocess.run(command, env=dict(env, FAIL_HANDOFF='1'), capture_output=True, text=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('handoff failed', result.stderr)
+        self.assertFalse((helper/'submitted/tinyfingers').exists())
+
+    def test_tinyfingers_queue_verification_requires_saved_steam_target(self):
+        from deckctl import setup_install, setup_plan, app_shortcuts
+        row={'key':'media:tinyfingers', 'kind':'component', 'owner':'media', 'component':'tinyfingers'}
+        path=self.home/'.local/share/applications/deck-media-tinyfingers.desktop'
+        path.parent.mkdir(parents=True); path.write_text('[Desktop Entry]\n')
+        with patch.object(Path, 'home', return_value=self.home), patch.object(app_shortcuts, 'status', return_value=app_shortcuts.PENDING) as status:
+            self.assertTrue(setup_plan.present(row)[0])
+            self.assertTrue(setup_plan.present(row)[1]['configuration'])
+            self.assertFalse(setup_install.verify(row))
+            with patch.object(setup_install, '_run'):
+                with self.assertRaises(setup_install.NeedsSetup): setup_install.execute(row)
+            status.return_value=app_shortcuts.READY
+            self.assertTrue(setup_install.verify(row))
+
     def test_remote_shell_only_installs_selected_client(self):
         self.save(remote=['moonlight'])
         bindir=self.home/'bin'; bindir.mkdir()

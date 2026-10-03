@@ -1,4 +1,4 @@
-# Steam Deck Workstation — v0.2.44-rc3 (candidate)
+# Steam Deck Workstation — v0.2.44-rc4 (candidate)
 
 Desktop apps include Zen Browser, Zed editor, VLC, Plex Desktop and Spotify, installed through Flathub. Existing installations are reused; account setup remains inside each app. See the [Docker guide](docs/DOCKER.md) for the included container tooling.
 
@@ -74,15 +74,15 @@ applying it. `main` changes have CI checks but may not have completed physical D
 testing; use a published release when you need a tested, fixed version.
 
 For a published, checksum-verified release instead, download the same script and
-run `bash /tmp/steamdeck-workstation-install.sh --version 0.2.44-rc3`. Use the desired
-published version in place of `0.2.44-rc3`.
+run `bash /tmp/steamdeck-workstation-install.sh --version 0.2.44-rc4`. Use the desired
+published version in place of `0.2.44-rc4`.
 
 To install the local control plane from USB, copy the release tarball into `~/Downloads`:
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.44-rc3.tar.gz
-cd steamdeck-workstation-0.2.44-rc3
+tar -xzf steamdeck-workstation-v0.2.44-rc4.tar.gz
+cd steamdeck-workstation-0.2.44-rc4
 chmod +x install.sh
 ./install.sh
 ```
@@ -112,7 +112,7 @@ and installs the permanent command at:
 ~/.local/bin/deckctl
 ```
 
-For the fixed candidate runtime, use the published `0.2.44-rc3` release rather
+For the fixed candidate runtime, use the published `0.2.44-rc4` release rather
 than a previous checkout. Saved selections and completed installations remain.
 Running an older checkout's `install.sh` promotes that checkout again; an open
 setup window keeps its loaded runtime until it closes. Check the active runtime:
@@ -158,8 +158,8 @@ You do **not** need to wipe or start over. Extract the new release into a new fo
 
 ```bash
 cd ~/Downloads
-tar -xzf steamdeck-workstation-v0.2.44-rc3.tar.gz
-cd steamdeck-workstation-0.2.44-rc3
+tar -xzf steamdeck-workstation-v0.2.44-rc4.tar.gz
+cd steamdeck-workstation-0.2.44-rc4
 chmod +x install.sh
 ./install.sh
 ```
@@ -415,6 +415,7 @@ Netflix
 Hulu
 Crunchyroll
 Prime Video
+TinyFingers (optional keyboard/touch web game)
 ```
 
 The tiles launch Chrome in **true `--kiosk` mode** using the normal persistent Chrome profile, so each service stays clean/fullscreen while normal profile extensions remain available.
@@ -931,7 +932,7 @@ Run the normal installer from the new release; a wipe is not required. The
 versioned control plane is promoted while the previous release is retained.
 Modules reconcile their managed setup and completed guided steps are skipped.
 The v0.2.22 preflight fix allows this flow when Decky is already installed.
-See [candidate release notes](docs/RELEASE-0.2.44-rc3.md). The default bootstrap installs current main; explicit `--version` selects a fixed published release.
+See [candidate release notes](docs/RELEASE-0.2.44-rc4.md). The default bootstrap installs current main; explicit `--version` selects a fixed published release.
 
 ## Online releases and recovery
 

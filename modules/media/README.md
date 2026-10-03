@@ -15,7 +15,13 @@ sign-in, server selection and subscription features stay inside the apps; an
 installed package does not prove login or playback. These native desktop apps
 do not replace the optional Chrome-backed Game Mode shortcuts below.
 
-Optional Steam Game Mode web-app shortcuts for Netflix, Hulu, Crunchyroll, and Prime Video.
+Optional Steam Game Mode website shortcuts for Netflix, Hulu, Crunchyroll, Prime Video, and [TinyFingers](https://tinyfingers.net/).
+
+TinyFingers is a selectable keyboard/mouse/touch web game using the same Chrome
+fullscreen runner. Older saved selections stay intact; select TinyFingers in setup
+to add it. Its handoff requires an already-running Steam account and remains
+pending until Steam saves the exact shortcut. Retry/Resume does not resubmit a
+pending handoff in the same Steam session. Setup never restarts Steam.
 
 ## Design
 

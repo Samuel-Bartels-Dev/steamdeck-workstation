@@ -12,8 +12,8 @@ appdir="$HOME/.local/share/applications"
 chrome=false
 flatpak_has com.google.Chrome && chrome=true
 
-names=("Netflix" "Hulu" "Crunchyroll" "Prime Video")
-ids=("netflix" "hulu" "crunchyroll" "prime-video")
+names=("Netflix" "Hulu" "Crunchyroll" "Prime Video" "TinyFingers")
+ids=("netflix" "hulu" "crunchyroll" "prime-video" "tinyfingers")
 created=0
 steam_seen=0
 wanted=0
@@ -23,9 +23,15 @@ for i in "${!ids[@]}"; do
   [[ -f "$appdir/deck-media-${ids[$i]}.desktop" ]] && created=$((created+1))
 done
 
+if component_selected media tinyfingers; then
+  state="$(PYTHONPATH="$DECKCTL_ROOT/lib" python3 -c 'from pathlib import Path; from deckctl.app_shortcuts import status; print(status("media:tinyfingers", "TinyFingers", Path.home()/".local/share/applications/deck-media-tinyfingers.desktop"))')"
+  [[ "$state" != "READY" ]] || steam_seen=$((steam_seen+1))
+fi
+
 # Non-Steam shortcuts live in a binary VDF, but shortcut names are stored as plain strings.
 while IFS= read -r -d '' vdf; do
   for i in "${!ids[@]}"; do
+    [[ "${ids[$i]}" != "tinyfingers" ]] || continue
     component_selected media "${ids[$i]}" || continue
     if grep -aFq "${names[$i]}" "$vdf" 2>/dev/null; then steam_seen=$((steam_seen+1)); fi
   done

@@ -12,6 +12,7 @@ ICONS = {'setup', 'media', 'netflix', 'hulu', 'crunchyroll', 'prime-video', 'not
 ENTRIES = {
     'Continue Steam Deck Setup.desktop': 'setup',
     'Media-Apps.desktop': 'media',
+    'deck-media-tinyfingers.desktop': 'media',
     **{f'deck-media-{sid}.desktop': sid for sid in ('netflix', 'hulu', 'crunchyroll', 'prime-video')},
     **{f'deck-workspace-{sid}.desktop': sid for sid in ('notion', 'chatgpt', 'claude')},
     'Moonlight Game Streaming.desktop': 'moonlight',

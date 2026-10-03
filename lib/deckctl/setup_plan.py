@@ -93,7 +93,7 @@ def items(payload=None):
             if group == 'ai-workspace' and name.startswith('model'): deps.append('ai-workspace:ollama')
             if group in ('workspace', 'media'): deps.append('dependency:chrome')
             followup = ('pairing' if key in ('remote:moonlight', 'remote:chiaki') else
-                        'signin' if group in ('workspace', 'media') or key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'media:keeper') else '')
+                        'signin' if (group in ('workspace', 'media') and key != 'media:tinyfingers') or key in ('dev:codex', 'dev:claude-code', 'remote:tailscale', 'media:keeper') else '')
             add(key, option['name'], 'component', group, option['summary'], deps,
                 component=name, followup=followup)
     for option in gaming_options.ITEMS:
@@ -211,7 +211,13 @@ def present(row):
         return path.is_file(), details
     if key == 'media:keeper': return core._keeper_installed(), {}
     if row['owner'] == 'media' and row['kind'] == 'component':
-        return (Path.home()/'.local/share/applications'/('deck-media-'+row['component']+'.desktop')).is_file(), {}
+        path = Path.home()/'.local/share/applications'/('deck-media-'+row['component']+'.desktop')
+        details = {}
+        if key == 'media:tinyfingers':
+            from . import app_shortcuts
+            state = app_shortcuts.status(key, 'TinyFingers', path)
+            details.update(shortcutState=state, configured=state == 'READY', configuration=path.is_file() and state != 'READY')
+        return path.is_file(), details
     if key == 'module:decky': return core._decky_loader_present(), {}
     if key == 'launcher:battlenet':
         from . import launchers

@@ -119,7 +119,7 @@
   },
   {
     "stage": 1,
-    "title": "Streaming in Game Mode",
+    "title": "Websites in Game Mode",
     "description": "Each selected shortcut uses the shared Chrome browser.",
     "items": [
       {
@@ -140,6 +140,11 @@
       {
         "kind": "component",
         "id": "prime-video",
+        "group": "media"
+      },
+      {
+        "kind": "component",
+        "id": "tinyfingers",
         "group": "media"
       }
     ]
