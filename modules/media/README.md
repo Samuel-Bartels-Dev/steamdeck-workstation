@@ -65,3 +65,11 @@ Only selected apps are installed and required by verification; existing apps are
 kept when deselected. `deckctl apps uninstall NAME` previews a user-app removal;
 add `--yes` to remove it while preserving settings and disabling reinstalls.
 See [app management](../../docs/APPS.md). Other module features are independent.
+
+## Selected apps in Gaming Mode
+
+Spotify installation also submits a non-Steam shortcut using SteamOS's existing
+helper. Exact existing app targets are reused; pending submissions wait for Steam
+refresh without duplicate additions. Retry/Resume verifies the saved shortcut.
+Setup preserves Steam, account data, custom shortcuts and artwork, and never
+switches sessions. See [Gaming Mode app shortcuts](../../docs/APPS.md#gaming-mode-shortcuts).

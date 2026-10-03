@@ -30,7 +30,7 @@ class AndroidProvisioning(unittest.TestCase):
                             'LAUNCHER':self.home/'Android_Waydroid/Android_Waydroid_Cage.sh',
                             'SHORTCUT_HELPER':self.home/'missing-shortcut-helper'}.items():
             self.stack.enter_context(patch.object(android, name, value))
-        self.stack.enter_context(patch.dict(os.environ, {'HOME':str(self.home), 'DISPLAY':':fixture', 'WAYLAND_DISPLAY':'', 'DECKCTL_STATE':str(self.home/'state'), 'DECKCTL_CONFIG':str(self.home/'config')}))
+        self.stack.enter_context(patch.dict(os.environ, {'HOME':str(self.home), 'DISPLAY':':fixture', 'WAYLAND_DISPLAY':'', 'XDG_RUNTIME_DIR':str(self.home/'runtime'), 'DECKCTL_STATE':str(self.home/'state'), 'DECKCTL_CONFIG':str(self.home/'config')}))
         self.stack.enter_context(contextlib.redirect_stdout(io.StringIO()))
         android.IMAGE.parent.mkdir(); android.IMAGE.write_bytes(b'preserved image')
         self.launcher('mkdir -p "$HOME/.local/share/waydroid"\nprintf opened > "$HOME/launched"')

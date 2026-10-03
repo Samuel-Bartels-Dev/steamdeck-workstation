@@ -30,6 +30,8 @@ class Choices(unittest.TestCase):
         self.system = set()
         self.calls = []
         self.failed_app = None
+        p = patch.object(apps, 'ensure_gaming_shortcut', return_value='READY')
+        p.start(); self.addCleanup(p.stop)
         p = patch.object(apps.subprocess, 'run', side_effect=self.flatpak)
         p.start(); self.addCleanup(p.stop)
 

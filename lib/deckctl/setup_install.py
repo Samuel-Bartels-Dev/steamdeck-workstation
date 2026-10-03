@@ -154,7 +154,17 @@ def execute(row):
             return setup_plan.present(row)[1].get('message') or 'Existing installation verified.'
         raise NeedsSetup('This provider needs interactive setup. Choose Continue in terminal for this item; other installations can continue here.')
     if 'flatpak' in row:
-        return _flatpak(row['flatpak'])
+        from . import apps
+        app_key = key.removeprefix('app:') if key.startswith('app:') else None
+        if (app_key in apps.GAMING_KEYS and apps.gaming_status(app_key) != 'READY'
+                and setup_plan.command(['flatpak', 'info', '--show-commit', row['flatpak']])):
+            result = 'Existing installation reused; Gaming Mode shortcut reconciled.'
+        else:
+            result = _flatpak(row['flatpak'])
+        state = apps.ensure_gaming_shortcut(app_key)
+        if state == 'PENDING_STEAM_REFRESH':
+            raise NeedsSetup('App installed; Gaming Mode shortcut is waiting for Steam confirmation. Steam has not saved it yet. Refresh Steam when convenient, then Retry or Resume; setup will not submit a duplicate or switch sessions.')
+        return result + (' Gaming Mode shortcut verified.' if state == 'READY' else '')
     if row['kind'] == 'support': return
     if key == 'module:android':
         from . import android
@@ -190,6 +200,10 @@ def execute(row):
         return
     if key.startswith('workspace:'):
         if workspace.setup(only=name): raise RuntimeError('Web shortcut creation failed')
+        if name == 'chatgpt':
+            from . import app_shortcuts
+            if app_shortcuts.status(key, 'ChatGPT', workspace.APPS/'deck-workspace-chatgpt.desktop') != 'READY':
+                raise NeedsSetup('ChatGPT launcher ready; Gaming Mode shortcut is waiting for Steam confirmation. Refresh Steam when convenient, then Retry or Resume. No duplicate will be submitted.')
         return
     if key.startswith('media:'):
         if name == 'keeper':
@@ -234,6 +248,13 @@ def interactive_provider(row):
 
 
 def verify(row):
+    from . import apps
+    app_key = row['key'].removeprefix('app:') if row['key'].startswith('app:') else None
+    if app_key in apps.GAMING_KEYS:
+        return setup_plan.present(row)[0] and apps.gaming_status(app_key) == 'READY'
+    if row['key'] == 'workspace:chatgpt':
+        from . import workspace, app_shortcuts
+        return setup_plan.present(row)[0] and app_shortcuts.status(row['key'], 'ChatGPT', workspace.APPS/'deck-workspace-chatgpt.desktop') == 'READY'
     if row['key'] == 'remote:tailscale':
         from . import tailscale
         return tailscale.status()['connected']

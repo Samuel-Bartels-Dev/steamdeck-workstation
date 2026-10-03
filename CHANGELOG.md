@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.44-rc3
+
+- Automatically add selected Discord, Parsec, Spotify, Slack and ChatGPT installs as non-Steam Gaming Mode apps.
+- Reuse exact existing Steam targets, preserve ChatGPT launcher/profile settings, and make shortcut-only Retry/Resume avoid app reinstallation or updates.
+- Distinguish saved shortcuts from pending Steam confirmation, scope submissions to the active account and Steam lifetime, and keep status read-only.
+
 ## v0.2.44-rc2
 
 - Reuse app-owned temporary administrator authorization across Install, Retry, Resume and supported provider subprocesses; close/crash cleanup ends authorization.

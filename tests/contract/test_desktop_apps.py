@@ -31,6 +31,7 @@ class DesktopApps(unittest.TestCase):
         (self.root / 'config').mkdir()
         shutil.copy2(ROOT / 'config/desktop-apps.json', self.root / 'config/desktop-apps.json')
         (self.root / 'lib/deckctl/desktop.py').write_text('def apply(): return 0\n')
+        (self.root / 'lib/deckctl/app_shortcuts.py').write_text('def ensure(*args): return "PENDING_STEAM_REFRESH"\ndef status(*args): return "MISSING"\n')
         for module in APPS:
             shutil.copytree(ROOT / 'modules' / module, self.root / 'modules' / module)
         (self.root / 'modules/dev/install-codex.sh').write_text('#!/bin/bash\nexit 0\n')

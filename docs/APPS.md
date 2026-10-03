@@ -88,3 +88,20 @@ that app. Flatpak checks repository metadata and transfers updates only when
 needed; a missing app uses the normal install command. System-wide installs are
 reused, with their updates managed separately in Discover. Verification remains
 a read-only local presence check.
+
+## Gaming Mode shortcuts
+
+Installing Discord, Parsec, Spotify or Slack also creates a non-Steam shortcut
+through SteamOS's add-to-Steam helper. ChatGPT gets the same integration when
+you select it under Workspace and install; it uses the existing persistent Chrome
+app-window launcher and retains its browser profile and login state. Existing
+Steam entries targeting the exact same app are reused, including custom names.
+No shortcuts, arguments or artwork are overwritten.
+
+Steam may delay saving shortcuts while it stays open. Setup reports this as
+waiting for Steam refresh rather than verified installation. Refresh Steam when
+convenient, then choose Retry or Resume; pending submissions are not duplicated.
+Setup never stops Steam or switches Desktop/Gaming Mode. Verification remains
+read-only. To reconcile existing installed Flatpaks, run
+`deckctl apps install discord parsec spotify slack`; for selected ChatGPT use
+`deckctl workspace setup`. Unchecked apps remain unchanged.

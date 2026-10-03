@@ -44,3 +44,11 @@ this probe. The upstream helper also skips downloads/login when already connecte
 SteamOS resolver configuration is not automatically rewritten. See the
 [upstream Linux DNS guidance](https://tailscale.com/docs/reference/linux-dns)
 when Tailscale reports a MagicDNS warning.
+
+## Selected apps in Gaming Mode
+
+Parsec installation also submits a non-Steam shortcut using SteamOS's existing
+helper. Exact existing app targets are reused; pending submissions wait for Steam
+refresh without duplicate additions. Retry/Resume verifies the saved shortcut.
+Setup preserves Steam, account data, custom shortcuts and artwork, and never
+switches sessions. See [Gaming Mode app shortcuts](../../docs/APPS.md#gaming-mode-shortcuts).

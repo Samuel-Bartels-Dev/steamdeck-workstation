@@ -30,3 +30,11 @@ Telegram and WhatsApp are also independent choices:
 [Whatsie](https://flathub.org/en/apps/com.ktechpit.whatsie) is a third-party
 WhatsApp Web client, labeled **WhatsApp (Whatsie)** in the chooser. Link your
 phone in the app; deckctl does not collect login information.
+
+## Selected apps in Gaming Mode
+
+Discord and Slack installation also submits a non-Steam shortcut using SteamOS's existing
+helper. Exact existing app targets are reused; pending submissions wait for Steam
+refresh without duplicate additions. Retry/Resume verifies the saved shortcut.
+Setup preserves Steam, account data, custom shortcuts and artwork, and never
+switches sessions. See [Gaming Mode app shortcuts](../../docs/APPS.md#gaming-mode-shortcuts).

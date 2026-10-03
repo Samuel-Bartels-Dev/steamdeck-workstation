@@ -473,7 +473,7 @@ class DesktopBehavior(Isolated):
         self.assertEqual(len(hashes), len(desktop.ICONS))
 
     def test_workspace_provisioning_preserves_runners_and_adds_desktop_icons(self):
-        with patch.object(workspace, 'APPS', self.home / '.local/share/applications'), patch.object(workspace, 'BINDIR', self.home / '.local/share/deckctl/workspace/bin'), patch.object(workspace, '_chrome', return_value=True):
+        with patch.object(workspace, 'APPS', self.home / '.local/share/applications'), patch.object(workspace, 'BINDIR', self.home / '.local/share/deckctl/workspace/bin'), patch.object(workspace, '_chrome', return_value=True), patch('deckctl.app_shortcuts.ensure', return_value='PENDING_STEAM_REFRESH'):
             self.assertEqual(workspace.setup(), 0)
             for sid, (_, url) in workspace.SERVICES.items():
                 self.assertIn(url, (workspace.BINDIR / sid).read_text())
