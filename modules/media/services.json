@@ -18,5 +18,10 @@
     "name": "Prime Video",
     "url": "https://www.amazon.com/gp/video/storefront",
     "default": true
+  },
+  "tinyfingers": {
+    "name": "TinyFingers",
+    "url": "https://tinyfingers.net/",
+    "default": false
   }
 }

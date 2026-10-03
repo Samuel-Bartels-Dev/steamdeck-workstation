@@ -481,7 +481,9 @@ class DesktopBehavior(Isolated):
 
     def test_media_helper_preserves_kiosk_receipts_and_no_duplicate_submission(self):
         helper = self.home / '.local/share/deckctl/media'; helper.mkdir(parents=True)
-        (helper / 'services.json').write_bytes((ROOT / 'modules/media/services.json').read_bytes())
+        services = json.loads((ROOT / 'modules/media/services.json').read_text())
+        services.pop('tinyfingers')  # This fixture covers the four existing streaming services.
+        (helper / 'services.json').write_text(json.dumps(services))
         bindir = self.home / 'fake-bin'; bindir.mkdir()
         (bindir / 'flatpak').write_text('#!/bin/sh\nexit 0\n')
         (bindir / 'steamos-add-to-steam').write_text('#!/bin/sh\nprintf "%s\\n" "$1" >> "$HOME/submissions"\n')

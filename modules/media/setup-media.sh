@@ -18,7 +18,7 @@ if [[ "${1:-}" == "--all" ]]; then mode="all"; fi
 
 printf '\nSteam Deck Media Apps\n'
 printf '%s\n' '---------------------'
-printf '%s\n' 'Creates Netflix, Hulu, Crunchyroll, and Prime Video as single-site Chrome kiosk shortcuts in Steam Game Mode.'
+printf '%s\n' 'Creates selected streaming websites and TinyFingers as single-site Chrome kiosk shortcuts in Steam Game Mode.'
 printf '%s\n\n' 'Media sessions use Chrome --kiosk with the normal persistent Chrome profile. KeeperFill can still inject into the page when installed/unlocked; deckctl never stores credentials.'
 
 python3 - "$services" <<'PYMEDIA' > "$helper/service-lines.tsv"
@@ -101,6 +101,7 @@ while IFS=$'\t' read -r sid name url default; do
   runner="$bindir/$sid"
   desktop="$appdir/deck-media-$sid.desktop"
 
+  if [[ "$sid" != "tinyfingers" || ! -f "$runner" ]]; then
   cat > "$runner" <<RUNNEREOF
 #!/usr/bin/env bash
 exec flatpak run com.google.Chrome \
@@ -110,12 +111,14 @@ exec flatpak run com.google.Chrome \
   "$url"
 RUNNEREOF
   chmod +x "$runner"
+  fi
 
+  if [[ "$sid" != "tinyfingers" || ! -f "$desktop" ]]; then
   cat > "$desktop" <<DESKTOPEOF
 [Desktop Entry]
 Type=Application
 Name=$name
-Comment=$name streaming shortcut for Steam Game Mode
+Comment=$name website shortcut for Steam Game Mode
 Exec=$runner
 Icon=web-browser
 Terminal=false
@@ -123,8 +126,17 @@ Categories=AudioVideo;Video;
 StartupNotify=true
 DESKTOPEOF
   chmod +x "$desktop"
+  fi
   control_root="${DECKCTL_ROOT:-$HOME/.local/share/steamdeck-workstation/current}"
   PYTHONPATH="$control_root/lib" python3 -c 'from deckctl.desktop import apply; raise SystemExit(apply())'
+
+  if [[ "$sid" == "tinyfingers" ]]; then
+    # Account-scoped confirmation and bounded handoff; never start/restart Steam.
+    state="$(PYTHONPATH="$control_root/lib" python3 -c 'import sys; from deckctl.app_shortcuts import ensure; print(ensure("media:tinyfingers", "TinyFingers", sys.argv[1]))' "$desktop")"
+    echo "TinyFingers Gaming Mode: $state"
+    if [[ "$state" == "READY" ]]; then ready=$((ready+1)); else pending=$((pending+1)); fi
+    continue
+  fi
 
   if steam_has_name "$name"; then
     echo "[ready] $name is already present in Steam shortcuts"

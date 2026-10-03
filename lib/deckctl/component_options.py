@@ -23,6 +23,7 @@ CATALOG = {
                   ('claude', 'Claude', 'Chat web app; requires Chrome')],
     'media': [('netflix', 'Netflix', 'Game Mode web shortcut; requires Chrome'), ('hulu', 'Hulu', 'Game Mode web shortcut; requires Chrome'),
               ('crunchyroll', 'Crunchyroll', 'Game Mode web shortcut; requires Chrome'), ('prime-video', 'Prime Video', 'Game Mode web shortcut; requires Chrome'),
+              ('tinyfingers', 'TinyFingers', 'Keyboard and touch web game; Game Mode shortcut; requires Chrome'),
               ('keeper', 'KeeperFill', 'Browser extension; requires Chrome and sign-in')],
 }
 
@@ -49,6 +50,7 @@ def validate(value):
 def selection():
     saved = core.load_json(core.CONFIG_HOME/'components.json', {})
     legacy = defaults()
+    legacy['media'].remove('tinyfingers')
     legacy['ai-workspace'].remove('model-7b')
     legacy['dev'].remove('docker')
     legacy['dev'].remove('claude-code')

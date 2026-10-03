@@ -1047,12 +1047,14 @@
     "CLAUDE.md",
     "docs/ai/COMMON.md",
     "lib/deckctl/android.py",
-    "modules/android/README.md"
+    "modules/android/README.md",
+    "modules/media/services.json"
   ],
   "v0.2.29_desktop_app_review": "User-requested Zen, Zed, VLC, Plex and Spotify installation and read-only presence verification in the owning modules. Historical file hashes/modes are retained; only these nine explicit module paths are added to the cumulative reviewed-change list.",
   "v0.2.32_icon_review": "Add two distinct bundled SVG assets and reconcile only the Moonlight Game Streaming and Battle.net desktop launcher files. Icon= is repaired; existing Exec lines are preserved.",
   "v0.2.44_tailscale_review": "Connected Tailscale installations skip vendor download and login; existing failed-refresh preservation tests remain enforced. Historical file hashes are unchanged.",
   "remote_stream_review": "The network module now reports Tailscale route and latency observations for the registered Sunshine host.",
   "agent_collaboration_review": "User-requested shared model selection, bounded parallel work, ownership and communication policy. Historical hashes remain unchanged; the explicitly reviewed AI entry points and shared context may evolve.",
-  "app_android_review": "User-requested in-app Android execution adapts only validated upstream authentication/output contracts and preserves compatibility checks, images and user state. Historical hashes/modes remain unchanged; test_android_app.py and test_v0222.py exercise completion, existing-state reuse and protected repair."
+  "app_android_review": "User-requested in-app Android execution adapts only validated upstream authentication/output contracts and preserves compatibility checks, images and user state. Historical hashes/modes remain unchanged; test_android_app.py and test_v0222.py exercise completion, existing-state reuse and protected repair.",
+  "tinyfingers_review": "User-requested optional TinyFingers website registry entry; historical hashes/modes stay unchanged. Selected-only kiosk setup, saved choices, pending exact Steam confirmation, retries and handoff failures are covered by test_component_options.py."
 }

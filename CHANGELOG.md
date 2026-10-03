@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.2.44-rc4
+
+- Add optional TinyFingers fullscreen Chrome website and non-Steam Gaming Mode shortcut.
+- Preserve saved website selections and report exact Steam confirmation for TinyFingers Install/Retry/Resume.
+
 ## v0.2.44-rc3
 
 - Automatically add selected Discord, Parsec, Spotify, Slack and ChatGPT installs as non-Steam Gaming Mode apps.
